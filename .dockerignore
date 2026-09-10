@@ -1,0 +1,9 @@
+*
+!go.mod
+!go.sum
+!core/
+!core/**
+!server/
+!server/**
+!cmd/
+!cmd/**
