@@ -1,0 +1,14 @@
+{
+  "name": "vault-m0-vectors",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node verify.ts"
+  },
+  "dependencies": {
+    "libsodium-wrappers-sumo": "0.7.15"
+  },
+  "overrides": {
+    "libsodium-sumo": "0.7.15"
+  }
+}
