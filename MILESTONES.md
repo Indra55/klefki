@@ -5,6 +5,9 @@ criteria pass; link evidence and limitations here. Implementation/test completio
 
 - [x] **M0 — Spec and test vectors.** Spec reviewed; Go and TypeScript vectors
   pass; specification and vectors are committed. [Evidence](docs/m0-status.md).
+- [x] **M1 — Crypto core + CLI.** Local init/encrypt/decrypt and recovery;
+  round trips, all shared vectors, tamper tests and seven parser fuzz targets
+  passed. [Evidence and limitations](docs/m1-status.md).
 
 This checkpoint is part of reconstructed milestone history. Recorded implementation
 and verification dates in the evidence documents remain unchanged.

@@ -19,3 +19,43 @@ Local OCR and encrypted keyword search are available on desktop and CLI.
 - [Local search and OCR: setup and M7 evidence](docs/m7-status.md)
 - [Linux fingerprint unlock](docs/fingerprint-linux.md)
 - [Shared test vectors](testvectors/README.md)
+
+## Local CLI
+
+Requires Go 1.26+. Build from the repository root:
+
+```sh
+go build -o vault ./cli
+./vault help
+```
+
+Initialize an account and save its recovery code to a private location **outside
+this repository** (replace the recovery path with an existing private directory):
+
+```sh
+./vault init --recovery-out /private/location/vault-recovery.txt
+./vault encrypt -o document.vault /path/to/document.pdf
+./vault decrypt -o restored.pdf document.vault
+```
+
+Passwords are prompted with echo disabled. The default account file is
+`.vault/account.v1`; use `--vault PATH` for another account. For automation, supply
+`--password-file PATH` instead of a terminal password. Passwords and recovery
+codes are never accepted as argument values or printed to stdout.
+
+Recover a document without the password:
+
+```sh
+./vault decrypt --recovery-file /private/location/vault-recovery.txt -o recovered.pdf document.vault
+```
+
+Flags precede the input file. Encryption without `-o` creates an opaque
+`<file-id>.vault` filename beside the source. Decryption requires `-o` and never
+uses the encrypted filename as a filesystem path. Existing output files are
+never replaced. Source files remain intact. Recovery requires the account file,
+the encrypted file, and the recovery code; this is not server account reset.
+
+Outputs use private staging, complete authentication, and exclusive publication.
+The filesystem must support hard links (for example, local Linux filesystems or
+NTFS). Linux file modes are tested; Windows has only been cross-compiled.
+Plaintext outputs and recovery-code files are intentionally outside encryption.
