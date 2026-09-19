@@ -125,6 +125,12 @@ func Open(c Config) (*Server, error) {
 		r.Use(s.auth)
 		r.Get("/v1/devices", s.devices)
 		r.Delete("/v1/devices/{device}", s.revoke)
+		r.Put("/v1/blobs/{blob}/chunks/{index}", s.putChunk)
+		r.Get("/v1/blobs/{blob}/chunks/{index}", s.getChunk)
+		r.Get("/v1/blobs/{blob}/chunks", s.listChunks)
+		r.Put("/v1/metadata/{object}", s.putMetadata)
+		r.Get("/v1/metadata/{object}", s.getMetadata)
+		r.Get("/v1/metadata", s.listMetadata)
 	})
 	s.handler = r
 	return s, nil
