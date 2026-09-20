@@ -59,3 +59,14 @@ Outputs use private staging, complete authentication, and exclusive publication.
 The filesystem must support hard links (for example, local Linux filesystems or
 NTFS). Linux file modes are tested; Windows has only been cross-compiled.
 Plaintext outputs and recovery-code files are intentionally outside encryption.
+
+## Server
+
+For local development:
+
+```sh
+go run ./cmd/vault-server -dev-http
+```
+
+Normal operation requires TLS. See the [server guide](docs/server-api.md) for
+TLS, Docker and API usage.
