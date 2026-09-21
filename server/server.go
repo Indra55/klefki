@@ -26,6 +26,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	_ "modernc.org/sqlite"
 	vc "vault/core/crypto"
+	"vault/core/syncwire"
 )
 
 type Config struct {
@@ -110,7 +111,10 @@ func Open(c Config) (*Server, error) {
 		db.Close()
 		return nil, e
 	}
-
+	if e = migrateSync(db); e != nil {
+		db.Close()
+		return nil, e
+	}
 	blobs, e := NewDiskStore(filepath.Join(c.DataDir, "blobs"))
 	if e != nil {
 		db.Close()
@@ -131,6 +135,10 @@ func Open(c Config) (*Server, error) {
 		r.Put("/v1/metadata/{object}", s.putMetadata)
 		r.Get("/v1/metadata/{object}", s.getMetadata)
 		r.Get("/v1/metadata", s.listMetadata)
+		r.Put("/v1/sync/revisions/{revision}", s.putRevision)
+		r.Get("/v1/sync/changes", s.changes)
+		r.Get("/v1/sync/cursor", s.getCursor)
+		r.Put("/v1/sync/cursor", s.putCursor)
 	})
 	s.handler = r
 	return s, nil
@@ -551,7 +559,7 @@ func (s *Server) putMetadata(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400)
 		return
 	}
-	// Publish the encrypted metadata record transactionally.
+	// Publish the legacy record and its change-log entry in one transaction.
 	tx, e := s.db.BeginTx(r.Context(), nil)
 	if e != nil {
 		fail(w, 500)
@@ -565,7 +573,14 @@ func (s *Server) putMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 	n, _ := res.RowsAffected()
 	if n == 1 {
-
+		if _, _, e = appendChange(r.Context(), tx, account, syncwire.Revision{ID: id, Object: id, Metadata: in.Metadata, FileKey: in.FileKey}); e != nil {
+			if errors.Is(e, errRevisionConflict) {
+				fail(w, 409)
+			} else {
+				fail(w, 500)
+			}
+			return
+		}
 		if tx.Commit() != nil {
 			fail(w, 500)
 			return
