@@ -33,11 +33,18 @@ func run(args []string, out io.Writer) error {
 		if e != nil {
 			return e
 		}
+		_, e = fmt.Fprintln(out, syncHelp)
+		if e != nil {
+			return e
+		}
 
 		return e
 	}
 	cmd := args[0]
 
+	if cmd == "register" || cmd == "add" || cmd == "list" || cmd == "export" || cmd == "sync" {
+		return runSync(args, out)
+	}
 	if cmd != "init" && cmd != "encrypt" && cmd != "decrypt" {
 		return errUsage
 	}
