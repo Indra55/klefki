@@ -70,3 +70,35 @@ go run ./cmd/vault-server -dev-http
 
 Normal operation requires TLS. See the [server guide](docs/server-api.md) for
 TLS, Docker and API usage.
+
+## Offline sync
+
+After initializing an account, register it once and add files locally:
+
+```sh
+./vault register --server http://127.0.0.1:8080 --dev-http
+./vault add /path/to/document.pdf
+./vault sync --server http://127.0.0.1:8080 --dev-http
+./vault list
+```
+
+Use HTTPS for normal operation. `add` works offline and prints object/revision IDs.
+Edit with `add --object ID --base REVISION FILE`; export a selected copy with
+`export -o PATH REVISION`. Conflicting edits remain separate copies. See the
+[sync guide](docs/sync-protocol.md) for multiple devices, storage and retry details.
+
+## Verify
+
+```sh
+go test ./...
+go test -race ./...
+go vet ./...
+go -C testvectors/tools/go test ./...
+npm --prefix testvectors/tools/ts ci --ignore-scripts --no-audit --no-fund
+npm --prefix testvectors/tools/ts test
+```
+
+See [M1 status](docs/m1-status.md) for fuzz commands and exact evidence boundaries.
+M6 encrypted backup/restore, plaintext export, and integrity checking are available
+through the CLI. Follow the [backup and restore procedure](docs/backup-restore.md)
+and keep a verified backup on separate storage before heavy real use.

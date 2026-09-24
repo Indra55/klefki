@@ -10,6 +10,9 @@ criteria pass; link evidence and limitations here. Implementation/test completio
   passed. [Evidence and limitations](docs/m1-status.md).
 - [x] **M2 — Server.** Auth/devices, ciphertext APIs, limits, Docker and real-server
   TLS integration tests. [Evidence and limitations](docs/m2-status.md).
+- [x] **M3 — Sync and offline.** Encrypted local store, persistent queue, change log,
+  device cursors and conflict copies; offline/interruption/restart tests passed.
+  [Evidence and limitations](docs/m3-status.md).
 
 This checkpoint is part of reconstructed milestone history. Recorded implementation
 and verification dates in the evidence documents remain unchanged.
