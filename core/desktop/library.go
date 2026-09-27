@@ -132,12 +132,158 @@ func (s *Service) changed(x *session) {
 	}()
 }
 func timeAfterDebounce() <-chan time.Time { return time.After(1500 * time.Millisecond) }
+func (s *Service) Edit(revision string, edit vs.Edit) (id string, e error) {
+	if !validEdit(edit) {
+		return "", ErrInvalid
+	}
+	e = s.with(func(x *session) error {
+		r, e := x.store.Revision(x.master, revision)
+		if e != nil {
+			return e
+		}
+		h, e := x.store.Heads(x.master)
+		if e != nil {
+			return e
+		}
+		if system(r.Metadata) || !validParent(h, r.Object, edit.Parent) {
+			return ErrInvalid
+		}
+		for _, it := range items(h) {
+			if it.Revision == revision && it.Trashed {
+				return ErrInvalid
+			}
+		}
+		id, e = x.store.Edit(x.master, revision, edit)
+		if e == nil {
+			s.changed(x)
+		}
+		return e
+	})
+	return
+}
+func (s *Service) Folder(name string, parent *string) (id string, e error) {
+	if !validEdit(vs.Edit{Name: name, Tags: []string{}}) {
+		return "", ErrInvalid
+	}
+	e = s.with(func(x *session) error {
+		h, e := x.store.Heads(x.master)
+		if e != nil {
+			return e
+		}
+		obj, e := vc.RandomID()
+		if e != nil {
+			return e
+		}
+		if !validParent(h, obj.String(), parent) {
+			return ErrInvalid
+		}
+		id, e = x.store.PutContext(x.ctx, x.master, obj.String(), "", vc.Metadata{Type: "folder", Name: name, Parent: parent, Tags: []string{}}, nil)
+		if e == nil {
+			s.changed(x)
+		}
+		return e
+	})
+	return
+}
+func (s *Service) Trash(revision string) (id string, e error) {
+	e = s.with(func(x *session) error {
+		r, e := x.store.Revision(x.master, revision)
+		if e != nil {
+			return e
+		}
+		h, e := x.store.Heads(x.master)
+		if e != nil {
+			return e
+		}
+		root := ""
+		found := false
+		for _, it := range items(h) {
+			if it.TrashRoot && root == "" {
+				root = it.Object
+			}
+			if it.Revision == revision {
+				found = true
+				if it.Trashed {
+					return ErrInvalid
+				}
+			}
+		}
+		if !found {
+			return vs.ErrConflict
+		}
+		if root == "" {
+			obj, e := vc.RandomID()
+			if e != nil {
+				return e
+			}
+			root = obj.String()
+			if _, e = x.store.PutContext(x.ctx, x.master, root, "", vc.Metadata{Type: "folder", Name: "Trash", Tags: []string{TrashTag}}, nil); e != nil {
+				return e
+			}
+		}
+		m := r.Metadata
+		id, e = x.store.Edit(x.master, revision, vs.Edit{Name: m.Name, Parent: &root, Tags: m.Tags, Favorite: m.Favorite})
+		if e == nil {
+			s.changed(x)
+		}
+		return e
+	})
+	return
+}
 
 type Restored struct {
 	Revision string `json:"revision"`
 	AtRoot   bool   `json:"atRoot"`
 }
 
+func (s *Service) Restore(revision string) (out Restored, e error) {
+	e = s.with(func(x *session) error {
+		r, e := x.store.Revision(x.master, revision)
+		if e != nil {
+			return e
+		}
+		h, e := x.store.Heads(x.master)
+		if e != nil {
+			return e
+		}
+		list := items(h)
+		found := false
+		roots := map[string]bool{}
+		for _, it := range list {
+			if it.TrashRoot {
+				roots[it.Object] = true
+			}
+			if it.Revision == revision && it.Trashed && !it.TrashRoot {
+				found = true
+			}
+		}
+		if !found {
+			return ErrInvalid
+		}
+		m := r.Metadata
+		var parent *string
+		if m.Parent != nil && roots[*m.Parent] && r.Base != "" {
+			previous, e := x.store.Revision(x.master, r.Base)
+			if e != nil {
+				return e
+			}
+			parent = previous.Metadata.Parent
+		}
+		if !validParent(h, r.Object, parent) {
+			parent = nil
+			out.AtRoot = true
+		}
+		if m.Parent != nil && !roots[*m.Parent] {
+			out.AtRoot = true
+		}
+		out.Revision, e = x.store.Edit(x.master, revision, vs.Edit{Name: m.Name, Parent: parent, Tags: m.Tags, Favorite: m.Favorite})
+		if e == nil {
+			s.changed(x)
+		}
+		return e
+	})
+	return
+}
 func check(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return context.Canceled
