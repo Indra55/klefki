@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 	vc "vault/core/crypto"
@@ -25,21 +26,22 @@ type Preferences struct {
 	IdleMinutes int    `json:"idleMinutes"`
 }
 type Config struct {
-	AccountPath string `json:"accountPath"`
-	StorePath   string `json:"storePath"`
-	Server      string `json:"server"`
-
-	Preferences Preferences `json:"preferences"`
+	AccountPath         string      `json:"accountPath"`
+	StorePath           string      `json:"storePath"`
+	Server              string      `json:"server"`
+	FingerprintAccounts []string    `json:"fingerprintAccounts,omitempty"`
+	Preferences         Preferences `json:"preferences"`
 }
 type State struct {
-	Config       Config `json:"config"`
-	Unlocked     bool   `json:"unlocked"`
-	Generation   uint64 `json:"generation"`
-	AccountID    string `json:"accountID"`
-	RecoveryOnly bool   `json:"recoveryOnly"`
-	Sync         string `json:"sync"`
-	Pending      int    `json:"pending"`
-	LastSync     string `json:"lastSync"`
+	Config       Config           `json:"config"`
+	Unlocked     bool             `json:"unlocked"`
+	Generation   uint64           `json:"generation"`
+	AccountID    string           `json:"accountID"`
+	RecoveryOnly bool             `json:"recoveryOnly"`
+	Sync         string           `json:"sync"`
+	Pending      int              `json:"pending"`
+	LastSync     string           `json:"lastSync"`
+	Fingerprint  FingerprintState `json:"fingerprint"`
 }
 type Event struct {
 	Generation uint64  `json:"generation"`
@@ -77,6 +79,9 @@ type Service struct {
 	stopOnce            sync.Once
 	ops                 map[string]context.CancelFunc
 	syncRunning         bool
+	fingerprint         FingerprintProvider
+	fingerprintState    FingerprintState
+	fingerprintCancel   context.CancelFunc
 }
 
 func New(root string, emit func(Event)) (*Service, error) {
@@ -125,7 +130,12 @@ func (s *Service) State() State {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cfg := s.config
-	st := State{Config: cfg, Generation: s.generation, Sync: s.syncState, Pending: s.pending, LastSync: s.lastSync}
+	cfg.FingerprintAccounts = slices.Clone(cfg.FingerprintAccounts)
+	fp := s.fingerprintState
+	if a, e := local.LoadAccount(cfg.AccountPath); e == nil {
+		fp.Enabled = slices.Contains(cfg.FingerprintAccounts, accountBinding(a))
+	}
+	st := State{Config: cfg, Fingerprint: fp, Generation: s.generation, Sync: s.syncState, Pending: s.pending, LastSync: s.lastSync}
 	if x := s.session; x != nil {
 		st.Unlocked = true
 		st.AccountID = x.account.ID.String()
@@ -179,7 +189,9 @@ func (s *Service) Close() {
 func (s *Service) Lock() {
 	s.mu.Lock()
 	x := s.session
-
+	if s.fingerprintCancel != nil {
+		s.fingerprintCancel()
+	}
 	if x == nil {
 		s.generation++
 		s.mu.Unlock()
@@ -350,34 +362,4 @@ func Code(e error) string {
 		return e.Error()
 	}
 	return "OPERATION_FAILED"
-}
-
-func (s *Service) startSession(ctx context.Context, cfg Config, a vc.Account, master, credential vc.Key, recovery bool, generation uint64) error {
-	defer vc.Wipe(master[:])
-	defer vc.Wipe(credential[:])
-	st, e := vs.Open(cfg.StorePath, a.ID)
-	if e != nil {
-		return e
-	}
-	if _, e = st.Heads(master); e != nil {
-		st.Close()
-		return e
-	}
-	sessionCtx, cancel := context.WithCancel(context.Background())
-	n, _ := st.Pending()
-	s.mu.Lock()
-	if s.generation != generation || ctx.Err() != nil {
-		s.mu.Unlock()
-		cancel()
-		st.Close()
-		return ErrLocked
-	}
-	s.generation++
-	s.session = &session{account: a, master: master, credential: credential, recovery: recovery, store: st, ctx: sessionCtx, cancel: cancel, generation: s.generation}
-	s.lastActivity = time.Now()
-	s.pending = n
-	s.syncState = "Local only"
-	s.mu.Unlock()
-	go s.SyncNow()
-	return nil
 }

@@ -13,6 +13,10 @@ criteria pass; link evidence and limitations here. Implementation/test completio
 - [x] **M3 — Sync and offline.** Encrypted local store, persistent queue, change log,
   device cursors and conflict copies; offline/interruption/restart tests passed.
   [Evidence and limitations](docs/m3-status.md).
+- [x] **M4 — Desktop.** Wails app and Linux/Windows builds; native desktop
+  acceptance confirmed by the user on both OSes. Linux physical fingerprint
+  unlock, contact feedback, and restart also user-verified.
+  [Acceptance walkthrough](docs/m4-acceptance.md) · [Evidence and limitations](docs/m4-status.md).
 
 This checkpoint is part of reconstructed milestone history. Recorded implementation
 and verification dates in the evidence documents remain unchanged.

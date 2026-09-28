@@ -78,10 +78,14 @@ func (a *App) State() vd.State { return a.service.State() }
 func (a *App) Unlock(secret string, recovery bool) error {
 	return safe(a.service.Unlock(secret, recovery))
 }
-
-func (a *App) Lock()                                 { a.service.Lock(); a.clearPreview() }
-func (a *App) Touch()                                { a.service.Touch() }
-func (a *App) SetPreferences(p vd.Preferences) error { return safe(a.service.Preferences(p)) }
+func (a *App) FingerprintStatus() vd.FingerprintState { return a.service.RefreshFingerprint() }
+func (a *App) EnableFingerprint() error               { return safe(a.service.EnableFingerprint()) }
+func (a *App) DisableFingerprint() error              { return safe(a.service.DisableFingerprint()) }
+func (a *App) UnlockFingerprint() error               { return safe(a.service.UnlockFingerprint()) }
+func (a *App) CancelFingerprint()                     { a.service.CancelFingerprint() }
+func (a *App) Lock()                                  { a.service.Lock(); a.clearPreview() }
+func (a *App) Touch()                                 { a.service.Touch() }
+func (a *App) SetPreferences(p vd.Preferences) error  { return safe(a.service.Preferences(p)) }
 func (a *App) Create(password string) error {
 	path, e := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{Title: "Save your recovery code", DefaultFilename: "vault-recovery.txt"})
 	if e != nil {
@@ -224,6 +228,7 @@ func main() {
 	if e != nil {
 		os.Exit(1)
 	}
+	app.service.SetFingerprintProvider(newFingerprintProvider())
 	defer app.service.Close()
 	files, _ := fs.Sub(assets, "frontend/dist")
 	e = wails.Run(&options.App{Title: "Vault", Width: 1200, Height: 820, MinWidth: 800, MinHeight: 600, BackgroundColour: &options.RGBA{R: 17, G: 18, B: 20, A: 255}, AssetServer: &assetserver.Options{Assets: files, Handler: http.HandlerFunc(app.serveHTTP)}, OnStartup: app.startup, OnShutdown: func(context.Context) { app.Lock() }, Bind: []interface{}{app}, SingleInstanceLock: &options.SingleInstanceLock{UniqueId: "vault-desktop-v1"}, DragAndDrop: &options.DragAndDrop{EnableFileDrop: true, DisableWebViewDrop: true}, Windows: &windows.Options{OnSuspend: app.Lock}, ErrorFormatter: func(err error) any { return err.Error() }})
