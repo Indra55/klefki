@@ -17,6 +17,9 @@ criteria pass; link evidence and limitations here. Implementation/test completio
   acceptance confirmed by the user on both OSes. Linux physical fingerprint
   unlock, contact feedback, and restart also user-verified.
   [Acceptance walkthrough](docs/m4-acceptance.md) · [Evidence and limitations](docs/m4-status.md).
+- [x] **M5 — Web.** Compatible TypeScript crypto, PWA/IndexedDB, and six Chromium
+  acceptance cases passed, including desktop service cross-client transfer and
+  offline editing/reload. [Evidence and limitations](docs/m5-status.md).
 
 This checkpoint is part of reconstructed milestone history. Recorded implementation
 and verification dates in the evidence documents remain unchanged.

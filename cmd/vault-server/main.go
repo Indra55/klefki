@@ -21,6 +21,7 @@ func run() int {
 	data := flag.String("data", "./server-data", "private data directory")
 	cert := flag.String("tls-cert", "", "TLS certificate path")
 	key := flag.String("tls-key", "", "TLS key path")
+	web := flag.String("web", "", "built PWA directory (optional, same origin as API)")
 	dev := flag.Bool("dev-http", false, "allow HTTP on a loopback listener only")
 	flag.Parse()
 	log := slog.New(slog.NewJSONHandler(os.Stderr, nil))
@@ -42,7 +43,13 @@ func run() int {
 	}
 	defer s.Close()
 	var handler http.Handler = s
-
+	if *web != "" {
+		handler, e = server.WebHandler(s, *web)
+		if e != nil {
+			log.Error("web initialization failed")
+			return 1
+		}
+	}
 	h := &http.Server{Addr: *addr, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 8192}
 	// net/http's default error logger may include peer-controlled TLS details.
 	h.ErrorLog = stdlog.New(io.Discard, "", 0)
