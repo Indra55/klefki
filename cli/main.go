@@ -37,11 +37,18 @@ func run(args []string, out io.Writer) error {
 		if e != nil {
 			return e
 		}
+		_, e = fmt.Fprintln(out, backupHelp)
+		if e != nil {
+			return e
+		}
 
 		return e
 	}
 	cmd := args[0]
 
+	if cmd == "backup" || cmd == "restore" || cmd == "export-plain" || cmd == "check" {
+		return runBackup(args, out)
+	}
 	if cmd == "register" || cmd == "add" || cmd == "list" || cmd == "export" || cmd == "sync" {
 		return runSync(args, out)
 	}
