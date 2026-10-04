@@ -13,6 +13,7 @@ import (
 )
 
 const backupHelp = `vault backup [--vault PATH] [--store PATH] [--password-file PATH | --recovery-file PATH] -o DIRECTORY
+vault restore [--password-file PATH | --recovery-file PATH] -o DIRECTORY BACKUP_DIRECTORY
 Backup/restore destinations must not exist. Close desktop before using its store.
 `
 
@@ -28,7 +29,21 @@ func runBackup(args []string, out io.Writer) error {
 	if flags.Parse(args[1:]) != nil || (*passwordPath != "" && *recoveryPath != "") {
 		return errUsage
 	}
-	if flags.NArg() != 0 {
+	if command == "restore" {
+		if flags.NArg() != 1 {
+			return errUsage
+		}
+		flags.Visit(func(f *flag.Flag) {
+			if f.Name == "vault" || f.Name == "store" {
+				command = "invalid"
+			}
+		})
+		if command == "invalid" {
+			return errUsage
+		}
+		*accountPath = filepath.Join(flags.Arg(0), "account.v1")
+		*storePath = filepath.Join(flags.Arg(0), "local.db")
+	} else if flags.NArg() != 0 {
 		return errUsage
 	}
 	if (command == "check" && *dest != "") || (command != "check" && *dest == "") {
@@ -69,11 +84,23 @@ func runBackup(args []string, out io.Writer) error {
 	if e != nil || !stat.Mode().IsRegular() || stat.Size() == 0 {
 		return vc.ErrInvalid
 	}
-	source, e := vs.OpenExisting(*storePath, a.ID)
-	if e != nil {
-		return e
+	var source *vs.Store
+	if command != "restore" {
+		source, e = vs.OpenExisting(*storePath, a.ID)
+		if e != nil {
+			return e
+		}
+		defer source.Close()
+	} else {
+		// Restore accepts completed backups, never a live database with pending WAL data.
+		for _, suffix := range []string{"-wal", "-journal"} {
+			st, err := os.Stat(*storePath + suffix)
+			if (err == nil && st.Size() != 0) || (err != nil && !os.IsNotExist(err)) {
+				return vc.ErrInvalid
+			}
+		}
 	}
-	defer source.Close()
+
 	if e = os.Mkdir(*dest, 0700); e != nil {
 		if os.IsExist(e) {
 			return errExists
@@ -88,7 +115,22 @@ func runBackup(args []string, out io.Writer) error {
 	}()
 	snapshotPath := filepath.Join(*dest, "local.db")
 
-	e = source.Snapshot(snapshotPath)
+	if command == "restore" {
+		e = local.Publish(snapshotPath, func(w io.Writer) error {
+			f, e := os.Open(*storePath)
+			if e != nil {
+				return vc.ErrIO
+			}
+			defer f.Close()
+			_, e = io.Copy(w, f)
+			if e != nil {
+				return vc.ErrIO
+			}
+			return nil
+		})
+	} else {
+		e = source.Snapshot(snapshotPath)
+	}
 	if e != nil {
 		return e
 	}
