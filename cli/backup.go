@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -14,8 +15,10 @@ import (
 
 const backupHelp = `vault backup [--vault PATH] [--store PATH] [--password-file PATH | --recovery-file PATH] -o DIRECTORY
 vault restore [--password-file PATH | --recovery-file PATH] -o DIRECTORY BACKUP_DIRECTORY
+vault export-plain [--vault PATH] [--store PATH] [--password-file PATH | --recovery-file PATH] -o DIRECTORY
+vault check [--vault PATH] [--store PATH] [--password-file PATH | --recovery-file PATH]
 Backup/restore destinations must not exist. Close desktop before using its store.
-`
+export-plain writes unencrypted documents and metadata, including trash and history.`
 
 func runBackup(args []string, out io.Writer) error {
 	command := args[0]
@@ -100,7 +103,14 @@ func runBackup(args []string, out io.Writer) error {
 			}
 		}
 	}
-
+	if command == "check" {
+		revisions, e := source.Check(master)
+		if e != nil {
+			return e
+		}
+		_, e = fmt.Fprintf(out, "Integrity verified: %d revisions; all stored chunks authenticated.\n", len(revisions))
+		return e
+	}
 	if e = os.Mkdir(*dest, 0700); e != nil {
 		if os.IsExist(e) {
 			return errExists
@@ -114,7 +124,14 @@ func runBackup(args []string, out io.Writer) error {
 		}
 	}()
 	snapshotPath := filepath.Join(*dest, "local.db")
-
+	if command == "export-plain" {
+		temp, e := os.MkdirTemp("", "vault-export-*")
+		if e != nil {
+			return vc.ErrIO
+		}
+		defer os.RemoveAll(temp)
+		snapshotPath = filepath.Join(temp, "local.db")
+	}
 	if command == "restore" {
 		e = local.Publish(snapshotPath, func(w io.Writer) error {
 			f, e := os.Open(*storePath)
@@ -143,9 +160,26 @@ func runBackup(args []string, out io.Writer) error {
 	if e != nil {
 		return e
 	}
-
-	e = local.Publish(filepath.Join(*dest, "account.v1"), func(w io.Writer) error { return writeAll(w, local.AccountBytes(a)) })
-
+	if command == "export-plain" {
+		for _, r := range revisions {
+			if r.Metadata.Type != "file" {
+				continue
+			}
+			// Opaque revision names avoid collisions and untrusted metadata paths.
+			if e = local.Publish(filepath.Join(*dest, r.Revision), func(w io.Writer) error { return snapshot.Export(master, r.Revision, w) }); e != nil {
+				return e
+			}
+		}
+		e = local.Publish(filepath.Join(*dest, "manifest.json"), func(w io.Writer) error {
+			return json.NewEncoder(w).Encode(struct {
+				Version   int           `json:"version"`
+				Account   string        `json:"account"`
+				Revisions []vs.Revision `json:"revisions"`
+			}{1, a.ID.String(), revisions})
+		})
+	} else {
+		e = local.Publish(filepath.Join(*dest, "account.v1"), func(w io.Writer) error { return writeAll(w, local.AccountBytes(a)) })
+	}
 	if e != nil {
 		return e
 	}
