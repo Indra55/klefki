@@ -20,6 +20,10 @@ criteria pass; link evidence and limitations here. Implementation/test completio
 - [x] **M5 — Web.** Compatible TypeScript crypto, PWA/IndexedDB, and six Chromium
   acceptance cases passed, including desktop service cross-client transfer and
   offline editing/reload. [Evidence and limitations](docs/m5-status.md).
+- [x] **M6 — Backup and safety net.** Full encrypted backup/restore, plaintext export,
+  and every-chunk integrity checks. Password and recovery restores reproduced the
+  vault exactly in a clean Linux container.
+  [Restore procedure](docs/backup-restore.md) · [Evidence and limitations](docs/m6-status.md).
 
 This checkpoint is part of reconstructed milestone history. Recorded implementation
 and verification dates in the evidence documents remain unchanged.
