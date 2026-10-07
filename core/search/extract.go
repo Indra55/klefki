@@ -37,7 +37,7 @@ func (x Extractor) language() string {
 }
 func (x Extractor) Supports(name string) bool {
 	switch strings.ToLower(filepath.Ext(name)) {
-	case ".txt", ".md", ".csv", ".json", ".log", ".png", ".jpg", ".jpeg":
+	case ".txt", ".md", ".csv", ".json", ".log", ".png", ".jpg", ".jpeg", ".pdf":
 		return true
 	}
 	return false
@@ -86,6 +86,8 @@ func (x Extractor) Text(ctx context.Context, name string, data []byte) (string, 
 			return "", ErrTool
 		}
 		return string(data), nil
+	case ".pdf":
+		return x.pdf(ctx, data, lang)
 	case ".png", ".jpg", ".jpeg":
 		// Tesseract also accepts lists of filenames. Decode and re-encode image
 		// input so a mislabeled document cannot instruct it to open other files.
