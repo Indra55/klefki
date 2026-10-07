@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 	vc "vault/core/crypto"
+	"vault/core/search"
 	vs "vault/core/sync"
 )
 
@@ -59,7 +60,9 @@ func items(heads []vs.Head) []Item {
 	out := make([]Item, 0, len(heads))
 	for _, h := range heads {
 		m := h.Metadata
-
+		if search.IsIndex(m) {
+			continue
+		}
 		out = append(out, Item{h.Object, h.Revision, m.Name, m.Type, m.Parent, m.Tags, m.Favorite, m.Size, h.Conflict, trashed(h, map[string]bool{}), system(m), ""})
 	}
 	return out

@@ -41,10 +41,13 @@ func run(args []string, out io.Writer) error {
 		if e != nil {
 			return e
 		}
-
+		_, e = fmt.Fprintln(out, searchHelp)
 		return e
 	}
 	cmd := args[0]
+	if cmd == "index" || cmd == "search" {
+		return runSearch(args, out)
+	}
 
 	if cmd == "backup" || cmd == "restore" || cmd == "export-plain" || cmd == "check" {
 		return runBackup(args, out)

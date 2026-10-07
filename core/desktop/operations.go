@@ -94,6 +94,7 @@ func (s *Service) Import(paths []string, parent *string, tags []string) (string,
 			}
 		}
 		failures := false
+		imported := false
 		for _, path := range paths {
 			if e := check(ctx); e != nil {
 				return e
@@ -125,10 +126,15 @@ func (s *Service) Import(paths []string, parent *string, tags []string) (string,
 			}
 			s.event(Event{Generation: x.generation, Kind: "file-finished", Operation: op, Name: name, Error: Code(e)})
 			if e == nil {
+				imported = true
 				s.changed(x)
 			}
 		}
-
+		if imported {
+			if e := s.buildIndex(x, ctx, op); e != nil {
+				return e
+			}
+		}
 		if failures {
 			return errors.New("IMPORT_PARTIAL")
 		}

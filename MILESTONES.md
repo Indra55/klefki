@@ -24,6 +24,9 @@ criteria pass; link evidence and limitations here. Implementation/test completio
   and every-chunk integrity checks. Password and recovery restores reproduced the
   vault exactly in a clean Linux container.
   [Restore procedure](docs/backup-restore.md) · [Evidence and limitations](docs/m6-status.md).
+- [x] **M7 — Search and OCR.** Local Tesseract/PDF extraction, encrypted BM25 index,
+  desktop and CLI search. Real scanned-document search and encrypted index sync
+  acceptance passed. [Use, evidence and limitations](docs/m7-status.md).
 
 This checkpoint is part of reconstructed milestone history. Recorded implementation
 and verification dates in the evidence documents remain unchanged.

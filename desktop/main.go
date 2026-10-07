@@ -117,7 +117,12 @@ func (a *App) OpenExisting(copyAccount bool) error {
 	return safe(a.service.Select(path, store, copyAccount))
 }
 func (a *App) List() (vd.Library, error) { v, e := a.service.List(); return v, safe(e) }
+func (a *App) Search(query string) (vd.SearchResults, error) {
+	v, e := a.service.Search(query)
+	return v, safe(e)
+}
 
+func (a *App) RebuildIndex() (string, error) { v, e := a.service.RebuildIndex(); return v, safe(e) }
 func (a *App) Edit(revision string, edit vs.Edit) (string, error) {
 	v, e := a.service.Edit(revision, edit)
 	return v, safe(e)

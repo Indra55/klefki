@@ -42,3 +42,78 @@ describe('library',()=>{
  it('opens accessible details with prefilled fields',async()=>{render(<App/>);await screen.findByText('Passport.txt');await userEvent.click(screen.getByRole('button',{name:'Actions for Passport.txt'}));await userEvent.click(screen.getByRole('menuitem',{name:'Edit details & move'}));expect(await screen.findByRole('dialog')).toHaveAccessibleName('Document details');expect(screen.getByLabelText('Name')).toHaveValue('Passport.txt');await userEvent.keyboard('{Escape}');await waitFor(()=>expect(screen.queryByRole('dialog')).not.toBeInTheDocument())});
 });
 
+describe('document text search',()=>{
+ it('shows the measured indexing time after upload and clears it on lock',async()=>{
+  render(<App/>);await screen.findByText('Passport.txt');
+  act(()=>events['vault:event']({generation:1,kind:'index-start',operation:'upload'}));
+  expect(screen.getByText('Indexing documents')).toBeInTheDocument();
+  expect(screen.queryByText(/Search index ready/)).not.toBeInTheDocument();
+  act(()=>events['vault:event']({generation:1,kind:'index-finished',operation:'upload',durationMs:2195,name:'1 document indexed'}));
+  expect(screen.getByText('Search index ready in 2.2 s')).toBeInTheDocument();
+  act(()=>events['vault:event']({generation:1,kind:'finished',operation:'upload'}));
+  expect(screen.queryByRole('complementary',{name:'File transfers'})).not.toBeInTheDocument();
+  expect(screen.queryByText('Saved successfully')).not.toBeInTheDocument();
+  expect(screen.queryByText('1 document indexed')).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button',{name:/^Lock/}));
+  await screen.findByText('Unlock your vault.');
+  expect(screen.queryByText(/Search index ready/)).not.toBeInTheDocument();
+  act(()=>events['vault:event']({generation:1,kind:'index-finished',operation:'old',durationMs:500}));
+  expect(screen.queryByText(/Search index ready/)).not.toBeInTheDocument();
+ });
+ it('retains partial upload failures alongside the indexing toast',async()=>{
+  render(<App/>);await screen.findByText('Passport.txt');
+  act(()=>{
+   events['vault:event']({generation:1,kind:'file-finished',operation:'upload',name:'Missing.txt',error:'OPERATION_FAILED'});
+   events['vault:event']({generation:1,kind:'index-finished',operation:'upload',durationMs:100});
+   events['vault:event']({generation:1,kind:'finished',operation:'upload',error:'IMPORT_PARTIAL'});
+  });
+  expect(screen.getByText('Search index ready in 100 ms')).toBeInTheDocument();
+  expect(screen.getByRole('complementary',{name:'File transfers'})).toHaveTextContent('Some files could not be added.');
+  expect(screen.getByText('Missing.txt')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button',{name:'Dismiss transfer'}));
+  expect(screen.queryByRole('complementary',{name:'File transfers'})).not.toBeInTheDocument();
+ });
+ it('reports indexing failures without a success toast',async()=>{
+  render(<App/>);await screen.findByText('Passport.txt');
+  act(()=>events['vault:event']({generation:1,kind:'index-start',operation:'upload'}));
+  act(()=>events['vault:event']({generation:1,kind:'index-finished',operation:'upload',durationMs:100,error:'SEARCH_EXTRACTION_FAILED'}));
+  expect(screen.getByRole('alert')).toHaveTextContent('Your documents are saved, but indexing failed. Text extraction failed.');
+  expect(screen.queryByText(/Search index ready/)).not.toBeInTheDocument();
+ });
+ it('shows milliseconds for a fast index and dismisses the toast',async()=>{
+  render(<App/>);await screen.findByText('Passport.txt');
+  vi.useFakeTimers();
+  try{
+   act(()=>events['vault:event']({generation:1,kind:'index-finished',operation:'upload',durationMs:34.4}));
+   expect(screen.getByText('Search index ready in 34 ms')).toBeInTheDocument();
+   act(()=>vi.advanceTimersByTime(4500));
+   expect(screen.queryByText(/Search index ready/)).not.toBeInTheDocument();
+  }finally{vi.useRealTimers()}
+ });
+ it('shows content matches and starts a local rebuild',async()=>{
+  const bridge=window.go!.main.App;
+  bridge.Search=vi.fn(async()=>({generation:1,hits:[{object:item.object,revision:item.revision,name:item.name,score:1}]}));
+  bridge.RebuildIndex=vi.fn(async()=> 'index-operation');
+  render(<App/>);await screen.findByText('Passport.txt');
+  await userEvent.type(screen.getByLabelText('Search your documents'),'nebula');
+  await waitFor(()=>expect(bridge.Search).toHaveBeenCalledWith('nebula'));
+  expect(await screen.findByText('Passport.txt')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button',{name:'Rebuild search index'}));
+  expect(bridge.RebuildIndex).toHaveBeenCalledOnce();
+ });
+ it('shows a stale-index explanation and ignores results arriving after lock',async()=>{
+  const bridge=window.go!.main.App;
+  bridge.Search=vi.fn(async()=>{throw Error('SEARCH_REBUILD_REQUIRED')});
+  render(<App/>);await screen.findByText('Passport.txt');
+  await userEvent.type(screen.getByLabelText('Search your documents'),'nebula');
+  await screen.findByText('Rebuild the search index to search document text. Names and tags still work.');
+  let resolve!:(v:any)=>void;
+  bridge.Search=vi.fn(()=>new Promise<Awaited<ReturnType<typeof bridge.Search>>>(r=>{resolve=r}));
+  await userEvent.type(screen.getByLabelText('Search your documents'),'x');
+  await waitFor(()=>expect(bridge.Search).toHaveBeenCalled());
+  await userEvent.click(screen.getByRole('button',{name:/^Lock/}));
+  await screen.findByText('Unlock your vault.');
+  await act(async()=>resolve({generation:1,hits:[{object:item.object,revision:item.revision,name:item.name,score:1}]}));
+  expect(screen.queryByText('Passport.txt')).not.toBeInTheDocument();
+ });
+});
