@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "model": "BAAI/bge-small-en-v1.5",
+  "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+  "dimension": 384,
+  "window": 480,
+  "overlap": 64,
+  "maxTokens": 510,
+  "pooling": "cls-l2-v1",
+  "queryInstruction": "",
+  "searchCutoff": 0.52,
+  "searchRelative": 0.9,
+  "runtime": "1.23.2",
+  "assets": [
+    {
+      "path": "onnx/model.onnx",
+      "url": "https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/onnx/model.onnx",
+      "size": 133093490,
+      "sha256": "828e1496d7fabb79cfa4dcd84fa38625c0d3d21da474a00f08db0f559940cf35",
+      "platform": "all"
+    },
+    {
+      "path": "tokenizer.json",
+      "url": "https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/tokenizer.json",
+      "size": 711396,
+      "sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+      "platform": "all"
+    },
+    {
+      "path": "tokenizer_config.json",
+      "url": "https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/tokenizer_config.json",
+      "size": 366,
+      "sha256": "9261e7d79b44c8195c1cada2b453e55b00aeb81e907a6664974b4d7776172ab3",
+      "platform": "all"
+    },
+    {
+      "path": "config.json",
+      "url": "https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/config.json",
+      "size": 743,
+      "sha256": "094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750",
+      "platform": "all"
+    },
+    {
+      "path": "special_tokens_map.json",
+      "url": "https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/5c38ec7c405ec4b44b94cc5a9bb96e735b38267a/special_tokens_map.json",
+      "size": 125,
+      "sha256": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3",
+      "platform": "all"
+    },
+    {
+      "path": "runtime/linux-amd64/libonnxruntime.so.1.23.2",
+      "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-linux-x64-1.23.2.tgz",
+      "member": "libonnxruntime.so.1.23.2",
+      "size": 22326072,
+      "sha256": "13ab8084954fa4a47c777880180b90810d6020f021441395712b48a75b74c68b",
+      "platform": "linux-amd64"
+    },
+    {
+      "path": "runtime/linux-amd64/libonnxruntime_providers_shared.so",
+      "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-linux-x64-1.23.2.tgz",
+      "member": "libonnxruntime_providers_shared.so",
+      "size": 14632,
+      "sha256": "086ec1d5388f64153d9c63470d126693db9a182c8ce236d3a1119068471b8a0d",
+      "platform": "linux-amd64"
+    },
+    {
+      "path": "runtime/windows-amd64/onnxruntime.dll",
+      "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-win-x64-1.23.2.zip",
+      "member": "onnxruntime.dll",
+      "size": 14186016,
+      "sha256": "dec964ab1ee36cc9b0ae247d13b376627992fc57dec0454354017ab8fd84f1ea",
+      "platform": "windows-amd64"
+    },
+    {
+      "path": "runtime/windows-amd64/onnxruntime_providers_shared.dll",
+      "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.23.2/onnxruntime-win-x64-1.23.2.zip",
+      "member": "onnxruntime_providers_shared.dll",
+      "size": 22088,
+      "sha256": "a2b3a50956aa75a9879c8472bc7df4f7a8072bcd2db19a1b7d988e7688f293ef",
+      "platform": "windows-amd64"
+    }
+  ]
+}
