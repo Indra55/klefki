@@ -11,6 +11,8 @@ import (
 	vc "vault/core/crypto"
 	vd "vault/core/desktop"
 	"vault/core/local"
+	"vault/core/search"
+	"vault/core/semantic"
 	vs "vault/core/sync"
 )
 
@@ -72,6 +74,43 @@ func main() {
 	client := vs.Client{Store: store, Remote: remote, Session: session, Master: master}
 	defer vc.Wipe(client.Master[:])
 	switch mode {
+	case "relevance":
+		for _, d := range []struct{ name, text string }{
+			{"utility.txt", "Electricity statement: consumption history visualization, outstanding balance INR 1500. Payment instructions: settle your bill online. Account 731924."},
+			{"resume.txt", "A software engineer with employment history and experience developing applications for clients."},
+			{"match.txt", "A football match with a score of 2 to 1. Highlights for fans."},
+			{"unrelated.txt", "Instructions for making a chart with a visualization of tournament results."},
+		} {
+			id, e := vc.RandomID()
+			must(e)
+			_, e = store.Put(master, id.String(), "", vc.Metadata{Type: "file", Name: d.name, Tags: []string{}, Size: uint64(len(d.text))}, bytes.NewBufferString(d.text))
+			must(e)
+		}
+		model, e := semantic.Open(os.Getenv("VAULT_MODEL_DIR"))
+		must(e)
+		defer model.Close()
+		_, e = search.BuildSemantic(ctx, store, master, search.Extractor{}, model)
+		must(e)
+		must(client.Sync(ctx))
+		fmt.Println("PASS relevance fixture")
+	case "index-semantic":
+		model, e := semantic.Open(os.Getenv("VAULT_MODEL_DIR"))
+		must(e)
+		defer model.Close()
+		_, e = search.BuildSemantic(ctx, store, master, search.Extractor{}, model)
+		must(e)
+		must(client.Sync(ctx))
+		fmt.Println("PASS semantic index")
+	case "verify-correction":
+		must(client.Sync(ctx))
+		heads, e := store.Heads(master)
+		must(e)
+		cs, e := search.Corrections(ctx, store, master, heads)
+		must(e)
+		if len(cs) != 1 || cs[0].Correction.Category != "Money" {
+			panic("correction missing")
+		}
+		fmt.Println("PASS correction")
 	case "seed":
 		must(store.Close())
 		finished := make(chan vd.Event, 8)

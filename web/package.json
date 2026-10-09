@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build && node scripts/sw.mjs",
+    "build": "node scripts/m8-assets.mjs && tsc --noEmit && vite build && node scripts/sw.mjs",
     "test": "node tests/crypto.test.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "models": "node scripts/m8-assets.mjs"
   },
   "dependencies": {
     "@huggingface/transformers": "3.8.1",

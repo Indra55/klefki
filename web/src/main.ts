@@ -1,9 +1,11 @@
 import './style.css';
 import * as c from './crypto.ts';
 import { Store, type Head } from './store.ts';
+import * as semantic from './semantic.ts';
 import { Remote, sync, HTTPError } from './sync.ts';
 const app = document.querySelector<HTMLDivElement>('#app')!;
 let account: c.Account | undefined, store: Store | undefined, master: Uint8Array | undefined, credential: Uint8Array | undefined, remote: Remote | undefined, controller: AbortController | undefined;
+let modelSetupController:AbortController|undefined;
 let generation = 0, busy = false, lastActivity = Date.now(), release: (() => void) | undefined, heads: Head[] = [], parent: string | null = null, filter = '', favorites = false;
 const urls = new Set<string>();
 const previews = new Set<Uint8Array>();
@@ -16,7 +18,7 @@ function download(bytes: Uint8Array, name: string, type = 'application/octet-str
 function message(s: string) { const e = document.querySelector('#status'); if (e)
     e.textContent = s; }
 function shell() { app.replaceChildren(); const header = node('header'); header.append(node('a', 'vault', 'brand'), node('span', 'Your documents, privately kept.', 'muted')); app.append(header); return app; }
-function lock() { generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
+function lock() { modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
     c.wipe(master); if (credential)
     c.wipe(credential); master = credential = undefined; heads = []; store?.close(); store = undefined; release?.(); release = undefined; busy = false; parent = null; filter = ''; favorites = false; for (const url of urls)
     URL.revokeObjectURL(url); urls.clear(); for (const b of previews)
@@ -211,15 +213,22 @@ async function library() {
         } }); };
     top.append(upload.wrap);
     main.append(top);
-    const search = field('Search names and tags');
+    const prefs=semantic.preferences(account!.account);
+ const search = field(prefs.enabled?'Find your documents':'Search names and tags');
+ let ranked:string[]=[],searchSequence=0;
+ const searchStatus=node('p','','muted');if(prefs.enabled)searchStatus.setAttribute('role','status');
+ const categoryByRevision=new Map<string,string>();
+ if(prefs.enabled){const g=generation,key=master!.slice();try{const records=await semantic.corrections(store!,key,heads);if(g!==generation)return;for(const h of heads){const matches=records.filter(r=>r.correction.object===h.revision.object&&r.correction.fileID===h.metadata.file_id);if(matches.length===1)categoryByRevision.set(h.revision.id,matches[0].correction.category)}}catch{searchStatus.textContent='Saved corrections could not be read.'}finally{c.wipe(key)}}
+ const category=node('select');category.setAttribute('aria-label','Document category');for(const label of ['All categories',...semantic.categories]){const option=node('option',label);option.value=label==='All categories'?'':label;category.append(option)}category.onchange=()=>renderRows();if(prefs.enabled)main.append(category);
     search.input.value = filter;
-    search.input.oninput = () => { filter = search.input.value; renderRows(); };
-    main.append(search.wrap);
+    search.input.oninput = () => { filter = search.input.value; void searchRows(); };
+    main.append(search.wrap,searchStatus);
     const list = node('div', undefined, 'documents');
     main.append(list);
     function renderRows() {
         list.replaceChildren();
-        const visible = heads.filter(h => !trashed(h) && (!favorites || h.metadata.favorite) && (favorites || h.metadata.parent === parent)&&(!filter || (h.metadata.name + ' ' + h.metadata.tags.join(' ')).toLocaleLowerCase().includes(filter.toLocaleLowerCase())));
+        const visible = heads.filter(h => !semantic.internal(h) && !trashed(h) && (!favorites || h.metadata.favorite) && (favorites || h.metadata.parent === parent) && (!category.value||h.metadata.tags.includes(category.value)||categoryByRevision.get(h.revision.id)===category.value)&&(!filter || ranked.includes(h.revision.id)||(h.metadata.name + ' ' + h.metadata.tags.join(' ')).toLocaleLowerCase().includes(filter.toLocaleLowerCase())));
+        if(ranked.length)visible.sort((a,b)=>{const ai=ranked.indexOf(a.revision.id),bi=ranked.indexOf(b.revision.id);return (ai<0?Infinity:ai)-(bi<0?Infinity:bi)});
  if (!visible.length)
             list.append(node('p', 'No documents here yet.', 'empty'));
         for (const h of visible) {
@@ -236,17 +245,21 @@ async function library() {
                 finally {
                     c.wipe(bytes);
                 } })));
+            if(prefs.enabled&&h.metadata.type==='file')row.append(button('Suggestions',()=>void analysisDialog(h)));
  row.append(button('Edit', () => editDialog(h)));
+ const confirmed=categoryByRevision.get(h.revision.id);if(confirmed)label.append(node('small',confirmed));
             list.append(row);
         }
     }
-    renderRows();
+    async function searchRows(){const seq=++searchSequence,q=filter,g=generation;ranked=[];renderRows();if(!prefs.enabled||!q.trim()){searchStatus.textContent='';return}searchStatus.textContent='Searching locally…';await new Promise(resolve=>setTimeout(resolve,200));if(seq!==searchSequence||g!==generation)return;const key=master!.slice();try{const result=await semantic.search(store!,key,heads,q);if(seq!==searchSequence||g!==generation)return;ranked=result.hits.map(h=>h.revision);searchStatus.textContent=result.mode==='hybrid'?'Semantic + keyword search':result.mode==='semantic'?'Semantic search · keyword index unavailable':'Keyword search · '+semanticMessage(result.availability);renderRows()}catch{if(seq===searchSequence&&g===generation)searchStatus.textContent='Local search could not finish. Names and tags still work.'}finally{c.wipe(key)}}
+    void searchRows();
     const status = node('p', pending ? `${pending} local change${pending === 1 ? '' : 's'} waiting to sync.` : 'Local vault ready.', 'status');
     status.id = 'status';
     status.setAttribute('role', 'status');
     main.append(status);
     const tools = node('details');
     tools.append(node('summary', 'Vault settings'), node('p', 'Account ID: ' + account!.account, 'account-id'), button('Download encrypted account file', () => download(c.accountBytes(account!), 'account.vault')), button('Register this vault on server', () => void syncNow(true)), button('New folder', () => folderDialog()), node('p', 'Keep the account file and recovery code safe. Browser storage can be cleared or evicted.', 'footnote'));
+    addSemanticSettings(tools,prefs);
     main.append(tools);
     root.append(main);
 }
@@ -361,3 +374,14 @@ window.addEventListener('online', () => { if (master && !busy)
 window.addEventListener('pagehide', lock);
 if ('serviceWorker' in navigator)
     void navigator.serviceWorker.register('/sw.js').catch(() => message('Offline app installation is unavailable in this browser.'));
+
+function semanticMessage(code:string){return ({SEARCH_REBUILD_REQUIRED:'Sync a current index from desktop or CLI.',SEMANTIC_UNAVAILABLE:'The local model is unavailable. Enable it in settings.',SEMANTIC_MODEL_INVALID:'Model verification or inference failed.',SEMANTIC_CORRECTION_CONFLICT:'Choose a correction to resolve changes from different devices.',SEARCH_INDEX_INVALID:'The synced index is invalid. Rebuild it on desktop or CLI.',SEARCH_LIMIT:'The query exceeds local search limits.'} as Record<string,string>)[code]||'Local semantic search is unavailable.'}
+function addSemanticSettings(parent:HTMLElement,prefs:semantic.Preferences){
+ const section=node('section'),enable=field('Semantic search and suggestions on this device','checkbox'),feedback=node('p','Optional. Processing stays on this device. One-time download: about '+Math.ceil(semantic.downloadBytes/1048576)+' MB. Desktop or CLI must build and sync the document index.','muted');enable.input.checked=prefs.enabled;let setupController:AbortController|undefined;const cancel=button('Cancel setup',()=>{setupController?.abort();semantic.clearPrivate()});cancel.hidden=true;
+ async function setup(bundle?:File[]){const g=generation;setupController=new AbortController();modelSetupController=setupController;cancel.hidden=false;enable.input.disabled=true;install.disabled=true;try{await semantic.setup(setupController.signal,(done,total)=>{if(g===generation)feedback.textContent='Downloading local model: '+Math.round(done/total*100)+'%'},bundle);if(g!==generation)return;prefs.enabled=true;semantic.savePreferences(account!.account,prefs);await library()}catch(e){if(g===generation){enable.input.checked=false;feedback.textContent=semanticMessage(e instanceof Error?e.message:'SEMANTIC_UNAVAILABLE')}}finally{enable.input.disabled=false;install.disabled=false;cancel.hidden=true;setupController=undefined}}
+ enable.input.onchange=()=>{if(enable.input.checked)void setup();else{prefs.enabled=false;semantic.savePreferences(account!.account,prefs);setupController?.abort();semantic.clearPrivate();void library()}};
+ const install=button('Install BGE-small model',()=>void setup());
+ const bundle=field('Select verified local model bundle','file');bundle.input.multiple=true;bundle.input.setAttribute('webkitdirectory','');bundle.input.onchange=()=>void setup(Array.from(bundle.input.files||[]));
+ const cutoff=field('Classification similarity cutoff','number'),margin=field('Winning category margin','number');cutoff.input.value=String(prefs.cutoff);cutoff.input.min='-1';cutoff.input.max='1';cutoff.input.step='.01';margin.input.value=String(prefs.margin);margin.input.min='0';margin.input.max='2';margin.input.step='.01';const thresholds=node('details');thresholds.append(node('summary','Classification thresholds'),cutoff.wrap,margin.wrap,button('Save thresholds',()=>{const a=Number(cutoff.input.value),b=Number(margin.input.value);if(!Number.isFinite(a)||!Number.isFinite(b)||a<-1||a>1||b<0||b>2)return;prefs.cutoff=a;prefs.margin=b;semantic.savePreferences(account!.account,prefs);feedback.textContent='Classification thresholds saved on this device.'}));section.append(node('h3','Semantic search and suggestions'),node('p','Model: BGE-small-en-v1.5.','muted'),feedback,enable.wrap,install,cancel,bundle.wrap,thresholds);parent.append(section)
+}
+async function analysisDialog(h:Head){const g=generation,key=master!.slice();try{const a=await semantic.analyze(store!,key,heads,h,semantic.preferences(account!.account));if(g!==generation)return;const dialog=node('dialog'),select=node('select');select.setAttribute('aria-label','Suggested category');for(const label of ['',...semantic.categories]){const option=node('option',label||'Uncategorized');option.value=label;select.append(option)}select.value=a.category;const title=node('p',a.confirmed?'Your confirmed category.':a.category?'Suggested category: '+a.category:'No confident category suggestion.');dialog.append(node('h2','Local suggestions'),title,select);const fields=node('div');function showFields(){fields.replaceChildren();for(const f of a.fields){const input=field(f.kind==='date'?'Date':'Amount'+(f.currency?' ('+f.currency+')':''));input.input.value=f.value||f.raw;input.input.oninput=()=>{f.value=input.input.value};fields.append(input.wrap,node('small',f.evidence))}}showFields();dialog.append(fields);if(a.conflicts.length>1){dialog.append(node('p','Competing corrections: select one, review its fields, then confirm.'));for(const r of a.conflicts)dialog.append(button('Use '+(r.correction.category||'uncategorized')+' · '+r.revision.slice(0,6),()=>{select.value=r.correction.category;a.fields=r.correction.fields;showFields()}))}dialog.append(button(a.conflicts.length?'Resolve with reviewed values':'Confirm category and fields',()=>{const category=select.value;dialog.close();dialog.remove();void operation(async(key,current)=>{await semantic.correct(store!,key,heads,h,category,a.fields,a.conflicts.map(r=>r.revision));if(current===generation)await refresh()})}),button('Close',()=>{dialog.close();dialog.remove()}));app.append(dialog);dialog.showModal()}catch(e){if(g===generation)message(semanticMessage(e instanceof Error?e.message:'SEMANTIC_UNAVAILABLE'))}finally{c.wipe(key)}}
