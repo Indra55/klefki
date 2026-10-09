@@ -60,7 +60,7 @@ func items(heads []vs.Head) []Item {
 	out := make([]Item, 0, len(heads))
 	for _, h := range heads {
 		m := h.Metadata
-		if search.IsIndex(m) {
+		if search.IsInternal(m) {
 			continue
 		}
 		out = append(out, Item{h.Object, h.Revision, m.Name, m.Type, m.Parent, m.Tags, m.Favorite, m.Size, h.Conflict, trashed(h, map[string]bool{}), system(m), ""})
@@ -74,7 +74,28 @@ func (s *Service) List() (out Library, e error) {
 			return e
 		}
 		list := items(h)
-
+		if s.semanticPreferences(x).Enabled {
+			cs, e := search.Corrections(x.ctx, x.store, x.master, h)
+			if e != nil {
+				return e
+			}
+			for i := range list {
+				for _, head := range h {
+					if head.Revision != list[i].Revision {
+						continue
+					}
+					matches := []search.CorrectionRecord{}
+					for _, r := range cs {
+						if r.Correction.Object == head.Object && r.Correction.FileID == head.Metadata.FileID {
+							matches = append(matches, r)
+						}
+					}
+					if len(matches) == 1 {
+						list[i].Category = matches[0].Correction.Category
+					}
+				}
+			}
+		}
 		out = Library{x.generation, list}
 		return nil
 	})

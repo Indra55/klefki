@@ -13,6 +13,7 @@ import (
 	"unicode"
 
 	vc "vault/core/crypto"
+	"vault/core/semantic"
 	vs "vault/core/sync"
 )
 
@@ -71,7 +72,7 @@ func documents(heads []vs.Head) []vs.Head {
 	}
 	var hidden func(vs.Head, map[string]bool) bool
 	hidden = func(h vs.Head, seen map[string]bool) bool {
-		if IsIndex(h.Metadata) {
+		if IsInternal(h.Metadata) {
 			return true
 		}
 		for _, tag := range h.Metadata.Tags {
@@ -126,8 +127,10 @@ func (b *boundedBuffer) Write(p []byte) (int, error) {
 	}
 	return b.Buffer.Write(p)
 }
-
 func Build(ctx context.Context, s *vs.Store, key vc.Key, extractor Extractor) (Report, error) {
+	return build(ctx, s, key, extractor, nil)
+}
+func build(ctx context.Context, s *vs.Store, key vc.Key, extractor Extractor, model semantic.Embedder) (Report, error) {
 	defer vc.Wipe(key[:])
 	report := Report{}
 	if e := ctx.Err(); e != nil {
@@ -139,7 +142,20 @@ func Build(ctx context.Context, s *vs.Store, key vc.Key, extractor Extractor) (R
 	}
 	docs := documents(heads)
 	ix := index{Version: 1, Language: extractor.language(), Documents: []document{}}
+	sx := SemanticIndex{Version: 1, Extraction: extractionTag, Documents: []SemanticDocument{}, Labels: [][]float32{}}
+	defer sx.Clear()
+	if model != nil {
+		sx.Fingerprint = model.Fingerprint()
+		for _, label := range semantic.Labels {
+			v, e := semantic.Embed(ctx, model, label.Description)
+			if e != nil {
+				return report, e
+			}
+			sx.Labels = append(sx.Labels, v)
+		}
+	}
 	budget := 0
+	semanticBudget := 0
 	for _, h := range docs {
 		if e = ctx.Err(); e != nil {
 			return report, e
@@ -163,7 +179,17 @@ func Build(ctx context.Context, s *vs.Store, key vc.Key, extractor Extractor) (R
 				return report, e
 			}
 		}
-
+		if model != nil {
+			d, e := buildSemanticDocument(ctx, model, h, text)
+			if e != nil {
+				return report, e
+			}
+			semanticBudget += (len(d.Chunks)+2)*semantic.Dimension*16 + len(text)/4 + 4096
+			if semanticBudget > maxIndex {
+				return report, ErrLimit
+			}
+			sx.Documents = append(sx.Documents, d)
+		}
 		terms := frequencies(h.Metadata.Name + " " + strings.Join(h.Metadata.Tags, " ") + " " + text)
 		length := 0
 		for term, n := range terms {
@@ -177,7 +203,11 @@ func Build(ctx context.Context, s *vs.Store, key vc.Key, extractor Extractor) (R
 		ix.Documents = append(ix.Documents, document{h.Object, h.Revision, terms, length})
 		report.Documents++
 	}
-
+	if model != nil {
+		if e := validateSemantic(sx); e != nil {
+			return report, e
+		}
+	}
 	data, e := json.Marshal(ix)
 	if e != nil {
 		return report, ErrIndex
@@ -208,7 +238,19 @@ func Build(ctx context.Context, s *vs.Store, key vc.Key, extractor Extractor) (R
 		object = id.String()
 	}
 	_, e = s.PutContext(ctx, key, object, base, vc.Metadata{Type: "file", Name: "search-index.v1.json", Tags: []string{IndexTag, extractionTag}, Size: uint64(len(data))}, bytes.NewReader(data))
-
+	if e == nil && model != nil {
+		if ctx.Err() != nil {
+			return report, ctx.Err()
+		}
+		now, e = s.Heads(key)
+		if e != nil {
+			return report, e
+		}
+		if !sameDocuments(docs, documents(now)) {
+			return report, ErrStale
+		}
+		_, e = publishSidecar(ctx, s, key, now, SemanticTag, "semantic-index.v1.json", sx)
+	}
 	return report, e
 }
 func load(ctx context.Context, s *vs.Store, key vc.Key, heads, docs []vs.Head) (index, error) {

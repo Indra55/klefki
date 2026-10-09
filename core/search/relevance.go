@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+	"vault/core/semantic"
 )
 
 // Query-only filtering keeps the encrypted index format and document terms intact.
@@ -43,4 +44,19 @@ func keywordEvidence(terms []string, document map[string]int) bool {
 		minimum = min(3, (len(terms)+2)/3)
 	}
 	return matched >= minimum
+}
+
+func relevantSemanticHits(hits []Hit) []Hit {
+	rank(hits)
+	if len(hits) == 0 {
+		return hits
+	}
+	// RRF discards original scores, so reject weak semantic evidence before fusion.
+	m := semantic.ModelManifest()
+	cutoff := max(m.SearchCutoff, hits[0].Score*m.SearchRelative)
+	end := 0
+	for end < len(hits) && hits[end].Score >= cutoff {
+		end++
+	}
+	return hits[:end]
 }

@@ -13,6 +13,7 @@ import (
 	"time"
 	vc "vault/core/crypto"
 	"vault/core/local"
+	"vault/core/semantic"
 	vs "vault/core/sync"
 )
 
@@ -26,22 +27,24 @@ type Preferences struct {
 	IdleMinutes int    `json:"idleMinutes"`
 }
 type Config struct {
-	AccountPath         string      `json:"accountPath"`
-	StorePath           string      `json:"storePath"`
-	Server              string      `json:"server"`
-	FingerprintAccounts []string    `json:"fingerprintAccounts,omitempty"`
-	Preferences         Preferences `json:"preferences"`
+	AccountPath         string                         `json:"accountPath"`
+	StorePath           string                         `json:"storePath"`
+	Server              string                         `json:"server"`
+	FingerprintAccounts []string                       `json:"fingerprintAccounts,omitempty"`
+	Preferences         Preferences                    `json:"preferences"`
+	Semantic            map[string]SemanticPreferences `json:"semantic,omitempty"`
 }
 type State struct {
-	Config       Config           `json:"config"`
-	Unlocked     bool             `json:"unlocked"`
-	Generation   uint64           `json:"generation"`
-	AccountID    string           `json:"accountID"`
-	RecoveryOnly bool             `json:"recoveryOnly"`
-	Sync         string           `json:"sync"`
-	Pending      int              `json:"pending"`
-	LastSync     string           `json:"lastSync"`
-	Fingerprint  FingerprintState `json:"fingerprint"`
+	Config       Config              `json:"config"`
+	Unlocked     bool                `json:"unlocked"`
+	Generation   uint64              `json:"generation"`
+	AccountID    string              `json:"accountID"`
+	RecoveryOnly bool                `json:"recoveryOnly"`
+	Sync         string              `json:"sync"`
+	Pending      int                 `json:"pending"`
+	LastSync     string              `json:"lastSync"`
+	Fingerprint  FingerprintState    `json:"fingerprint"`
+	Semantic     SemanticPreferences `json:"semantic"`
 }
 type Event struct {
 	Generation uint64  `json:"generation"`
@@ -63,6 +66,8 @@ type session struct {
 	generation         uint64
 	remote             *vs.Remote
 	remoteSession      vs.Session
+	model              semantic.Embedder
+	semanticCancel     context.CancelFunc
 }
 type Service struct {
 	mu                  sync.Mutex
@@ -130,12 +135,19 @@ func (s *Service) State() State {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cfg := s.config
+	cfg.Semantic = cloneSemantic(cfg.Semantic)
 	cfg.FingerprintAccounts = slices.Clone(cfg.FingerprintAccounts)
 	fp := s.fingerprintState
 	if a, e := local.LoadAccount(cfg.AccountPath); e == nil {
 		fp.Enabled = slices.Contains(cfg.FingerprintAccounts, accountBinding(a))
 	}
-	st := State{Config: cfg, Fingerprint: fp, Generation: s.generation, Sync: s.syncState, Pending: s.pending, LastSync: s.lastSync}
+	p := SemanticPreferences{Thresholds: semantic.DefaultThresholds}
+	if a, e := local.LoadAccount(cfg.AccountPath); e == nil {
+		if v, ok := cfg.Semantic[accountBinding(a)]; ok {
+			p = v
+		}
+	}
+	st := State{Semantic: p, Config: cfg, Fingerprint: fp, Generation: s.generation, Sync: s.syncState, Pending: s.pending, LastSync: s.lastSync}
 	if x := s.session; x != nil {
 		st.Unlocked = true
 		st.AccountID = x.account.ID.String()
@@ -207,7 +219,10 @@ func (s *Service) Lock() {
 	s.event(Event{Generation: g, Kind: "locked"})
 	// Detachment and cancellation happen before waiting for active file work.
 	s.work.Lock()
-
+	if x.model != nil {
+		x.model.Close()
+		x.model = nil
+	}
 	vc.Wipe(x.master[:])
 	vc.Wipe(x.credential[:])
 	x.store.Close()

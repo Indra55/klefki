@@ -17,6 +17,7 @@ import (
 	"time"
 	vc "vault/core/crypto"
 	vd "vault/core/desktop"
+	"vault/core/semantic"
 	vs "vault/core/sync"
 )
 
@@ -121,7 +122,33 @@ func (a *App) Search(query string) (vd.SearchResults, error) {
 	v, e := a.service.Search(query)
 	return v, safe(e)
 }
-
+func (a *App) SemanticStatus() (vd.SemanticState, error) {
+	v, e := a.service.SemanticStatus()
+	return v, safe(e)
+}
+func (a *App) ConfigureSemantic(p vd.SemanticPreferences) error {
+	return safe(a.service.ConfigureSemantic(p))
+}
+func (a *App) SetupSemantic() (string, error) { v, e := a.service.SetupSemantic(""); return v, safe(e) }
+func (a *App) ImportSemanticModel() (string, error) {
+	p, e := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{Title: "Select verified local model bundle"})
+	if e != nil {
+		return "", errors.New("DIALOG_FAILED")
+	}
+	if p == "" {
+		return "", errors.New("CANCELED")
+	}
+	v, e := a.service.SetupSemantic(p)
+	return v, safe(e)
+}
+func (a *App) Analyze(revision string) (vd.DocumentAnalysis, error) {
+	v, e := a.service.Analyze(revision)
+	return v, safe(e)
+}
+func (a *App) CorrectAnalysis(revision, category string, fields []semantic.Field, resolve []string) (string, error) {
+	v, e := a.service.CorrectAnalysis(revision, category, fields, resolve)
+	return v, safe(e)
+}
 func (a *App) RebuildIndex() (string, error) { v, e := a.service.RebuildIndex(); return v, safe(e) }
 func (a *App) Edit(revision string, edit vs.Edit) (string, error) {
 	v, e := a.service.Edit(revision, edit)

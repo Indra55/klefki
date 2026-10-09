@@ -45,10 +45,12 @@ func run(args []string, out io.Writer) error {
 		return e
 	}
 	cmd := args[0]
-	if cmd == "index" || cmd == "search" {
+	if cmd == "model" {
+		return runModel(args[1:], out)
+	}
+	if cmd == "index" || cmd == "search" || cmd == "analyze" || cmd == "correct" || cmd == "evaluate" {
 		return runSearch(args, out)
 	}
-
 	if cmd == "backup" || cmd == "restore" || cmd == "export-plain" || cmd == "check" {
 		return runBackup(args, out)
 	}

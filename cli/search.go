@@ -13,10 +13,16 @@ import (
 
 	vc "vault/core/crypto"
 	"vault/core/search"
+	"vault/core/semantic"
 	vs "vault/core/sync"
 )
 
 const searchHelp = `vault index [--vault PATH] [--store PATH] [--password-file PATH | --recovery-file PATH] [--language eng]
+vault model setup|status [--model-dir PATH] [--bundle DIR]
+vault analyze|correct --revision ID [--correction-file PATH] [--cutoff N] [--margin N]
+vault evaluate --labels-file PATH [--model-dir PATH]
+vault index --semantic [--model-dir PATH]
+vault search --mode keyword|hybrid [--model-dir PATH]
 vault search [--vault PATH] [--store PATH] [--password-file PATH | --recovery-file PATH] [--query-file PATH]
 Search reads the query from standard input when --query-file is omitted.
 Indexing uses local Tesseract/Poppler; run vault sync afterward to sync the encrypted index.`
@@ -29,6 +35,14 @@ func runSearch(args []string, out io.Writer) error {
 	passwordPath := f.String("password-file", "", "")
 	recoveryPath := f.String("recovery-file", "", "")
 	language, queryPath := "eng", ""
+	semanticIndex := f.Bool("semantic", false, "")
+	mode := f.String("mode", "keyword", "")
+	modelDir := f.String("model-dir", filepath.Join(".vault", "models", semantic.Fingerprint()), "")
+	revision := f.String("revision", "", "")
+	labelsPath := f.String("labels-file", "", "")
+	correctionPath := f.String("correction-file", "", "")
+	cutoff := f.Float64("cutoff", semantic.DefaultThresholds.Cutoff, "")
+	margin := f.Float64("margin", semantic.DefaultThresholds.Margin, "")
 	if args[0] == "index" {
 		f.StringVar(&language, "language", "eng", "")
 	} else {
@@ -74,8 +88,59 @@ func runSearch(args []string, out io.Writer) error {
 	defer s.Close()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	var model semantic.Embedder
+	if *semanticIndex || *mode == "hybrid" || args[0] == "evaluate" {
+		model, e = semantic.Open(*modelDir)
+		if e != nil {
+			return e
+		}
+		defer model.Close()
+	}
+	if args[0] == "analyze" {
+		a, e := search.Analyze(ctx, s, key, *revision, semantic.Thresholds{Cutoff: *cutoff, Margin: *margin})
+		if e != nil {
+			return e
+		}
+		return json.NewEncoder(out).Encode(a)
+	}
+	if args[0] == "correct" {
+		var input struct {
+			Category string           `json:"category"`
+			Fields   []semantic.Field `json:"fields"`
+			Resolve  []string         `json:"resolve"`
+		}
+		if e := readSearchJSON(*correctionPath, &input); e != nil {
+			return e
+		}
+		id, e := search.SaveCorrection(ctx, s, key, *revision, input.Category, input.Fields, input.Resolve)
+		if e != nil {
+			return e
+		}
+		return json.NewEncoder(out).Encode(struct {
+			Revision string `json:"revision"`
+		}{id})
+	}
+	if args[0] == "evaluate" {
+		var labels search.EvaluationSet
+		if e := readSearchJSON(*labelsPath, &labels); e != nil {
+			return e
+		}
+		result, e := search.Evaluate(ctx, s, key, model, labels)
+		if e != nil {
+			return e
+		}
+		return json.NewEncoder(out).Encode(result)
+	}
+	if *mode != "keyword" && *mode != "hybrid" {
+		return errUsage
+	}
 	if args[0] == "index" {
-		report, e := search.Build(ctx, s, key, search.Extractor{Language: language})
+		var report search.Report
+		if *semanticIndex {
+			report, e = search.BuildSemantic(ctx, s, key, search.Extractor{Language: language}, model)
+		} else {
+			report, e = search.Build(ctx, s, key, search.Extractor{Language: language})
+		}
 		if e != nil {
 			return e
 		}
@@ -99,9 +164,59 @@ func runSearch(args []string, out io.Writer) error {
 	if len(query) > 4096 {
 		return search.ErrLimit
 	}
-	hits, e := search.Query(ctx, s, key, string(query))
+	hits, e := search.QueryMode(ctx, s, key, model, string(query), *mode)
 	if e != nil {
 		return e
 	}
 	return json.NewEncoder(out).Encode(hits)
+}
+
+func readSearchJSON(path string, out any) error {
+	f, e := os.Open(path)
+	if e != nil {
+		return vc.ErrIO
+	}
+	defer f.Close()
+	d := json.NewDecoder(io.LimitReader(f, 8<<20))
+	d.DisallowUnknownFields()
+	if d.Decode(out) != nil {
+		return errUsage
+	}
+	var extra any
+	if d.Decode(&extra) != io.EOF {
+		return errUsage
+	}
+	return nil
+}
+
+func runModel(args []string, out io.Writer) error {
+	if len(args) == 0 {
+		return errUsage
+	}
+	f := flag.NewFlagSet("model", flag.ContinueOnError)
+	f.SetOutput(io.Discard)
+	root := f.String("model-dir", filepath.Join(".vault", "models", semantic.Fingerprint()), "")
+	bundle := f.String("bundle", "", "")
+	if f.Parse(args[1:]) != nil || f.NArg() != 0 {
+		return errUsage
+	}
+	if args[0] == "status" {
+		return json.NewEncoder(out).Encode(struct {
+			Supported   bool   `json:"supported"`
+			Ready       bool   `json:"ready"`
+			Bytes       int64  `json:"downloadBytes"`
+			Fingerprint string `json:"fingerprint"`
+		}{semantic.Supported(), semantic.Verify(*root) == nil, semantic.DownloadSize(), semantic.Fingerprint()})
+	}
+	if args[0] != "setup" {
+		return errUsage
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if e := semantic.Install(ctx, *root, *bundle, func(done, total int64) { fmt.Fprintf(os.Stderr, "\rModel assets: %d / %d bytes", done, total) }); e != nil {
+		return e
+	}
+	fmt.Fprintln(os.Stderr)
+	_, e := fmt.Fprintln(out, "Local model ready. Use index --semantic and search --mode hybrid to opt in.")
+	return e
 }
