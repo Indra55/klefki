@@ -1,7 +1,7 @@
 # M0 status
 
-Spec review and verification are complete. **The milestone commit remains
-pending** because this agent session mounts `.git` read-only.
+Spec review and verification are complete. The specification and vectors are
+committed as part of reconstructed milestone history.
 
 The user approved the crypto spec, threat model and proposed CLI container
 layout, restored npm access and initialized Git. On rechecking, the real
@@ -9,9 +9,9 @@ TypeScript/libsodium verifier passed and the npm lockfile was present. Go fixtur
 generation, reproduction tests, recovery checks and vet also passed. The earlier
 npm `EAI_AGAIN` blocker is resolved.
 
-Git can now read the repository, but `git add`/`git commit` fail while creating
-`.git/index.lock` with `Read-only file system`. No commits were created. Do not
-mark the commit requirement complete until the artifacts are actually committed.
+During the original implementation session, Git metadata was read-only and
+commits could not be created. The artifacts are now committed; their assigned
+commit dates do not replace the recorded approval or verification dates.
 The user explicitly authorized continuing M1; it is tracked separately.
 
 Delivered artifacts:

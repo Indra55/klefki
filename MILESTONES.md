@@ -27,6 +27,14 @@ criteria pass; link evidence and limitations here. Implementation/test completio
 - [x] **M7 — Search and OCR.** Local Tesseract/PDF extraction, encrypted BM25 index,
   desktop and CLI search. Real scanned-document search and encrypted index sync
   acceptance passed. [Use, evidence and limitations](docs/m7-status.md).
+- [ ] **M8 — Semantic search and classification.** Optional local ONNX model,
+  hybrid search and reviewable analysis implemented. Public 60-document /
+  120-query evaluation passed the hybrid target; private-document acceptance
+  remains pending. [Evidence, use and limitations](docs/m8-status.md).
+- [ ] **M9 — Later.** Android, reminders, sharing, emergency access and optional local LLM; scope not yet scheduled.
 
-This checkpoint is part of reconstructed milestone history. Recorded implementation
-and verification dates in the evidence documents remain unchanged.
+
+M0–M8 implementation is recorded in 36 reconstructed milestone commits.
+Commit dates were assigned retrospectively across September 10–October 10, 2026;
+recorded approval, implementation and validation dates remain unchanged.
+M8 private-document acceptance remains pending.

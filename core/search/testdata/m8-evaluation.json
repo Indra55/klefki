@@ -1,0 +1,1146 @@
+{
+  "documents": [
+    {
+      "name": "passport-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA passport identifies a citizen and permits international travel.\nReporting month: January 2026.\nDocument reference: SYN-4101.\nIssued: 2026-01-15.\n",
+      "category": "Identity"
+    },
+    {
+      "name": "passport-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA passport identifies a citizen and permits international travel.\nReporting month: February 2026.\nDocument reference: SYN-4102.\nIssued: 2026-02-15.\n",
+      "category": "Identity"
+    },
+    {
+      "name": "national-id-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA national identity card records a citizens identity and registration.\nReporting month: January 2026.\nDocument reference: SYN-4103.\nIssued: 2026-01-15.\n",
+      "category": "Identity"
+    },
+    {
+      "name": "national-id-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA national identity card records a citizens identity and registration.\nReporting month: February 2026.\nDocument reference: SYN-4104.\nIssued: 2026-02-15.\n",
+      "category": "Identity"
+    },
+    {
+      "name": "driving-licence-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA driving licence grants permission to operate a motor vehicle on public roads.\nReporting month: January 2026.\nDocument reference: SYN-4105.\nIssued: 2026-01-15.\n",
+      "category": "Identity"
+    },
+    {
+      "name": "driving-licence-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA driving licence grants permission to operate a motor vehicle on public roads.\nReporting month: February 2026.\nDocument reference: SYN-4106.\nIssued: 2026-02-15.\n",
+      "category": "Identity"
+    },
+    {
+      "name": "residence-card-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA residence identity card proves a residents identity and home address.\nReporting month: January 2026.\nDocument reference: SYN-4107.\nIssued: 2026-01-15.\n",
+      "category": "Identity"
+    },
+    {
+      "name": "residence-card-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA residence identity card proves a residents identity and home address.\nReporting month: February 2026.\nDocument reference: SYN-4108.\nIssued: 2026-02-15.\n",
+      "category": "Identity"
+    },
+    {
+      "name": "voter-id-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA voter identification card registers a citizen to vote in elections.\nReporting month: January 2026.\nDocument reference: SYN-4109.\nIssued: 2026-01-15.\n",
+      "category": "Identity"
+    },
+    {
+      "name": "voter-id-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA voter identification card registers a citizen to vote in elections.\nReporting month: February 2026.\nDocument reference: SYN-4110.\nIssued: 2026-02-15.\n",
+      "category": "Identity"
+    },
+    {
+      "name": "electricity-bill-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nThe electricity utility charges for power consumption and meter readings.\nReporting month: January 2026.\nDocument reference: SYN-4111.\nIssued: 2026-01-15.\nAmount: INR 1666.50.\n",
+      "category": "Money"
+    },
+    {
+      "name": "electricity-bill-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nThe electricity utility charges for power consumption and meter readings.\nReporting month: February 2026.\nDocument reference: SYN-4112.\nIssued: 2026-02-15.\nAmount: INR 1767.50.\n",
+      "category": "Money"
+    },
+    {
+      "name": "water-bill-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nThe water utility charges for household water supply and usage.\nReporting month: January 2026.\nDocument reference: SYN-4113.\nIssued: 2026-01-15.\nAmount: INR 1739.50.\n",
+      "category": "Money"
+    },
+    {
+      "name": "water-bill-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nThe water utility charges for household water supply and usage.\nReporting month: February 2026.\nDocument reference: SYN-4114.\nIssued: 2026-02-15.\nAmount: INR 1840.50.\n",
+      "category": "Money"
+    },
+    {
+      "name": "bank-statement-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA bank account statement lists deposits withdrawals and balance.\nReporting month: January 2026.\nDocument reference: SYN-4115.\nIssued: 2026-01-15.\nAmount: INR 1812.50.\n",
+      "category": "Money"
+    },
+    {
+      "name": "bank-statement-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA bank account statement lists deposits withdrawals and balance.\nReporting month: February 2026.\nDocument reference: SYN-4116.\nIssued: 2026-02-15.\nAmount: INR 1913.50.\n",
+      "category": "Money"
+    },
+    {
+      "name": "grocery-receipt-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA grocery shopping receipt lists purchased food and payment.\nReporting month: January 2026.\nDocument reference: SYN-4117.\nIssued: 2026-01-15.\nAmount: INR 1885.50.\n",
+      "category": "Money"
+    },
+    {
+      "name": "grocery-receipt-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA grocery shopping receipt lists purchased food and payment.\nReporting month: February 2026.\nDocument reference: SYN-4118.\nIssued: 2026-02-15.\nAmount: INR 1986.50.\n",
+      "category": "Money"
+    },
+    {
+      "name": "tax-return-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nAn income tax return reports annual earnings deductions and tax paid.\nReporting month: January 2026.\nDocument reference: SYN-4119.\nIssued: 2026-01-15.\nAmount: INR 1958.50.\n",
+      "category": "Money"
+    },
+    {
+      "name": "tax-return-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nAn income tax return reports annual earnings deductions and tax paid.\nReporting month: February 2026.\nDocument reference: SYN-4120.\nIssued: 2026-02-15.\nAmount: INR 2059.50.\n",
+      "category": "Money"
+    },
+    {
+      "name": "rental-agreement-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA legal rental agreement defines tenant landlord obligations and apartment lease terms.\nReporting month: January 2026.\nDocument reference: SYN-4121.\nIssued: 2026-01-15.\n",
+      "category": "Legal"
+    },
+    {
+      "name": "rental-agreement-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA legal rental agreement defines tenant landlord obligations and apartment lease terms.\nReporting month: February 2026.\nDocument reference: SYN-4122.\nIssued: 2026-02-15.\n",
+      "category": "Legal"
+    },
+    {
+      "name": "property-deed-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA legal property deed transfers ownership of land and title rights.\nReporting month: January 2026.\nDocument reference: SYN-4123.\nIssued: 2026-01-15.\n",
+      "category": "Legal"
+    },
+    {
+      "name": "property-deed-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA legal property deed transfers ownership of land and title rights.\nReporting month: February 2026.\nDocument reference: SYN-4124.\nIssued: 2026-02-15.\n",
+      "category": "Legal"
+    },
+    {
+      "name": "court-order-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA court order records a judges ruling and legal obligations.\nReporting month: January 2026.\nDocument reference: SYN-4125.\nIssued: 2026-01-15.\n",
+      "category": "Legal"
+    },
+    {
+      "name": "court-order-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA court order records a judges ruling and legal obligations.\nReporting month: February 2026.\nDocument reference: SYN-4126.\nIssued: 2026-02-15.\n",
+      "category": "Legal"
+    },
+    {
+      "name": "power-of-attorney-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA power of attorney legally authorizes another person to act on my behalf.\nReporting month: January 2026.\nDocument reference: SYN-4127.\nIssued: 2026-01-15.\n",
+      "category": "Legal"
+    },
+    {
+      "name": "power-of-attorney-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA power of attorney legally authorizes another person to act on my behalf.\nReporting month: February 2026.\nDocument reference: SYN-4128.\nIssued: 2026-02-15.\n",
+      "category": "Legal"
+    },
+    {
+      "name": "purchase-contract-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA legal purchase contract defines buyer seller obligations and sale terms.\nReporting month: January 2026.\nDocument reference: SYN-4129.\nIssued: 2026-01-15.\n",
+      "category": "Legal"
+    },
+    {
+      "name": "purchase-contract-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA legal purchase contract defines buyer seller obligations and sale terms.\nReporting month: February 2026.\nDocument reference: SYN-4130.\nIssued: 2026-02-15.\n",
+      "category": "Legal"
+    },
+    {
+      "name": "prescription-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA doctors prescription specifies medication dosage and treatment instructions.\nReporting month: January 2026.\nDocument reference: SYN-4131.\nIssued: 2026-01-15.\n",
+      "category": "Health"
+    },
+    {
+      "name": "prescription-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA doctors prescription specifies medication dosage and treatment instructions.\nReporting month: February 2026.\nDocument reference: SYN-4132.\nIssued: 2026-02-15.\n",
+      "category": "Health"
+    },
+    {
+      "name": "blood-test-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA medical laboratory blood test reports haemoglobin and blood cell measurements.\nReporting month: January 2026.\nDocument reference: SYN-4133.\nIssued: 2026-01-15.\n",
+      "category": "Health"
+    },
+    {
+      "name": "blood-test-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA medical laboratory blood test reports haemoglobin and blood cell measurements.\nReporting month: February 2026.\nDocument reference: SYN-4134.\nIssued: 2026-02-15.\n",
+      "category": "Health"
+    },
+    {
+      "name": "vaccination-record-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA medical vaccination record documents immunizations administered by a clinic.\nReporting month: January 2026.\nDocument reference: SYN-4135.\nIssued: 2026-01-15.\n",
+      "category": "Health"
+    },
+    {
+      "name": "vaccination-record-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA medical vaccination record documents immunizations administered by a clinic.\nReporting month: February 2026.\nDocument reference: SYN-4136.\nIssued: 2026-02-15.\n",
+      "category": "Health"
+    },
+    {
+      "name": "discharge-summary-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA hospital discharge summary describes inpatient treatment and follow up care.\nReporting month: January 2026.\nDocument reference: SYN-4137.\nIssued: 2026-01-15.\n",
+      "category": "Health"
+    },
+    {
+      "name": "discharge-summary-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA hospital discharge summary describes inpatient treatment and follow up care.\nReporting month: February 2026.\nDocument reference: SYN-4138.\nIssued: 2026-02-15.\n",
+      "category": "Health"
+    },
+    {
+      "name": "xray-report-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA radiology chest xray report describes medical imaging findings in lungs.\nReporting month: January 2026.\nDocument reference: SYN-4139.\nIssued: 2026-01-15.\n",
+      "category": "Health"
+    },
+    {
+      "name": "xray-report-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA radiology chest xray report describes medical imaging findings in lungs.\nReporting month: February 2026.\nDocument reference: SYN-4140.\nIssued: 2026-02-15.\n",
+      "category": "Health"
+    },
+    {
+      "name": "diploma-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA university diploma certifies completion of an academic degree.\nReporting month: January 2026.\nDocument reference: SYN-4141.\nIssued: 2026-01-15.\n",
+      "category": "Education"
+    },
+    {
+      "name": "diploma-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA university diploma certifies completion of an academic degree.\nReporting month: February 2026.\nDocument reference: SYN-4142.\nIssued: 2026-02-15.\n",
+      "category": "Education"
+    },
+    {
+      "name": "transcript-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nAn academic transcript lists university courses grades and credits.\nReporting month: January 2026.\nDocument reference: SYN-4143.\nIssued: 2026-01-15.\n",
+      "category": "Education"
+    },
+    {
+      "name": "transcript-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nAn academic transcript lists university courses grades and credits.\nReporting month: February 2026.\nDocument reference: SYN-4144.\nIssued: 2026-02-15.\n",
+      "category": "Education"
+    },
+    {
+      "name": "exam-result-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA school examination result lists marks awarded for subjects.\nReporting month: January 2026.\nDocument reference: SYN-4145.\nIssued: 2026-01-15.\n",
+      "category": "Education"
+    },
+    {
+      "name": "exam-result-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA school examination result lists marks awarded for subjects.\nReporting month: February 2026.\nDocument reference: SYN-4146.\nIssued: 2026-02-15.\n",
+      "category": "Education"
+    },
+    {
+      "name": "course-certificate-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA course completion certificate confirms finishing a learning programme.\nReporting month: January 2026.\nDocument reference: SYN-4147.\nIssued: 2026-01-15.\n",
+      "category": "Education"
+    },
+    {
+      "name": "course-certificate-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA course completion certificate confirms finishing a learning programme.\nReporting month: February 2026.\nDocument reference: SYN-4148.\nIssued: 2026-02-15.\n",
+      "category": "Education"
+    },
+    {
+      "name": "admission-letter-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA university admission letter offers a student a place in an academic programme.\nReporting month: January 2026.\nDocument reference: SYN-4149.\nIssued: 2026-01-15.\n",
+      "category": "Education"
+    },
+    {
+      "name": "admission-letter-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA university admission letter offers a student a place in an academic programme.\nReporting month: February 2026.\nDocument reference: SYN-4150.\nIssued: 2026-02-15.\n",
+      "category": "Education"
+    },
+    {
+      "name": "job-offer-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nAn employment offer letter states a position joining terms and employer.\nReporting month: January 2026.\nDocument reference: SYN-4151.\nIssued: 2026-01-15.\n",
+      "category": "Work"
+    },
+    {
+      "name": "job-offer-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nAn employment offer letter states a position joining terms and employer.\nReporting month: February 2026.\nDocument reference: SYN-4152.\nIssued: 2026-02-15.\n",
+      "category": "Work"
+    },
+    {
+      "name": "employment-certificate-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nAn employment certificate confirms professional service and job tenure.\nReporting month: January 2026.\nDocument reference: SYN-4153.\nIssued: 2026-01-15.\n",
+      "category": "Work"
+    },
+    {
+      "name": "employment-certificate-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nAn employment certificate confirms professional service and job tenure.\nReporting month: February 2026.\nDocument reference: SYN-4154.\nIssued: 2026-02-15.\n",
+      "category": "Work"
+    },
+    {
+      "name": "performance-review-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nAn employee performance review assesses workplace achievements and development.\nReporting month: January 2026.\nDocument reference: SYN-4155.\nIssued: 2026-01-15.\n",
+      "category": "Work"
+    },
+    {
+      "name": "performance-review-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nAn employee performance review assesses workplace achievements and development.\nReporting month: February 2026.\nDocument reference: SYN-4156.\nIssued: 2026-02-15.\n",
+      "category": "Work"
+    },
+    {
+      "name": "promotion-letter-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nAn employer promotion letter announces advancement to a senior job role.\nReporting month: January 2026.\nDocument reference: SYN-4157.\nIssued: 2026-01-15.\n",
+      "category": "Work"
+    },
+    {
+      "name": "promotion-letter-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nAn employer promotion letter announces advancement to a senior job role.\nReporting month: February 2026.\nDocument reference: SYN-4158.\nIssued: 2026-02-15.\n",
+      "category": "Work"
+    },
+    {
+      "name": "workplace-memo-january.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA workplace memorandum announces staff responsibilities and company procedures.\nReporting month: January 2026.\nDocument reference: SYN-4159.\nIssued: 2026-01-15.\n",
+      "category": "Work"
+    },
+    {
+      "name": "workplace-memo-february.txt",
+      "text": "PUBLIC SYNTHETIC FIXTURE. Not a real document.\nA workplace memorandum announces staff responsibilities and company procedures.\nReporting month: February 2026.\nDocument reference: SYN-4160.\nIssued: 2026-02-15.\n",
+      "category": "Work"
+    }
+  ],
+  "queries": [
+    {
+      "query": "proof I can travel abroad for January 2026",
+      "expected": [
+        "passport-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "passport reference SYN-4101",
+      "expected": [
+        "passport-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "proof I can travel abroad for February 2026",
+      "expected": [
+        "passport-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "passport reference SYN-4102",
+      "expected": [
+        "passport-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "proof of who I am as a citizen for January 2026",
+      "expected": [
+        "national-id-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "national id reference SYN-4103",
+      "expected": [
+        "national-id-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "proof of who I am as a citizen for February 2026",
+      "expected": [
+        "national-id-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "national id reference SYN-4104",
+      "expected": [
+        "national-id-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "evidence that I am allowed to drive for January 2026",
+      "expected": [
+        "driving-licence-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "driving licence reference SYN-4105",
+      "expected": [
+        "driving-licence-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "evidence that I am allowed to drive for February 2026",
+      "expected": [
+        "driving-licence-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "driving licence reference SYN-4106",
+      "expected": [
+        "driving-licence-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "identification showing where I reside for January 2026",
+      "expected": [
+        "residence-card-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "residence card reference SYN-4107",
+      "expected": [
+        "residence-card-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "identification showing where I reside for February 2026",
+      "expected": [
+        "residence-card-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "residence card reference SYN-4108",
+      "expected": [
+        "residence-card-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "my identification for casting a vote for January 2026",
+      "expected": [
+        "voter-id-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "voter id reference SYN-4109",
+      "expected": [
+        "voter-id-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "my identification for casting a vote for February 2026",
+      "expected": [
+        "voter-id-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "voter id reference SYN-4110",
+      "expected": [
+        "voter-id-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "what I paid for using power for January 2026",
+      "expected": [
+        "electricity-bill-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "electricity bill reference SYN-4111",
+      "expected": [
+        "electricity-bill-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "what I paid for using power for February 2026",
+      "expected": [
+        "electricity-bill-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "electricity bill reference SYN-4112",
+      "expected": [
+        "electricity-bill-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "charges for my household water for January 2026",
+      "expected": [
+        "water-bill-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "water bill reference SYN-4113",
+      "expected": [
+        "water-bill-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "charges for my household water for February 2026",
+      "expected": [
+        "water-bill-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "water bill reference SYN-4114",
+      "expected": [
+        "water-bill-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "record of money entering and leaving my account for January 2026",
+      "expected": [
+        "bank-statement-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "bank statement reference SYN-4115",
+      "expected": [
+        "bank-statement-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "record of money entering and leaving my account for February 2026",
+      "expected": [
+        "bank-statement-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "bank statement reference SYN-4116",
+      "expected": [
+        "bank-statement-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "proof of payment for food shopping for January 2026",
+      "expected": [
+        "grocery-receipt-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "grocery receipt reference SYN-4117",
+      "expected": [
+        "grocery-receipt-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "proof of payment for food shopping for February 2026",
+      "expected": [
+        "grocery-receipt-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "grocery receipt reference SYN-4118",
+      "expected": [
+        "grocery-receipt-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "my declaration of income and taxes for January 2026",
+      "expected": [
+        "tax-return-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "tax return reference SYN-4119",
+      "expected": [
+        "tax-return-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "my declaration of income and taxes for February 2026",
+      "expected": [
+        "tax-return-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "tax return reference SYN-4120",
+      "expected": [
+        "tax-return-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "the agreement for leasing my apartment for January 2026",
+      "expected": [
+        "rental-agreement-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "rental agreement reference SYN-4121",
+      "expected": [
+        "rental-agreement-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "the agreement for leasing my apartment for February 2026",
+      "expected": [
+        "rental-agreement-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "rental agreement reference SYN-4122",
+      "expected": [
+        "rental-agreement-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "evidence of legal ownership of land for January 2026",
+      "expected": [
+        "property-deed-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "property deed reference SYN-4123",
+      "expected": [
+        "property-deed-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "evidence of legal ownership of land for February 2026",
+      "expected": [
+        "property-deed-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "property deed reference SYN-4124",
+      "expected": [
+        "property-deed-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "the judges decision about my case for January 2026",
+      "expected": [
+        "court-order-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "court order reference SYN-4125",
+      "expected": [
+        "court-order-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "the judges decision about my case for February 2026",
+      "expected": [
+        "court-order-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "court order reference SYN-4126",
+      "expected": [
+        "court-order-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "authorization for someone to represent me legally for January 2026",
+      "expected": [
+        "power-of-attorney-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "power of attorney reference SYN-4127",
+      "expected": [
+        "power-of-attorney-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "authorization for someone to represent me legally for February 2026",
+      "expected": [
+        "power-of-attorney-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "power of attorney reference SYN-4128",
+      "expected": [
+        "power-of-attorney-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "the binding agreement with a seller for January 2026",
+      "expected": [
+        "purchase-contract-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "purchase contract reference SYN-4129",
+      "expected": [
+        "purchase-contract-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "the binding agreement with a seller for February 2026",
+      "expected": [
+        "purchase-contract-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "purchase contract reference SYN-4130",
+      "expected": [
+        "purchase-contract-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "instructions for the medicine my doctor ordered for January 2026",
+      "expected": [
+        "prescription-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "prescription reference SYN-4131",
+      "expected": [
+        "prescription-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "instructions for the medicine my doctor ordered for February 2026",
+      "expected": [
+        "prescription-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "prescription reference SYN-4132",
+      "expected": [
+        "prescription-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "results of my blood examination for January 2026",
+      "expected": [
+        "blood-test-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "blood test reference SYN-4133",
+      "expected": [
+        "blood-test-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "results of my blood examination for February 2026",
+      "expected": [
+        "blood-test-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "blood test reference SYN-4134",
+      "expected": [
+        "blood-test-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "proof of the injections I received for January 2026",
+      "expected": [
+        "vaccination-record-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "vaccination record reference SYN-4135",
+      "expected": [
+        "vaccination-record-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "proof of the injections I received for February 2026",
+      "expected": [
+        "vaccination-record-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "vaccination record reference SYN-4136",
+      "expected": [
+        "vaccination-record-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "summary of care when I left hospital for January 2026",
+      "expected": [
+        "discharge-summary-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "discharge summary reference SYN-4137",
+      "expected": [
+        "discharge-summary-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "summary of care when I left hospital for February 2026",
+      "expected": [
+        "discharge-summary-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "discharge summary reference SYN-4138",
+      "expected": [
+        "discharge-summary-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "the results of my chest imaging for January 2026",
+      "expected": [
+        "xray-report-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "xray report reference SYN-4139",
+      "expected": [
+        "xray-report-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "the results of my chest imaging for February 2026",
+      "expected": [
+        "xray-report-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "xray report reference SYN-4140",
+      "expected": [
+        "xray-report-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "proof that I graduated from university for January 2026",
+      "expected": [
+        "diploma-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "diploma reference SYN-4141",
+      "expected": [
+        "diploma-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "proof that I graduated from university for February 2026",
+      "expected": [
+        "diploma-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "diploma reference SYN-4142",
+      "expected": [
+        "diploma-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "record of my college grades for January 2026",
+      "expected": [
+        "transcript-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "transcript reference SYN-4143",
+      "expected": [
+        "transcript-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "record of my college grades for February 2026",
+      "expected": [
+        "transcript-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "transcript reference SYN-4144",
+      "expected": [
+        "transcript-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "how I scored in my school examinations for January 2026",
+      "expected": [
+        "exam-result-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "exam result reference SYN-4145",
+      "expected": [
+        "exam-result-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "how I scored in my school examinations for February 2026",
+      "expected": [
+        "exam-result-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "exam result reference SYN-4146",
+      "expected": [
+        "exam-result-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "proof that I finished a training course for January 2026",
+      "expected": [
+        "course-certificate-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "course certificate reference SYN-4147",
+      "expected": [
+        "course-certificate-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "proof that I finished a training course for February 2026",
+      "expected": [
+        "course-certificate-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "course certificate reference SYN-4148",
+      "expected": [
+        "course-certificate-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "confirmation I was accepted to study for January 2026",
+      "expected": [
+        "admission-letter-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "admission letter reference SYN-4149",
+      "expected": [
+        "admission-letter-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "confirmation I was accepted to study for February 2026",
+      "expected": [
+        "admission-letter-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "admission letter reference SYN-4150",
+      "expected": [
+        "admission-letter-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "the letter offering me a job for January 2026",
+      "expected": [
+        "job-offer-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "job offer reference SYN-4151",
+      "expected": [
+        "job-offer-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "the letter offering me a job for February 2026",
+      "expected": [
+        "job-offer-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "job offer reference SYN-4152",
+      "expected": [
+        "job-offer-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "proof I worked for an employer for January 2026",
+      "expected": [
+        "employment-certificate-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "employment certificate reference SYN-4153",
+      "expected": [
+        "employment-certificate-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "proof I worked for an employer for February 2026",
+      "expected": [
+        "employment-certificate-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "employment certificate reference SYN-4154",
+      "expected": [
+        "employment-certificate-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "feedback on my job performance for January 2026",
+      "expected": [
+        "performance-review-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "performance review reference SYN-4155",
+      "expected": [
+        "performance-review-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "feedback on my job performance for February 2026",
+      "expected": [
+        "performance-review-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "performance review reference SYN-4156",
+      "expected": [
+        "performance-review-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "the notice of my advancement at work for January 2026",
+      "expected": [
+        "promotion-letter-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "promotion letter reference SYN-4157",
+      "expected": [
+        "promotion-letter-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "the notice of my advancement at work for February 2026",
+      "expected": [
+        "promotion-letter-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "promotion letter reference SYN-4158",
+      "expected": [
+        "promotion-letter-february.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "instructions issued to staff at my workplace for January 2026",
+      "expected": [
+        "workplace-memo-january.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "workplace memo reference SYN-4159",
+      "expected": [
+        "workplace-memo-january.txt"
+      ],
+      "kind": "exact-identifier"
+    },
+    {
+      "query": "instructions issued to staff at my workplace for February 2026",
+      "expected": [
+        "workplace-memo-february.txt"
+      ],
+      "kind": "paraphrase-near-duplicate"
+    },
+    {
+      "query": "workplace memo reference SYN-4160",
+      "expected": [
+        "workplace-memo-february.txt"
+      ],
+      "kind": "exact-identifier"
+    }
+  ]
+}

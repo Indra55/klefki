@@ -102,3 +102,10 @@ See [M1 status](docs/m1-status.md) for fuzz commands and exact evidence boundari
 M6 encrypted backup/restore, plaintext export, and integrity checking are available
 through the CLI. Follow the [backup and restore procedure](docs/backup-restore.md)
 and keep a verified backup on separate storage before heavy real use.
+
+## Optional semantic search (M8)
+
+M8 is off by default. Enable **Semantic search and suggestions** in desktop
+Settings for local hybrid search and reviewable categories, generic dates and
+amounts. Web can opt in separately using indexes synced from desktop/CLI.
+[Setup, CLI commands, evaluation and acceptance limits](docs/m8-status.md).

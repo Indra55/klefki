@@ -112,7 +112,8 @@ Close desktop before opening its SQLite store with the CLI.
 - Linux native desktop compilation and Windows desktop cross-compilation passed,
   producing `/tmp/vault-desktop-m7` and `/tmp/vault-desktop-m7.exe`. These are build
   checks; no new native manual walkthrough or Windows OCR runtime test is claimed.
-- No commits were created; repository contents were already untracked.
+- No commits were created during implementation; repository contents were already
+  untracked. The work is now committed as part of reconstructed history.
 
 ### Build and upload-search correction
 

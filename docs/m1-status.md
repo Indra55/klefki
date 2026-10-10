@@ -1,8 +1,8 @@
 # M1 — Crypto core and local CLI
 
 Implementation and M1 acceptance checks passed on 2026-10-10. M2 has not started.
-Small milestone commits remain pending because this session cannot write `.git`.
-See [the checklist](../MILESTONES.md) for the separate M0 commit requirement.
+The work is now committed as part of reconstructed milestone history.
+See [the checklist](../MILESTONES.md) for current milestone acceptance.
 
 ## Delivered
 

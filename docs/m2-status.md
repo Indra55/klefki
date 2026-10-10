@@ -2,7 +2,8 @@
 
 M2 is implemented. The approved v1 cryptographic formats and key hierarchy are
 unchanged. The existing M0/M1 files were already uncommitted and were preserved;
-no commits were created during M2.
+no commits were created during M2 implementation. The work is now committed
+as part of reconstructed milestone history.
 
 ## Delivered
 

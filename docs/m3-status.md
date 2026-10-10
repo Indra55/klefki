@@ -2,7 +2,8 @@
 
 M3 is implemented. No v1 cryptographic envelope, metadata format, key hierarchy,
 M1 container or dependency changed. Existing uncommitted M0/M1/M2 work was
-preserved; no commits were created.
+preserved; no commits were created during implementation. The work is now
+committed as part of reconstructed milestone history.
 
 ## Delivered
 

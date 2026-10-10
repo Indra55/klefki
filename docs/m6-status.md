@@ -56,4 +56,5 @@ Completed 2026-10-10. [Backup and restore procedure](backup-restore.md).
 - Handled errors clean up new output; abrupt termination can leave incomplete
   directories. Successful restore checks, separate backup copies, and retaining
   the previous backup remain part of the documented procedure.
-- No commits were created; the repository contents were already untracked.
+- No commits were created during implementation; the repository contents were
+  already untracked. The work is now committed as part of reconstructed history.

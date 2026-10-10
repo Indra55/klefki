@@ -1,0 +1,32 @@
+{
+  "rankingDepth": 20,
+  "documents": 60,
+  "queries": 120,
+  "modes": {
+    "hybrid": {
+      "top3": 0.95,
+      "mrr": 0.9275000000000001
+    },
+    "keyword": {
+      "top3": 0.8833333333333333,
+      "mrr": 0.8504879915406229
+    },
+    "semantic": {
+      "top3": 0.9916666666666667,
+      "mrr": 0.9368055555555553
+    }
+  },
+  "thresholds": {
+    "cutoff": 0.5,
+    "margin": 0.01
+  },
+  "classification": {
+    "accuracy": 0.95,
+    "coverage": 0.95,
+    "precision": 1,
+    "correct": 57,
+    "wrong": 0,
+    "abstained": 3
+  },
+  "hybridPass": true
+}
