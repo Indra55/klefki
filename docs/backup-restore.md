@@ -1,9 +1,9 @@
 # Backup and restore
 
-Build the CLI with `go build -o vault ./cli`. M6 operates on the Go local store
+Build the CLI with `go build -o klefki ./cli`. M6 operates on the Go local store
 used by desktop and CLI. Close the desktop app before opening its store with the
 CLI. Use its actual account and store paths; the defaults below are
-`.vault/account.v1` and the sibling `local.db`.
+`.klefki/account.v1` and the sibling `local.db`.
 
 ## Create an encrypted backup
 
@@ -13,8 +13,8 @@ conflict copies, folders, tags, favorites, and trash. It cannot include changes
 that have never reached this store.
 
 ```sh
-./vault check --vault /private/vault/account.v1 --store /private/vault/local.db
-./vault backup --vault /private/vault/account.v1 --store /private/vault/local.db -o /backups/vault-2026-10-10
+./klefki check --klefki /private/klefki/account.v1 --store /private/klefki/local.db
+./klefki backup --klefki /private/klefki/account.v1 --store /private/klefki/local.db -o /backups/klefki-2026-10-10
 ```
 
 Both commands prompt for the existing password. Automation can use
@@ -44,16 +44,16 @@ previous backup until the replacement has been successfully restored and checked
 2. Choose an output directory that does not exist. Its parent must already exist:
 
    ```sh
-   ./vault restore -o /private/restored-vault /backups/vault-2026-10-10
-   ./vault check --vault /private/restored-vault/account.v1
-   ./vault list --vault /private/restored-vault/account.v1
+   ./klefki restore -o /private/restored-klefki /backups/klefki-2026-10-10
+   ./klefki check --klefki /private/restored-klefki/account.v1
+   ./klefki list --klefki /private/restored-klefki/account.v1
    ```
 
    Or recover locally without the password:
 
    ```sh
-   ./vault restore --recovery-file /private/recovery.txt -o /private/restored-vault /backups/vault-2026-10-10
-   ./vault check --vault /private/restored-vault/account.v1 --recovery-file /private/recovery.txt
+   ./klefki restore --recovery-file /private/recovery.txt -o /private/restored-klefki /backups/klefki-2026-10-10
+   ./klefki check --klefki /private/restored-klefki/account.v1 --recovery-file /private/recovery.txt
    ```
 
 3. `restore` verifies all metadata, wrapped file keys, and every chunk of every
@@ -61,19 +61,19 @@ previous backup until the replacement has been successfully restored and checked
    It accepts completed backup directories, including read-only media; do not
    point it at a live store or a manually copied database with a WAL/journal.
 4. Open the restored `account.v1` and sibling `local.db` in the desktop app, or
-   continue using the CLI with `--vault` pointing at the restored account.
+   continue using the CLI with `--klefki` pointing at the restored account.
    Reconnect to the same surviving server using the original password. The
    cursor, server binding, and pending queue are preserved. Recovery-code unlock
    remains local-only; it does not reset online authentication.
 
-This restores local vault state exactly, not the server's users, sessions, or
+This restores local klefki state exactly, not the server's users, sessions, or
 change log. Rebuilding a lost server or moving to another server is not an M6
 operation; do not reuse a preserved cursor against a newly initialized server.
 
 ## Plaintext export
 
 ```sh
-./vault export-plain --vault /private/restored-vault/account.v1 -o /private/plaintext-export
+./klefki export-plain --klefki /private/restored-klefki/account.v1 -o /private/plaintext-export
 ```
 
 This deliberately writes **unencrypted** documents and metadata, including trash,
@@ -97,7 +97,7 @@ historical and trashed data, not just current heads. It prints only counts.
 
 As documented for v1, valid old backups and deletion of whole branches cannot be
 detected cryptographically. Sync bookkeeping and revision edges are not an
-authenticated whole-vault manifest. A successful check is not proof of freshness
+authenticated whole-klefki manifest. A successful check is not proof of freshness
 or that another device has no unsynced work. Only the account wrapper used for
 unlock is authenticated; periodically test recovery-code restoration separately.
 
@@ -111,7 +111,7 @@ Reproduce clean-environment acceptance with:
 sh scripts/test-m6-restore.sh
 ```
 
-Requires Go, Python 3, Docker, and the local `cairn-vault:m3` image (or set
+Requires Go, Python 3, Docker, and the local `klefki:m3` image (or set
 `M6_TEST_IMAGE` to an available Linux image with `/bin/sh`). It uses synthetic data,
 mounts only the binary, backup and test credentials into a fresh network-disabled
 container, restores via both unlock methods, and compares every document byte,

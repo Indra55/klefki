@@ -1,37 +1,37 @@
 #!/bin/sh
-# Synthetic clean-container acceptance. No existing vault or user credentials are read.
+# Synthetic clean-container acceptance. No existing klefki or user credentials are read.
 set -eu
 umask 077
 cd "$(dirname "$0")/.."
 stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT HUP INT TERM
-CGO_ENABLED=0 go build -o "$stage/vault" ./cli
+CGO_ENABLED=0 go build -o "$stage/klefki" ./cli
 mkdir "$stage/source" "$stage/input" "$stage/output"
 printf '%s' 'public M6 synthetic password' > "$stage/input/password"
-"$stage/vault" init --vault "$stage/source/account.v1" --password-file "$stage/input/password" --recovery-out "$stage/input/recovery"
+"$stage/klefki" init --klefki "$stage/source/account.v1" --password-file "$stage/input/password" --recovery-out "$stage/input/recovery"
 python3 - "$stage/source" <<'PY'
 import pathlib, sys
 root = pathlib.Path(sys.argv[1])
 (root / 'document.txt').write_bytes(b'synthetic restore fixture\n' * 200000)
 (root / 'empty.txt').write_bytes(b'')
 PY
-"$stage/vault" add --vault "$stage/source/account.v1" --password-file "$stage/input/password" "$stage/source/document.txt" > "$stage/receipt.json"
-"$stage/vault" add --vault "$stage/source/account.v1" --password-file "$stage/input/password" "$stage/source/empty.txt" > /dev/null
-"$stage/vault" backup --vault "$stage/source/account.v1" --password-file "$stage/input/password" -o "$stage/input/backup"
-"$stage/vault" export-plain --vault "$stage/source/account.v1" --password-file "$stage/input/password" -o "$stage/expected"
-chmod 755 "$stage/vault"
+"$stage/klefki" add --klefki "$stage/source/account.v1" --password-file "$stage/input/password" "$stage/source/document.txt" > "$stage/receipt.json"
+"$stage/klefki" add --klefki "$stage/source/account.v1" --password-file "$stage/input/password" "$stage/source/empty.txt" > /dev/null
+"$stage/klefki" backup --klefki "$stage/source/account.v1" --password-file "$stage/input/password" -o "$stage/input/backup"
+"$stage/klefki" export-plain --klefki "$stage/source/account.v1" --password-file "$stage/input/password" -o "$stage/expected"
+chmod 755 "$stage/klefki"
 # The container receives only the binary, completed backup, and test credentials.
 # No original store, document, home directory, network, or server is available.
 docker run --rm --network none --read-only --user "$(id -u):$(id -g)" \
   --tmpfs /tmp:rw,nosuid,nodev,size=256m \
-  -v "$stage/vault:/vault:ro" -v "$stage/input:/input:ro" \
-  -v "$stage/output:/output" --entrypoint /bin/sh "${M6_TEST_IMAGE:-cairn-vault:m3}" -ec '
-    /vault restore --password-file /input/password -o /output/password /input/backup
-    /vault check --vault /output/password/account.v1 --password-file /input/password
-    /vault export-plain --vault /output/password/account.v1 --password-file /input/password -o /output/plain-password
-    /vault restore --recovery-file /input/recovery -o /output/recovery /input/backup
-    /vault check --vault /output/recovery/account.v1 --recovery-file /input/recovery
-    /vault export-plain --vault /output/recovery/account.v1 --recovery-file /input/recovery -o /output/plain-recovery
+  -v "$stage/klefki:/klefki:ro" -v "$stage/input:/input:ro" \
+  -v "$stage/output:/output" --entrypoint /bin/sh "${M6_TEST_IMAGE:-klefki:m3}" -ec '
+    /klefki restore --password-file /input/password -o /output/password /input/backup
+    /klefki check --klefki /output/password/account.v1 --password-file /input/password
+    /klefki export-plain --klefki /output/password/account.v1 --password-file /input/password -o /output/plain-password
+    /klefki restore --recovery-file /input/recovery -o /output/recovery /input/backup
+    /klefki check --klefki /output/recovery/account.v1 --recovery-file /input/recovery
+    /klefki export-plain --klefki /output/recovery/account.v1 --recovery-file /input/recovery -o /output/plain-recovery
   '
 python3 - "$stage" <<'PY'
 import pathlib, sqlite3, sys

@@ -16,7 +16,7 @@ func TestPDFRepeatedImageOCRRunsOnce(t *testing.T) {
 	}
 	for _, tool := range []string{"tesseract", "pdfinfo", "pdfimages", "pdftotext", "pdftoppm"} {
 		if _, e := exec.LookPath(tool); e != nil {
-			if os.Getenv("VAULT_REQUIRE_OCR") == "1" {
+			if os.Getenv("KLEFKI_REQUIRE_OCR") == "1" {
 				t.Fatal("required OCR tools unavailable")
 			}
 			t.Skip("OCR tools unavailable")

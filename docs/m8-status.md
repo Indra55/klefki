@@ -6,7 +6,7 @@ personal documents or a security audit.
 
 ## Use
 
-M8 is off by default on each vault/device. Desktop Settings offers **Semantic
+M8 is off by default on each klefki/device. Desktop Settings offers **Semantic
 search and suggestions**, a cancellable model download, and selection of a
 verified local bundle. Enabling builds the additional encrypted index. Documents
 continue to be saved if indexing fails. Disable to stop semantic processing;
@@ -19,7 +19,7 @@ extraction or reminders are included.
 The normal Linux and Windows desktop binaries in `desktop/build/bin` include
 native ONNX support. Quit the old app before opening the replacement binary.
 Inference is CPU-only. Model assets live under the app's settings directory,
-`models/<fingerprint>`, separately from encrypted vault data.
+`models/<fingerprint>`, separately from encrypted klefki data.
 
 BGE-small replaces MiniLM. Existing enabled devices retain their opt-in, and
 classification thresholds reset to the BGE defaults when the model fingerprint
@@ -33,14 +33,14 @@ index. Old model assets are not treated as the current model.
 CLI examples (flags precede positional arguments):
 
 ```sh
-go build -tags onnx -o vault ./cli
-./vault model status
-./vault model setup                          # download verified public assets
-./vault model setup --bundle /private/model  # or an existing verified directory
-./vault index --vault /private/account.v1 --semantic
-./vault search --vault /private/account.v1 --mode hybrid --query-file /private/query.txt
-./vault analyze --vault /private/account.v1 --revision REVISION_ID
-./vault correct --vault /private/account.v1 --revision REVISION_ID --correction-file /private/correction.json
+go build -tags onnx -o klefki ./cli
+./klefki model status
+./klefki model setup                          # download verified public assets
+./klefki model setup --bundle /private/model  # or an existing verified directory
+./klefki index --klefki /private/account.v1 --semantic
+./klefki search --klefki /private/account.v1 --mode hybrid --query-file /private/query.txt
+./klefki analyze --klefki /private/account.v1 --revision REVISION_ID
+./klefki correct --klefki /private/account.v1 --revision REVISION_ID --correction-file /private/correction.json
 ```
 
 `--model-dir DIR` overrides the CLI model directory. `index` and `search` without
@@ -59,16 +59,16 @@ correction revision in `resolve` after reviewing the selected values.
 Prepare model assets on the server's public web build before exposing the option:
 
 ```sh
-VAULT_MODEL_DIR=/path/to/verified/model/bundle npm --prefix web run build
+KLEFKI_MODEL_DIR=/path/to/verified/model/bundle npm --prefix web run build
 ```
 
 The build verifies model assets, copies them under `models/bge-small`, and packages
-pinned browser WASM/runtime assets. Serve `web/dist` through the existing Vault
+pinned browser WASM/runtime assets. Serve `web/dist` through the existing Klefki
 server. A build without a supplied model bundle remains usable for ordinary web
 features, but activation reports unavailable assets until they are provisioned.
 Model preparation is a deployment step; clients download assets only on opt-in.
 
-Browser users enable M8 independently in Vault settings. Setup downloads about
+Browser users enable M8 independently in Klefki settings. Setup downloads about
 139 MiB of public model/tokenizer/WASM assets from the same origin, validates each
 checksum, and stores them in a separate model cache. A local bundle can supply
 model/tokenizer assets; browser runtime assets still come from the app origin.
@@ -96,10 +96,10 @@ visible status. Lock/disable terminates the worker and clears private UI state.
   480-token content windows with 64-token overlap, averaged content vectors,
   six description-based label vectors, and evidence-bearing fields. Model,
   tokenizer, chunking/pooling and extraction identities detect stale data.
-- `semantic-index.v1.json`, tagged `vault:system:semantic-index`, is rebuildable.
-  `analysis-correction.v1.json`, tagged `vault:system:analysis-correction`, is
+- `semantic-index.v1.json`, tagged `klefki:system:semantic-index`, is rebuildable.
+  `analysis-correction.v1.json`, tagged `klefki:system:analysis-correction`, is
   durable and binds corrections to object/content file IDs. These are ordinary
-  encrypted vault files; existing crypto containers, key hierarchy, BM25 payload
+  encrypted klefki files; existing crypto containers, key hierarchy, BM25 payload
   and sync APIs are unchanged. Internal files and trash descendants are excluded.
 - Metadata-only edits preserve corrections; content replacement invalidates
   their applicability. Rebuilds preserve correction records. Concurrent
@@ -163,14 +163,14 @@ unrelated chart, while retaining exact identifier matches and no-match results.
 An isolated local check using the user-supplied bill and two synthetic distractors
 retrieved only the bill for 10 of 12 supplied questions, versus six with MiniLM
 and a neutral filename. The visual-layout and arithmetic questions returned no
-matches. This is a diagnostic, not full-vault acceptance or proof of chart/table
+matches. This is a diagnostic, not full-klefki acceptance or proof of chart/table
 reasoning; the image and extracted private text are not stored in this repository.
 
 Reproduce with:
 
 ```sh
-go run -tags onnx ./cmd/vault-m8-eval --model-dir /path/to/model --output /tmp/m8-result.json
-VAULT_MODEL_DIR=/path/to/model VAULT_REQUIRE_ONNX=1 go test -race -tags onnx ./core/search ./core/semantic ./core/desktop ./cli ./server
+go run -tags onnx ./cmd/klefki-m8-eval --model-dir /path/to/model --output /tmp/m8-result.json
+KLEFKI_MODEL_DIR=/path/to/model KLEFKI_REQUIRE_ONNX=1 go test -race -tags onnx ./core/search ./core/semantic ./core/desktop ./cli ./server
 ```
 
 Verified:
@@ -209,7 +209,7 @@ Verified:
 ## Private acceptance still required
 
 Use at least 50 current documents and 100 labelled queries in your own local
-vault. Include near-duplicates, paraphrases and exact identifiers/numbers. Create
+klefki. Include near-duplicates, paraphrases and exact identifiers/numbers. Create
 an external private JSON file:
 
 ```json
@@ -220,8 +220,8 @@ an external private JSON file:
 ```
 
 The example shows the shape only; the real file must meet the sample counts.
-Get current document revision IDs from `vault list`; exclude internal sidecars.
-Run `vault evaluate --vault /private/account.v1 --model-dir /path/to/model
+Get current document revision IDs from `klefki list`; exclude internal sidecars.
+Run `klefki evaluate --klefki /private/account.v1 --model-dir /path/to/model
 --labels-file /private/labels.json`. It reports aggregate keyword/semantic/hybrid
 metrics, classification coverage/precision and tuned thresholds without emitting
 queries, document names or labels. Keep inputs and reports private; record only
@@ -232,7 +232,7 @@ results and category/field review in your desktop app before checking M8 complet
 
 English-first; no fine-tuning, LLM, expiry interpretation, reminders or browser
 OCR. Native model builds currently target Linux/Windows amd64. Model assets are
-public and separately reinstallable, not vault backup contents. Browser caches
+public and separately reinstallable, not klefki backup contents. Browser caches
 can be evicted. Older client versions do not understand M8 sidecars; upgrade
 participating clients together. Documents, text, vectors, fields and corrections
 are plaintext only while processing on an unlocked client. Go/JS strings, runtime

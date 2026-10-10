@@ -5,11 +5,12 @@ import (
 	"os"
 	"testing"
 	"time"
-	"vault/core/semantic"
+
+	"klefki/core/semantic"
 )
 
 func TestDesktopM8DefaultOffSetupSearchAndDisable(t *testing.T) {
-	root := os.Getenv("VAULT_MODEL_DIR")
+	root := os.Getenv("KLEFKI_MODEL_DIR")
 	if root == "" || !semantic.Supported() {
 		t.Skip("requires native model")
 	}

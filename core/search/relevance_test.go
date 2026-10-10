@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	vc "vault/core/crypto"
-	"vault/core/semantic"
-	vs "vault/core/sync"
+	vc "klefki/core/crypto"
+	"klefki/core/semantic"
+	vs "klefki/core/sync"
 )
 
 const balanceQuestion = "Which record combines a consumption history visualization with instructions for settling an outstanding balance?"
@@ -65,9 +65,9 @@ func TestLongQueryRelevance(t *testing.T) {
 }
 
 func TestNativeLongHybridQueryRelevance(t *testing.T) {
-	root := os.Getenv("VAULT_MODEL_DIR")
+	root := os.Getenv("KLEFKI_MODEL_DIR")
 	if root == "" || !semantic.Supported() {
-		if os.Getenv("VAULT_REQUIRE_ONNX") == "1" {
+		if os.Getenv("KLEFKI_REQUIRE_ONNX") == "1" {
 			t.Fatal("required ONNX unavailable")
 		}
 		t.Skip("requires native model")

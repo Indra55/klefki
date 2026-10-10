@@ -11,8 +11,9 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
-	vc "vault/core/crypto"
-	"vault/core/local"
+
+	vc "klefki/core/crypto"
+	"klefki/core/local"
 )
 
 type progressReader struct {
@@ -89,7 +90,7 @@ func (s *Service) Import(paths []string, parent *string, tags []string) (string,
 			return ErrInvalid
 		}
 		for _, tag := range tags {
-			if strings.HasPrefix(tag, "vault:system:") {
+			if strings.HasPrefix(tag, "klefki:system:") {
 				return ErrInvalid
 			}
 		}

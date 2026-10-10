@@ -17,7 +17,7 @@ function field(label: string, type = 'text') { const wrap = node('label', label)
 function download(bytes: Uint8Array, name: string, type = 'application/octet-stream') { const url = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type })); urls.add(url); const a = node('a'); a.href = url; a.download = name; a.click(); setTimeout(() => { URL.revokeObjectURL(url); urls.delete(url); }, 10000); }
 function message(s: string) { const e = document.querySelector('#status'); if (e)
     e.textContent = s; }
-function shell() { app.replaceChildren(); const header = node('header'); header.append(node('a', 'vault', 'brand'), node('span', 'Your documents, privately kept.', 'muted')); app.append(header); return app; }
+function shell() { app.replaceChildren(); const header = node('header'); header.append(node('a', 'Klefki', 'brand'), node('span', 'Your documents, privately kept.', 'muted')); app.append(header); return app; }
 function lock() { modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
     c.wipe(master); if (credential)
     c.wipe(credential); master = credential = undefined; heads = []; store?.close(); store = undefined; release?.(); release = undefined; busy = false; parent = null; filter = ''; favorites = false; for (const url of urls)
@@ -34,7 +34,7 @@ async function operation(fn: (key: Uint8Array, g: number) => Promise<void>) {
     }
     catch (e) {
         if (g === generation)
-            message(e instanceof HTTPError ? (e.status === 401 ? 'Sign-in expired. Sync again to reconnect.' : 'Server request failed. Your local edits are kept.') : 'Could not complete this action. Check your connection or vault data.');
+            message(e instanceof HTTPError ? (e.status === 401 ? 'Sign-in expired. Sync again to reconnect.' : 'Server request failed. Your local edits are kept.') : 'Could not complete this action. Check your connection or klefki data.');
         if (e instanceof HTTPError && e.status === 401)
             remote = undefined;
     }
@@ -47,8 +47,8 @@ async function operation(fn: (key: Uint8Array, g: number) => Promise<void>) {
 async function claim() {
     c.check(navigator.locks);
     await new Promise<void>((resolve, reject) => {
-        void navigator.locks.request('vault-open-' + account!.account, { ifAvailable: true }, async (held) => { if (!held) {
-            reject(Error('Vault open elsewhere'));
+        void navigator.locks.request('klefki-open-' + account!.account, { ifAvailable: true }, async (held) => { if (!held) {
+            reject(Error('Klefki open elsewhere'));
             return;
         } await new Promise<void>(done => { release = done; resolve(); }); }).catch(reject);
     });
@@ -61,7 +61,7 @@ async function enter(password: string) {
         await claim();
         store = await Store.open(account!);
         controller = new AbortController();
-        localStorage.setItem('vault-account', JSON.stringify(account));
+        localStorage.setItem('klefki-account', JSON.stringify(account));
         await refresh();
         lastActivity = Date.now();
     }
@@ -72,13 +72,13 @@ async function enter(password: string) {
 }
 function locked() {
     const root = shell(), card = node('main', undefined, 'unlock');
-    card.append(node('span', 'ENCRYPTED DOCUMENT STORAGE', 'eyebrow'), node('h1', account ? 'Welcome back.' : 'A place for what matters.'), node('p', account ? 'Unlock your local vault. Synced documents are available offline.' : 'Create a vault, or open the account you already use on desktop.', 'muted'));
+    card.append(node('span', 'ENCRYPTED DOCUMENT STORAGE', 'eyebrow'), node('h1', account ? 'Welcome back.' : 'A place for what matters.'), node('p', account ? 'Unlock your local store. Synced documents are available offline.' : 'Create a private space, or open the account you already use on desktop.', 'muted'));
     const form = node('form'), password = field('Password', 'password');
     password.input.required = true;
     password.input.autocomplete = account ? 'current-password' : 'new-password';
     form.append(password.wrap);
     if (account) {
-        const go = node('button', 'Unlock vault', 'primary');
+        const go = node('button', 'Unlock Klefki', 'primary');
         go.type = 'submit';
         form.append(go);
         form.onsubmit = async (e) => { e.preventDefault(); if (busy)
@@ -86,7 +86,7 @@ function locked() {
             await enter(value);
         }
         catch {
-            message('Could not unlock. Check the password and close other tabs using this vault.');
+            message('Could not unlock. Check the password and close other tabs using this store.');
         }
         finally {
             busy = false;
@@ -98,7 +98,7 @@ function locked() {
         confirm.input.required = true;
         confirm.input.autocomplete = 'new-password';
         form.append(confirm.wrap);
-        const go = node('button', 'Create vault', 'primary');
+        const go = node('button', 'Create Klefki', 'primary');
         go.type = 'submit';
         form.append(go);
         form.onsubmit = async (e) => {
@@ -121,7 +121,7 @@ function locked() {
                 recoveryDialog(created.recovery);
             }
             catch {
-                message('Could not create the vault. Browser storage must be available.');
+                message('Could not create the store. Browser storage must be available.');
             }
             finally {
                 busy = false;
@@ -132,7 +132,7 @@ function locked() {
     card.append(form);
     if (!account) {
         const imp = field('Open an encrypted account file', 'file');
-        imp.input.accept = '.vault,.v1,application/octet-stream';
+        imp.input.accept = '.klefki,.v1,application/octet-stream';
         imp.input.onchange = async () => { try {
             const file = imp.input.files?.[0];
             if (!file)
@@ -142,7 +142,7 @@ function locked() {
             locked();
         }
         catch {
-            message('This is not a valid Vault account file.');
+            message('This is not a valid Klefki account file.');
         } };
         card.append(imp.wrap);
         const id = field('Or enter your account ID');
@@ -163,7 +163,7 @@ function locked() {
     card.append(status, node('p', 'Keys stay in this browser while unlocked. Locking clears the active session.', 'footnote'));
     root.append(card);
 }
-function recoveryDialog(code: string) { const dialog = node('dialog'); dialog.append(node('h2', 'Save your recovery code'), node('p', 'Store this separately from your vault. It is shown once and is needed if you lose your password.'), node('code', code)); dialog.append(button('Download recovery code', () => download(c.utf8(code + '\n'), 'vault-recovery.txt', 'text/plain')), button('I have saved it', () => { dialog.close(); dialog.remove(); })); app.append(dialog); dialog.showModal(); dialog.oncancel = e => e.preventDefault(); }
+function recoveryDialog(code: string) { const dialog = node('dialog'); dialog.append(node('h2', 'Save your recovery code'), node('p', 'Store this separately from your private space. It is shown once and is needed if you lose your password.'), node('code', code)); dialog.append(button('Download recovery code', () => download(c.utf8(code + '\n'), 'klefki-recovery.txt', 'text/plain')), button('I have saved it', () => { dialog.close(); dialog.remove(); })); app.append(dialog); dialog.showModal(); dialog.oncancel = e => e.preventDefault(); }
 async function refresh() { if (!store || !master)
     return; const g = generation, next = await store.heads(master); if (g !== generation)
     return; heads = next; await library(); }
@@ -185,7 +185,7 @@ async function syncNow(register = false) {
         message('Synced. All local changes are saved on the server.');
     });
 }
-function trashed(h: Head, seen = new Set<string>()): boolean { if (h.metadata.tags.includes('vault:system:trash') && h.metadata.type === 'folder')
+function trashed(h: Head, seen = new Set<string>()): boolean { if (h.metadata.tags.includes('klefki:system:trash') && h.metadata.type === 'folder')
     return true; if (!h.metadata.parent || seen.has(h.revision.object))
     return false; seen.add(h.revision.object); return heads.some(p => p.revision.object === h.metadata.parent && trashed(p, seen)); }
 async function library() {
@@ -253,12 +253,12 @@ async function library() {
     }
     async function searchRows(){const seq=++searchSequence,q=filter,g=generation;ranked=[];renderRows();if(!prefs.enabled||!q.trim()){searchStatus.textContent='';return}searchStatus.textContent='Searching locally…';await new Promise(resolve=>setTimeout(resolve,200));if(seq!==searchSequence||g!==generation)return;const key=master!.slice();try{const result=await semantic.search(store!,key,heads,q);if(seq!==searchSequence||g!==generation)return;ranked=result.hits.map(h=>h.revision);searchStatus.textContent=result.mode==='hybrid'?'Semantic + keyword search':result.mode==='semantic'?'Semantic search · keyword index unavailable':'Keyword search · '+semanticMessage(result.availability);renderRows()}catch{if(seq===searchSequence&&g===generation)searchStatus.textContent='Local search could not finish. Names and tags still work.'}finally{c.wipe(key)}}
     void searchRows();
-    const status = node('p', pending ? `${pending} local change${pending === 1 ? '' : 's'} waiting to sync.` : 'Local vault ready.', 'status');
+    const status = node('p', pending ? `${pending} local change${pending === 1 ? '' : 's'} waiting to sync.` : 'Local store ready.', 'status');
     status.id = 'status';
     status.setAttribute('role', 'status');
     main.append(status);
     const tools = node('details');
-    tools.append(node('summary', 'Vault settings'), node('p', 'Account ID: ' + account!.account, 'account-id'), button('Download encrypted account file', () => download(c.accountBytes(account!), 'account.vault')), button('Register this vault on server', () => void syncNow(true)), button('New folder', () => folderDialog()), node('p', 'Keep the account file and recovery code safe. Browser storage can be cleared or evicted.', 'footnote'));
+    tools.append(node('summary', 'Klefki settings'), node('p', 'Account ID: ' + account!.account, 'account-id'), button('Download encrypted account file', () => download(c.accountBytes(account!), 'account.klefki')), button('Register this store on server', () => void syncNow(true)), button('New folder', () => folderDialog()), node('p', 'Keep the account file and recovery code safe. Browser storage can be cleared or evicted.', 'footnote'));
     addSemanticSettings(tools,prefs);
     main.append(tools);
     root.append(main);
@@ -289,7 +289,7 @@ function editDialog(h: Head) {
     }
     d.append(button('Save changes', () => {
         const n = name.input.value, t = tags.input.value.split(',').map(x => x.trim()).filter(Boolean);
-        if (!n.trim() || n.length > 255 || /[\x00/\\]/.test(n) || t.some(x => x.startsWith('vault:system:')))
+        if (!n.trim() || n.length > 255 || /[\x00/\\]/.test(n) || t.some(x => x.startsWith('klefki:system:')))
             return;
         const edit = { name: n, parent: h.metadata.parent, tags: t, favorite: favorite.input.checked }, content = text?.value;
         d.close();
@@ -357,7 +357,7 @@ async function openDocument(h: Head) {
 }
 await c.ready;
 try {
-    const saved = localStorage.getItem('vault-account');
+    const saved = localStorage.getItem('klefki-account');
     if (saved)
         account = c.validateAccount(JSON.parse(saved));
 }

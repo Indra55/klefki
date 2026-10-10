@@ -4,7 +4,8 @@ import (
 	"sort"
 	"strings"
 	"unicode"
-	"vault/core/semantic"
+
+	"klefki/core/semantic"
 )
 
 // Query-only filtering keeps the encrypted index format and document terms intact.

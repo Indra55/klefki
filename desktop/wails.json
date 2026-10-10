@@ -1,7 +1,7 @@
 {
  "$schema":"https://wails.io/schemas/config.v2.json",
- "name":"Vault","outputfilename":"vault-desktop",
+ "name":"Klefki","outputfilename":"klefki-desktop",
  "frontend:install":"npm ci --ignore-scripts --no-audit --no-fund",
  "frontend:build":"npm run build","frontend:dev:watcher":"npm run dev","frontend:dev:serverUrl":"auto",
- "author":{"name":"Vault"},"info":{"productName":"Vault","productVersion":"0.4.0","copyright":"Vault contributors"}
+ "author":{"name":"Klefki"},"info":{"productName":"Klefki","productVersion":"0.4.0","copyright":"Klefki contributors"}
 }

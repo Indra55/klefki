@@ -5,8 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"time"
-	"vault/core/search"
-	"vault/core/semantic"
+
+	"klefki/core/search"
+	"klefki/core/semantic"
 )
 
 type SearchResults struct {

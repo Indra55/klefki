@@ -15,7 +15,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	vc "vault/core/crypto"
+	vc "klefki/core/crypto"
 )
 
 const maxText = 2 << 20

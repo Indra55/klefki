@@ -11,7 +11,7 @@ import (
 
 func TestWebHandler(t *testing.T) {
 	dir := t.TempDir()
-	for name, body := range map[string]string{"index.html": "<html>Vault</html>", "sw.js": "// worker", "manifest.webmanifest": "{}"} {
+	for name, body := range map[string]string{"index.html": "<html>Klefki</html>", "sw.js": "// worker", "manifest.webmanifest": "{}"} {
 		if e := os.WriteFile(filepath.Join(dir, name), []byte(body), 0600); e != nil {
 			t.Fatal(e)
 		}
@@ -24,7 +24,7 @@ func TestWebHandler(t *testing.T) {
 	for _, tt := range []struct {
 		path   string
 		status int
-	}{{"/", 200}, {"/sw.js", 200}, {"/v1/sync/changes", 401}, {"/missing", 404}, {"/../account.vault", 404}, {"/manifest.webmanifest", 200}} {
+	}{{"/", 200}, {"/sw.js", 200}, {"/v1/sync/changes", 401}, {"/missing", 404}, {"/../account.klefki", 404}, {"/manifest.webmanifest", 200}} {
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, httptest.NewRequest("GET", tt.path, nil))
 		if w.Code != tt.status {

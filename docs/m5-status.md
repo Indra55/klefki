@@ -12,7 +12,7 @@ Requires Go 1.26+ and Node 22.18+ (Node 26.9 used for verification).
 ```sh
 npm --prefix web ci --ignore-scripts
 npm --prefix web run build
-go run ./cmd/vault-server -dev-http -web web/dist
+go run ./cmd/klefki-server -dev-http -web web/dist
 ```
 
 Open `http://127.0.0.1:8080`. Loopback HTTP is development-only. For normal use,
@@ -42,8 +42,8 @@ build above; the development server does not generate a service worker.
    Sync desktop to see the edit. Concurrent edits remain explicit conflict copies.
 
 New web accounts display a recovery code once. Save it separately, download the
-wrapped account file from **Vault settings**, then register the account once using
-**Register this vault on server**. Registration is explicit; account creation and
+wrapped account file from **Klefki settings**, then register the account once using
+**Register this store on server**. Registration is explicit; account creation and
 local edits work offline. Browser recovery-code unlock/reset is not implemented;
 the exported account is compatible with the existing local recovery tools.
 
@@ -51,7 +51,7 @@ the exported account is compatible with the existing local recovery tools.
 
 Only wrapped account records, encrypted revisions/chunks, opaque IDs, queue order,
 origin binding and cursor are persisted. Local storage remembers the wrapped
-account; IndexedDB holds the offline vault. The worker caches only enumerated
+account; IndexedDB holds the offline klefki. The worker caches only enumerated
 build assets, never `/v1`, plaintext downloads, credentials or account responses.
 An edit and its queue entry commit together. A pulled revision and cursor commit
 only after authenticating every chunk. Retries reuse existing ciphertext and

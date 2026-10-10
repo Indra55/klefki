@@ -1,4 +1,4 @@
-// Package server stores Vault ciphertext and authentication verifiers.
+// Package server stores Klefki ciphertext and authentication verifiers.
 package server
 
 import (
@@ -25,8 +25,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	_ "modernc.org/sqlite"
-	vc "vault/core/crypto"
-	"vault/core/syncwire"
+
+	vc "klefki/core/crypto"
+	"klefki/core/syncwire"
 )
 
 type Config struct {
@@ -93,12 +94,12 @@ func Open(c Config) (*Server, error) {
 		return nil, e
 	}
 	// Create privately before SQLite opens the database and its journal files.
-	f, e := os.OpenFile(filepath.Join(c.DataDir, "vault.db"), os.O_CREATE|os.O_RDWR, 0600)
+	f, e := os.OpenFile(filepath.Join(c.DataDir, "klefki.db"), os.O_CREATE|os.O_RDWR, 0600)
 	if e != nil {
 		return nil, e
 	}
 	f.Close()
-	db, e := sql.Open("sqlite", filepath.Join(c.DataDir, "vault.db"))
+	db, e := sql.Open("sqlite", filepath.Join(c.DataDir, "klefki.db"))
 	if e != nil {
 		return nil, e
 	}

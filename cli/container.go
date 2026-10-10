@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	v "vault/core/crypto"
-	"vault/core/local"
+
+	v "klefki/core/crypto"
+	"klefki/core/local"
 )
 
 func accountBytes(a v.Account) []byte { return local.AccountBytes(a) }

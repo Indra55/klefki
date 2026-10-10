@@ -35,7 +35,7 @@ records contain their complete ciphertext and tag.
 In a restricted workspace with cached Go dependencies:
 
 ```sh
-GOCACHE=/tmp/vault-go-cache GOPROXY=off GOSUMDB=off go -C testvectors/tools/go test ./...
+GOCACHE=/tmp/klefki-go-cache GOPROXY=off GOSUMDB=off go -C testvectors/tools/go test ./...
 ```
 
 The offline command still checks modules against checked-in `go.sum`; it cannot

@@ -1,4 +1,4 @@
-// Public synthetic M8 acceptance runner. Private labels use vault evaluate instead.
+// Public synthetic M8 acceptance runner. Private labels use klefki evaluate instead.
 package main
 
 import (
@@ -9,10 +9,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	vc "vault/core/crypto"
-	"vault/core/search"
-	"vault/core/semantic"
-	vs "vault/core/sync"
+
+	vc "klefki/core/crypto"
+	"klefki/core/search"
+	"klefki/core/semantic"
+	vs "klefki/core/sync"
 )
 
 func main() {
@@ -51,7 +52,7 @@ func run() error {
 		return e
 	}
 	defer model.Close()
-	root, e := os.MkdirTemp("", "vault-m8-eval-")
+	root, e := os.MkdirTemp("", "klefki-m8-eval-")
 	if e != nil {
 		return e
 	}

@@ -9,19 +9,20 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	vc "vault/core/crypto"
-	"vault/core/search"
-	vs "vault/core/sync"
-	"vault/server"
+
+	vc "klefki/core/crypto"
+	"klefki/core/search"
+	vs "klefki/core/sync"
+	"klefki/server"
 )
 
 func TestOCRSearchEncryptedSyncAcceptance(t *testing.T) {
 	for _, tool := range []string{"tesseract", "pdfinfo", "pdfimages", "pdftotext", "pdftoppm"} {
 		if _, e := exec.LookPath(tool); e != nil {
-			if os.Getenv("VAULT_REQUIRE_OCR") == "1" {
+			if os.Getenv("KLEFKI_REQUIRE_OCR") == "1" {
 				t.Fatal("required OCR tools unavailable")
 			}
-			t.Skip("local OCR tools unavailable; set VAULT_REQUIRE_OCR=1 to require acceptance")
+			t.Skip("local OCR tools unavailable; set KLEFKI_REQUIRE_OCR=1 to require acceptance")
 		}
 	}
 	root := t.TempDir()
@@ -89,7 +90,7 @@ func TestOCRSearchEncryptedSyncAcceptance(t *testing.T) {
 		t.Fatal(e)
 	}
 	for _, entry := range entries {
-		if strings.HasPrefix(entry.Name(), "vault-ocr-") {
+		if strings.HasPrefix(entry.Name(), "klefki-ocr-") {
 			t.Fatal("plaintext staging retained")
 		}
 	}

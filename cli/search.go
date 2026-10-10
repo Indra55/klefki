@@ -11,33 +11,33 @@ import (
 	"path/filepath"
 	"syscall"
 
-	vc "vault/core/crypto"
-	"vault/core/search"
-	"vault/core/semantic"
-	vs "vault/core/sync"
+	vc "klefki/core/crypto"
+	"klefki/core/search"
+	"klefki/core/semantic"
+	vs "klefki/core/sync"
 )
 
-const searchHelp = `vault index [--vault PATH] [--store PATH] [--password-file PATH | --recovery-file PATH] [--language eng]
-vault model setup|status [--model-dir PATH] [--bundle DIR]
-vault analyze|correct --revision ID [--correction-file PATH] [--cutoff N] [--margin N]
-vault evaluate --labels-file PATH [--model-dir PATH]
-vault index --semantic [--model-dir PATH]
-vault search --mode keyword|hybrid [--model-dir PATH]
-vault search [--vault PATH] [--store PATH] [--password-file PATH | --recovery-file PATH] [--query-file PATH]
+const searchHelp = `klefki index [--klefki PATH] [--store PATH] [--password-file PATH | --recovery-file PATH] [--language eng]
+klefki model setup|status [--model-dir PATH] [--bundle DIR]
+klefki analyze|correct --revision ID [--correction-file PATH] [--cutoff N] [--margin N]
+klefki evaluate --labels-file PATH [--model-dir PATH]
+klefki index --semantic [--model-dir PATH]
+klefki search --mode keyword|hybrid [--model-dir PATH]
+klefki search [--klefki PATH] [--store PATH] [--password-file PATH | --recovery-file PATH] [--query-file PATH]
 Search reads the query from standard input when --query-file is omitted.
-Indexing uses local Tesseract/Poppler; run vault sync afterward to sync the encrypted index.`
+Indexing uses local Tesseract/Poppler; run klefki sync afterward to sync the encrypted index.`
 
 func runSearch(args []string, out io.Writer) error {
 	f := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	f.SetOutput(io.Discard)
-	accountPath := f.String("vault", filepath.Join(".vault", "account.v1"), "")
+	accountPath := f.String("klefki", filepath.Join(".klefki", "account.v1"), "")
 	storePath := f.String("store", "", "")
 	passwordPath := f.String("password-file", "", "")
 	recoveryPath := f.String("recovery-file", "", "")
 	language, queryPath := "eng", ""
 	semanticIndex := f.Bool("semantic", false, "")
 	mode := f.String("mode", "keyword", "")
-	modelDir := f.String("model-dir", filepath.Join(".vault", "models", semantic.Fingerprint()), "")
+	modelDir := f.String("model-dir", filepath.Join(".klefki", "models", semantic.Fingerprint()), "")
 	revision := f.String("revision", "", "")
 	labelsPath := f.String("labels-file", "", "")
 	correctionPath := f.String("correction-file", "", "")
@@ -195,7 +195,7 @@ func runModel(args []string, out io.Writer) error {
 	}
 	f := flag.NewFlagSet("model", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
-	root := f.String("model-dir", filepath.Join(".vault", "models", semantic.Fingerprint()), "")
+	root := f.String("model-dir", filepath.Join(".klefki", "models", semantic.Fingerprint()), "")
 	bundle := f.String("bundle", "", "")
 	if f.Parse(args[1:]) != nil || f.NArg() != 0 {
 		return errUsage

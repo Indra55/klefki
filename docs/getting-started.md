@@ -1,0 +1,122 @@
+# Getting started
+
+Klefki runs locally as a desktop app, a web app, or a CLI. Sync is optional;
+you can add and read documents offline.
+
+## Web app
+
+Requires Go 1.26+ and Node 22.18+. From the repository root:
+
+```sh
+npm --prefix web ci --ignore-scripts
+npm --prefix web run build
+go run ./cmd/klefki-server -dev-http -web web/dist
+```
+
+Open <http://127.0.0.1:8080>. Create an account, save the recovery code, and add
+a document. Register the account in **Klefki settings** to enable sync.
+For an account already used on desktop, open its exported encrypted account
+file and unlock with the same password.
+
+The HTTP command is for local development. Use HTTPS for normal operation.
+See [web setup and offline behavior](m5-status.md) and [server configuration](server-api.md)
+for deployment, TLS, and Docker.
+
+## Desktop app
+
+The desktop app targets Linux and Windows and uses Wails v2. It needs Go, Node,
+and the [Wails platform prerequisites](https://wails.io/docs/gettingstarted/installation).
+With Wails installed, build from the repository root:
+
+```sh
+cd desktop
+wails build
+```
+
+On Linux with WebKitGTK 4.1, use `wails build -tags webkit2_41`.
+The executable is written to `desktop/build/bin/klefki-desktop`
+(`klefki-desktop.exe` on Windows).
+
+Create a private space, save the recovery code, and add files. Use Settings to
+connect a sync server or export the encrypted account file for another device.
+The [desktop walkthrough](m4-acceptance.md) covers folders, previews, trash,
+locking, and sync. Linux users can also enable [fingerprint unlock](fingerprint-linux.md).
+
+## CLI
+
+Requires Go 1.26+. Build from the repository root:
+
+```sh
+go build -o klefki ./cli
+./klefki help
+```
+
+Initialize an account and save its recovery code to a private location **outside
+this repository** (replace the recovery path with an existing private directory):
+
+```sh
+./klefki init --recovery-out /private/location/klefki-recovery.txt
+./klefki encrypt -o document.klefki /path/to/document.pdf
+./klefki decrypt -o restored.pdf document.klefki
+```
+
+Passwords are prompted with echo disabled. The default account file is
+`.klefki/account.v1`; use `--klefki PATH` for another account. For automation, supply
+`--password-file PATH` instead of a terminal password. Passwords and recovery
+codes are never accepted as argument values or printed to stdout.
+
+Recover a document without the password:
+
+```sh
+./klefki decrypt --recovery-file /private/location/klefki-recovery.txt -o recovered.pdf document.klefki
+```
+
+Flags precede the input file. Encryption without `-o` creates an opaque
+`<file-id>.klefki` filename beside the source. Decryption requires `-o` and never
+uses the encrypted filename as a filesystem path. Existing output files are
+never replaced. Source files remain intact. Recovery requires the account file,
+the encrypted file, and the recovery code; this is not server account reset.
+
+Outputs use private staging, complete authentication, and exclusive publication.
+The filesystem must support hard links (for example, local Linux filesystems or
+NTFS). Linux file modes are tested; Windows has only been cross-compiled.
+Plaintext outputs and recovery-code files are intentionally outside encryption.
+
+## Server
+
+For local development:
+
+```sh
+go run ./cmd/klefki-server -dev-http
+```
+
+Normal operation requires TLS. See the [server guide](server-api.md) for
+TLS, Docker and API usage.
+
+## Offline sync
+
+After initializing an account, register it once and add files locally:
+
+```sh
+./klefki register --server http://127.0.0.1:8080 --dev-http
+./klefki add /path/to/document.pdf
+./klefki sync --server http://127.0.0.1:8080 --dev-http
+./klefki list
+```
+
+Use HTTPS for normal operation. `add` works offline and prints object/revision IDs.
+Edit with `add --object ID --base REVISION FILE`; export a selected copy with
+`export -o PATH REVISION`. Conflicting edits remain separate copies. See the
+[sync guide](sync-protocol.md) for multiple devices, storage and retry details.
+
+## Search and recovery
+
+Desktop and CLI can [index document text and scans locally](m7-status.md).
+[Semantic search and suggestions](m8-status.md) are optional and require a local
+model setup. Web reads synced indexes; it does not perform OCR itself.
+
+Keep the recovery code separately from your documents. The
+[backup and restore guide](backup-restore.md) explains encrypted backups,
+plaintext export, integrity checks, and recovery.
+
+[Documentation index](README.md)

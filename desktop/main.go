@@ -4,21 +4,23 @@ import (
 	"context"
 	"embed"
 	"errors"
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/options/windows"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
-	vc "vault/core/crypto"
-	vd "vault/core/desktop"
-	"vault/core/semantic"
-	vs "vault/core/sync"
+
+	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/options"
+	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
+
+	vc "klefki/core/crypto"
+	vd "klefki/core/desktop"
+	"klefki/core/semantic"
+	vs "klefki/core/sync"
 )
 
 //go:embed all:frontend/dist
@@ -42,7 +44,7 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	runtime.OnFileDrop(ctx, func(x, y int, paths []string) {
 		if a.service.State().Unlocked {
-			runtime.EventsEmit(ctx, "vault:drop", paths)
+			runtime.EventsEmit(ctx, "klefki:drop", paths)
 		}
 	})
 	go func() {
@@ -72,7 +74,7 @@ func (a *App) event(e vd.Event) {
 		a.clearPreview()
 	}
 	if a.ctx != nil {
-		runtime.EventsEmit(a.ctx, "vault:event", e)
+		runtime.EventsEmit(a.ctx, "klefki:event", e)
 	}
 }
 func (a *App) State() vd.State { return a.service.State() }
@@ -88,7 +90,7 @@ func (a *App) Lock()                                  { a.service.Lock(); a.clea
 func (a *App) Touch()                                 { a.service.Touch() }
 func (a *App) SetPreferences(p vd.Preferences) error  { return safe(a.service.Preferences(p)) }
 func (a *App) Create(password string) error {
-	path, e := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{Title: "Save your recovery code", DefaultFilename: "vault-recovery.txt"})
+	path, e := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{Title: "Save your recovery code", DefaultFilename: "klefki-recovery.txt"})
 	if e != nil {
 		return errors.New("DIALOG_FAILED")
 	}
@@ -256,14 +258,14 @@ func main() {
 		os.Exit(1)
 	}
 	app := &App{}
-	app.service, e = vd.New(filepath.Join(root, "Vault"), app.event)
+	app.service, e = vd.New(filepath.Join(root, "Klefki"), app.event)
 	if e != nil {
 		os.Exit(1)
 	}
 	app.service.SetFingerprintProvider(newFingerprintProvider())
 	defer app.service.Close()
 	files, _ := fs.Sub(assets, "frontend/dist")
-	e = wails.Run(&options.App{Title: "Vault", Width: 1200, Height: 820, MinWidth: 800, MinHeight: 600, BackgroundColour: &options.RGBA{R: 17, G: 18, B: 20, A: 255}, AssetServer: &assetserver.Options{Assets: files, Handler: http.HandlerFunc(app.serveHTTP)}, OnStartup: app.startup, OnShutdown: func(context.Context) { app.Lock() }, Bind: []interface{}{app}, SingleInstanceLock: &options.SingleInstanceLock{UniqueId: "vault-desktop-v1"}, DragAndDrop: &options.DragAndDrop{EnableFileDrop: true, DisableWebViewDrop: true}, Windows: &windows.Options{OnSuspend: app.Lock}, ErrorFormatter: func(err error) any { return err.Error() }})
+	e = wails.Run(&options.App{Title: "Klefki", Width: 1200, Height: 820, MinWidth: 800, MinHeight: 600, BackgroundColour: &options.RGBA{R: 17, G: 18, B: 20, A: 255}, AssetServer: &assetserver.Options{Assets: files, Handler: http.HandlerFunc(app.serveHTTP)}, OnStartup: app.startup, OnShutdown: func(context.Context) { app.Lock() }, Bind: []interface{}{app}, SingleInstanceLock: &options.SingleInstanceLock{UniqueId: "klefki-desktop-v1"}, DragAndDrop: &options.DragAndDrop{EnableFileDrop: true, DisableWebViewDrop: true}, Windows: &windows.Options{OnSuspend: app.Lock}, ErrorFormatter: func(err error) any { return err.Error() }})
 	if e != nil {
 		os.Exit(1)
 	}

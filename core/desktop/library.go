@@ -4,9 +4,10 @@ import (
 	"context"
 	"strings"
 	"time"
-	vc "vault/core/crypto"
-	"vault/core/search"
-	vs "vault/core/sync"
+
+	vc "klefki/core/crypto"
+	"klefki/core/search"
+	vs "klefki/core/sync"
 )
 
 type Item struct {
@@ -106,7 +107,7 @@ func validEdit(e vs.Edit) bool {
 		return false
 	}
 	for _, t := range e.Tags {
-		if strings.TrimSpace(t) == "" || len(t) > 80 || strings.HasPrefix(t, "vault:system:") {
+		if strings.TrimSpace(t) == "" || len(t) > 80 || strings.HasPrefix(t, "klefki:system:") {
 			return false
 		}
 	}

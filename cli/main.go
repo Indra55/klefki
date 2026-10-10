@@ -1,4 +1,4 @@
-// Command vault provides local encryption and sync. Secrets are never CLI argument values.
+// Command klefki provides local encryption and sync. Secrets are never CLI argument values.
 package main
 
 import (
@@ -11,11 +11,12 @@ import (
 	"path/filepath"
 
 	"golang.org/x/term"
-	v "vault/core/crypto"
-	"vault/core/local"
+
+	v "klefki/core/crypto"
+	"klefki/core/local"
 )
 
-var errUsage = errors.New("invalid arguments; run vault help")
+var errUsage = errors.New("invalid arguments; run klefki help")
 var errExists = errors.New("destination already exists")
 
 func main() {
@@ -25,11 +26,11 @@ func main() {
 	}
 }
 
-type options struct{ vault, password, recovery, recoveryOut, output string }
+type options struct{ klefki, password, recovery, recoveryOut, output string }
 
 func run(args []string, out io.Writer) error {
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" {
-		_, e := fmt.Fprintln(out, "vault init --vault PATH --recovery-out PATH [--password-file PATH]\nvault encrypt [--vault PATH] [--password-file PATH] [-o PATH] FILE\nvault decrypt [--vault PATH] [--password-file PATH | --recovery-file PATH] -o PATH FILE\nFlags must precede FILE. Existing output files are never replaced.")
+		_, e := fmt.Fprintln(out, "klefki init --klefki PATH --recovery-out PATH [--password-file PATH]\nklefki encrypt [--klefki PATH] [--password-file PATH] [-o PATH] FILE\nklefki decrypt [--klefki PATH] [--password-file PATH | --recovery-file PATH] -o PATH FILE\nFlags must precede FILE. Existing output files are never replaced.")
 		if e != nil {
 			return e
 		}
@@ -61,30 +62,30 @@ func run(args []string, out io.Writer) error {
 		return errUsage
 	}
 	var o options
-	f := flag.NewFlagSet("vault", flag.ContinueOnError)
+	f := flag.NewFlagSet("klefki", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
-	f.StringVar(&o.vault, "vault", filepath.Join(".vault", "account.v1"), "")
+	f.StringVar(&o.klefki, "klefki", filepath.Join(".klefki", "account.v1"), "")
 	f.StringVar(&o.password, "password-file", "", "")
 	f.StringVar(&o.recovery, "recovery-file", "", "")
 	f.StringVar(&o.recoveryOut, "recovery-out", "", "")
 	f.StringVar(&o.output, "o", "", "")
-	if f.Parse(args[1:]) != nil || o.vault == "" || (o.password != "" && o.recovery != "") {
+	if f.Parse(args[1:]) != nil || o.klefki == "" || (o.password != "" && o.recovery != "") {
 		return errUsage
 	}
 	if cmd == "init" {
 		if f.NArg() != 0 || o.recoveryOut == "" || o.recovery != "" || o.output != "" {
 			return errUsage
 		}
-		if e := initVault(o); e != nil {
+		if e := initKlefki(o); e != nil {
 			return e
 		}
-		fmt.Fprintln(out, "Vault initialized. Recovery code saved to the selected private file.")
+		fmt.Fprintln(out, "Klefki initialized. Recovery code saved to the selected private file.")
 		return nil
 	}
 	if f.NArg() != 1 || o.recoveryOut != "" || (cmd == "decrypt" && o.output == "") || (cmd == "encrypt" && o.recovery != "") {
 		return errUsage
 	}
-	a, e := loadAccount(o.vault)
+	a, e := loadAccount(o.klefki)
 	if e != nil {
 		return e
 	}
@@ -208,8 +209,8 @@ func publish(path string, fill func(io.Writer) error) error {
 	}
 	return e
 }
-func initVault(o options) error {
-	ap, e := filepath.Abs(o.vault)
+func initKlefki(o options) error {
+	ap, e := filepath.Abs(o.klefki)
 	if e != nil {
 		return v.ErrIO
 	}
@@ -293,7 +294,7 @@ func encryptFile(a v.Account, master v.Key, source, dest string) error {
 	}
 	h := fileHeader{Account: a.ID, File: fid, Metadata: mid, Wrapped: wrapped, EncryptedMetadata: meta}
 	if dest == "" {
-		dest = filepath.Join(filepath.Dir(source), fid.String()+".vault")
+		dest = filepath.Join(filepath.Dir(source), fid.String()+".klefki")
 	}
 	return publish(dest, func(w io.Writer) error {
 		if e := writeAll(w, h.bytes()); e != nil {

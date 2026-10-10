@@ -1,6 +1,6 @@
 # Server API (M2 baseline and M3 extension)
 
-Run `go run ./cmd/vault-server -dev-http` for loopback-only development on
+Run `go run ./cmd/klefki-server -dev-http` for loopback-only development on
 127.0.0.1:8080. Data defaults to `./server-data`. For normal use, supply
 `-tls-cert PATH -tls-key PATH` and optionally `-listen HOST:PORT -data PATH`.
 Clients must validate the server certificate. HTTP is rejected unless explicitly
@@ -100,7 +100,7 @@ correct clients using real v1 encryption, not arbitrary uploads or a security au
 
 ## Docker
 
-`docker build -t cairn-vault:m3 .` builds a non-root image. Compose mounts a named
+`docker build -t klefki:m3 .` builds a non-root image. Compose mounts a named
 volume at `/data` and a read-only `./tls` directory. Provision `tls/server.crt` and
 `tls/server.key` with a certificate trusted by your clients; UID 10001 must be able
 to read the key. TLS files are excluded from Git and the image build context.

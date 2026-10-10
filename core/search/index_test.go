@@ -6,8 +6,9 @@ import (
 	"errors"
 	"path/filepath"
 	"testing"
-	vc "vault/core/crypto"
-	vs "vault/core/sync"
+
+	vc "klefki/core/crypto"
+	vs "klefki/core/sync"
 )
 
 func TestIndexRankingFreshnessAndRebuild(t *testing.T) {
@@ -88,7 +89,7 @@ func TestTokenizationAndTrash(t *testing.T) {
 		t.Fatal("Unicode tokenization")
 	}
 	parent := "11111111111111111111111111111111"
-	h := []vs.Head{{Object: parent, Metadata: vc.Metadata{Type: "folder", Tags: []string{"vault:system:trash"}}}, {Object: "child", Metadata: vc.Metadata{Type: "file", Parent: &parent, Tags: []string{}}}, {Object: "index", Metadata: vc.Metadata{Type: "file", Tags: []string{IndexTag}}}}
+	h := []vs.Head{{Object: parent, Metadata: vc.Metadata{Type: "folder", Tags: []string{"klefki:system:trash"}}}, {Object: "child", Metadata: vc.Metadata{Type: "file", Parent: &parent, Tags: []string{}}}, {Object: "index", Metadata: vc.Metadata{Type: "file", Tags: []string{IndexTag}}}}
 	if len(documents(h)) != 0 {
 		t.Fatal("trash or index indexed")
 	}

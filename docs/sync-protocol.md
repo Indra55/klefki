@@ -125,30 +125,30 @@ the complete file before its output pass, both in one database snapshot; callers
 should still stage output to handle writer failures. CLI export uses the existing
 private, non-overwriting publication helper.
 
-Build the CLI with `go build -o vault ./cli`. After `vault init`, for development:
+Build the CLI with `go build -o klefki ./cli`. After `klefki init`, for development:
 
 ```sh
 # In a separate terminal; loopback development only.
-go run ./cmd/vault-server -dev-http
+go run ./cmd/klefki-server -dev-http
 
 # Register the already-created encrypted account once.
-./vault register --server http://127.0.0.1:8080 --dev-http
+./klefki register --server http://127.0.0.1:8080 --dev-http
 
 # Works offline; prints opaque object and revision IDs.
-./vault add /path/to/document.pdf
-./vault list
+./klefki add /path/to/document.pdf
+./klefki list
 
 # When connected, push queued work and pull authenticated revisions.
-./vault sync --server http://127.0.0.1:8080 --dev-http
+./klefki sync --server http://127.0.0.1:8080 --dev-http
 
 # Edit the selected revision, including when offline.
-./vault add --object OBJECT_ID --base REVISION_ID /path/to/edited.pdf
+./klefki add --object OBJECT_ID --base REVISION_ID /path/to/edited.pdf
 
 # Export either conflict copy by its revision ID; never overwrites output.
-./vault export -o /path/to/restored.pdf REVISION_ID
+./klefki export -o /path/to/restored.pdf REVISION_ID
 ```
 
-Flags precede positional arguments. All commands support `--vault PATH` and
+Flags precede positional arguments. All commands support `--klefki PATH` and
 `--password-file PATH`; passwords are otherwise prompted without echo. Local
 commands and sync accept `--store PATH`, defaulting to `local.db` alongside the
 account file. `list` deliberately prints only IDs and conflict flags, not private

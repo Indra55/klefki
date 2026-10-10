@@ -1,6 +1,6 @@
-# Vault: Build Plan (for the coding agent)
+# Klefki: Build Plan (for the coding agent)
 
-Working name: `vault`. Personal project, single user first. This file is the source of truth for scope, architecture, and order of work. Read it fully before writing code.
+Project name: `Klefki`. Personal project, single user first. This file is the source of truth for scope, architecture, and order of work. Read it fully before writing code.
 
 ## 1. What we are building
 
@@ -32,7 +32,7 @@ Because the web client cannot reuse the Go core cheaply, crypto is implemented t
 ## 3. Repo layout
 
 ```
-vault/
+klefki/
   PLAN.md
   docs/
     threat-model.md
@@ -97,7 +97,7 @@ Do them in order. Each milestone ends with passing tests and a short note in `do
 - **Accept:** tests simulating offline edits on two devices, interrupted uploads, and server restarts; no data loss in any scenario.
 
 ### M4: Desktop app (Wails)
-- Login, vault browser (folders, tags, favorites), upload/download, preview for PDF/images/text, trash and restore, sync status indicator, app lock and auto-lock.
+- Login, klefki browser (folders, tags, favorites), upload/download, preview for PDF/images/text, trash and restore, sync status indicator, app lock and auto-lock.
 - Installers/builds for Windows and Linux.
 - **Accept:** manual test script in `docs/` passes on both OSes.
 
@@ -110,16 +110,16 @@ Do them in order. Each milestone ends with passing tests and a short note in `do
 - Full encrypted export/import, plus plaintext export.
 - Integrity check command that verifies every chunk.
 - Documented restore procedure, tested from a clean machine.
-- **Accept:** restore from export reproduces the vault exactly.
+- **Accept:** restore from export reproduces the klefki exactly.
 
 ### M7: Search and OCR (on-device)
 - OCR for scans and images (Tesseract-based, local only).
 - Local encrypted full-text index (BM25) built from OCR/text extraction.
-- Index is stored locally, encrypted with the vault key, and synced as a normal blob (rebuildable).
+- Index is stored locally, encrypted with the klefki key, and synced as a normal blob (rebuildable).
 - **Accept:** search finds text inside scanned documents; index contents are never visible server-side.
 
 ### M8: Semantic search and classification (approved revisions)
-- Entire feature optional and off by default per vault/device; English-first local
+- Entire feature optional and off by default per klefki/device; English-first local
   ONNX model, versioned, with verified on-enable download or local bundle.
 - Desktop/CLI build separate encrypted semantic sidecars from the M7 extraction
   pass. Optional web inference consumes synced indexes; no browser OCR/indexing.
@@ -167,5 +167,5 @@ The supplied plan above is preserved. During planning the user selected:
 - A concrete draft spec and public fixtures first, followed by user review before M1.
 - `libsodium-wrappers-sumo` in place of `libsodium-wrappers`, because the upstream JavaScript package exposes Argon2id only in sumo.
 
-The current directory remains `cairn`; the project name is `vault`. The user approved the M0 spec and CLI container proposal and authorized M1
+The user approved the M0 spec and CLI container proposal and authorized M1
 on 2026-10-09. Milestone acceptance is tracked in `MILESTONES.md`.

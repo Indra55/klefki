@@ -1,8 +1,9 @@
 package local
 
 import (
-	"golang.org/x/sys/windows"
 	"os"
+
+	"golang.org/x/sys/windows"
 )
 
 func lockFile(f *os.File) error {

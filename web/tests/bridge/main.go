@@ -8,12 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-	vc "vault/core/crypto"
-	vd "vault/core/desktop"
-	"vault/core/local"
-	"vault/core/search"
-	"vault/core/semantic"
-	vs "vault/core/sync"
+
+	vc "klefki/core/crypto"
+	vd "klefki/core/desktop"
+	"klefki/core/local"
+	"klefki/core/search"
+	"klefki/core/semantic"
+	vs "klefki/core/sync"
 )
 
 const password = "public M5 browser fixture password"
@@ -44,9 +45,9 @@ func main() {
 		a, master, recovery, e = vc.NewAccount([]byte(password))
 		must(e)
 		vc.Wipe(recovery[:])
-		must(os.WriteFile(filepath.Join(dir, "account.vault"), local.AccountBytes(a), 0600))
+		must(os.WriteFile(filepath.Join(dir, "account.klefki"), local.AccountBytes(a), 0600))
 	} else {
-		a, e = local.LoadAccount(filepath.Join(dir, "account.vault"))
+		a, e = local.LoadAccount(filepath.Join(dir, "account.klefki"))
 		must(e)
 		master, e = a.Unlock([]byte(password))
 		must(e)
@@ -86,7 +87,7 @@ func main() {
 			_, e = store.Put(master, id.String(), "", vc.Metadata{Type: "file", Name: d.name, Tags: []string{}, Size: uint64(len(d.text))}, bytes.NewBufferString(d.text))
 			must(e)
 		}
-		model, e := semantic.Open(os.Getenv("VAULT_MODEL_DIR"))
+		model, e := semantic.Open(os.Getenv("KLEFKI_MODEL_DIR"))
 		must(e)
 		defer model.Close()
 		_, e = search.BuildSemantic(ctx, store, master, search.Extractor{}, model)
@@ -94,7 +95,7 @@ func main() {
 		must(client.Sync(ctx))
 		fmt.Println("PASS relevance fixture")
 	case "index-semantic":
-		model, e := semantic.Open(os.Getenv("VAULT_MODEL_DIR"))
+		model, e := semantic.Open(os.Getenv("KLEFKI_MODEL_DIR"))
 		must(e)
 		defer model.Close()
 		_, e = search.BuildSemantic(ctx, store, master, search.Extractor{}, model)
@@ -120,7 +121,7 @@ func main() {
 			}
 		})
 		must(e)
-		must(desktop.Select(filepath.Join(dir, "account.vault"), filepath.Join(dir, "desktop.db"), false))
+		must(desktop.Select(filepath.Join(dir, "account.klefki"), filepath.Join(dir, "desktop.db"), false))
 		must(desktop.Unlock(password, false))
 		paths := []string{}
 		for _, fixture := range []struct {
@@ -190,7 +191,7 @@ func main() {
 		desktop, e := vd.New(filepath.Join(dir, "desktop-preview"), func(vd.Event) {})
 		must(e)
 		defer desktop.Close()
-		must(desktop.Select(filepath.Join(dir, "account.vault"), filepath.Join(dir, "desktop.db"), false))
+		must(desktop.Select(filepath.Join(dir, "account.klefki"), filepath.Join(dir, "desktop.db"), false))
 		must(desktop.Unlock(password, false))
 		for _, h := range heads {
 			if h.Metadata.Name == "web.txt" {

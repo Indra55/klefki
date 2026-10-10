@@ -12,9 +12,10 @@ import (
 	"sync"
 
 	_ "modernc.org/sqlite"
-	vc "vault/core/crypto"
-	"vault/core/local"
-	"vault/core/syncwire"
+
+	vc "klefki/core/crypto"
+	"klefki/core/local"
+	"klefki/core/syncwire"
 )
 
 var (

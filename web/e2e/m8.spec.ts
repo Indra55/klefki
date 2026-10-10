@@ -15,7 +15,7 @@ function bridge(mode: string) {
 }
 async function unlock(page: Page) {
   await page.getByLabel("Password", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Unlock vault", exact: true }).click();
+  await page.getByRole("button", { name: "Unlock Klefki", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Documents", exact: true }),
   ).toBeVisible();
@@ -24,13 +24,13 @@ async function connect(page: Page) {
   await page.goto("/");
   await page
     .getByLabel("Open an encrypted account file")
-    .setInputFiles(join(dir, "account.vault"));
+    .setInputFiles(join(dir, "account.klefki"));
   await unlock(page);
   await page.getByRole("button", { name: "Sync now", exact: true }).click();
   await expect(page.locator("#status")).toContainText("Synced.");
 }
 async function enable(page: Page) {
-  await page.getByText("Vault settings", { exact: true }).click();
+  await page.getByText("Klefki settings", { exact: true }).click();
   await page
     .getByLabel("Semantic search and suggestions on this device", {
       exact: true,
@@ -48,10 +48,10 @@ async function enable(page: Page) {
 }
 test.beforeEach(() => {
   test.skip(
-    !process.env.VAULT_MODEL_DIR,
-    "Set VAULT_MODEL_DIR to require real M8 browser acceptance",
+    !process.env.KLEFKI_MODEL_DIR,
+    "Set KLEFKI_MODEL_DIR to require real M8 browser acceptance",
   );
-  dir = mkdtempSync(join(tmpdir(), "vault-m8-web-"));
+  dir = mkdtempSync(join(tmpdir(), "klefki-m8-web-"));
   bridge("seed");
   bridge("index-semantic");
 });
@@ -109,7 +109,7 @@ test("M8 is off by default; real browser model matches Go and works offline afte
       .locator("article")
       .filter({ has: page.getByText("note.txt", { exact: true }) }),
   ).toBeVisible();
-  await page.getByText("Vault settings", { exact: true }).click();
+  await page.getByText("Klefki settings", { exact: true }).click();
   await page
     .getByLabel("Semantic search and suggestions on this device", {
       exact: true,
@@ -125,11 +125,11 @@ test("web category corrections sync to Go and internal sidecars stay hidden", as
   await connect(page);
   const account = (await page.locator(".account-id").textContent())!.replace("Account ID: ", "");
   await page.evaluate((account) => {
-    localStorage.setItem("vault-semantic-" + account, JSON.stringify({ enabled: true, cutoff: .2, margin: 0, modelFingerprint: "legacy-minilm" }));
+    localStorage.setItem("klefki-semantic-" + account, JSON.stringify({ enabled: true, cutoff: .2, margin: 0, modelFingerprint: "legacy-minilm" }));
   }, account);
   await page.reload();
   await unlock(page);
-  await page.getByText("Vault settings", { exact: true }).click();
+  await page.getByText("Klefki settings", { exact: true }).click();
   await expect(page.getByLabel("Semantic search and suggestions on this device", { exact: true })).toBeChecked();
   await expect(page.getByLabel("Classification similarity cutoff")).toHaveValue("0.5");
   await expect(page.getByLabel("Winning category margin")).toHaveValue("0.01");

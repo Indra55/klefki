@@ -7,12 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"vault/core/search"
-	"vault/core/semantic"
+
+	"klefki/core/search"
+	"klefki/core/semantic"
 )
 
 func TestM8CLIOptInAndCorrections(t *testing.T) {
-	model := os.Getenv("VAULT_MODEL_DIR")
+	model := os.Getenv("KLEFKI_MODEL_DIR")
 	if model == "" || !semantic.Supported() {
 		t.Skip("requires real native model")
 	}
@@ -25,13 +26,13 @@ func TestM8CLIOptInAndCorrections(t *testing.T) {
 			t.Fatal(e)
 		}
 	}
-	if e := run([]string{"init", "--vault", account, "--password-file", password, "--recovery-out", recovery}, io.Discard); e != nil {
+	if e := run([]string{"init", "--klefki", account, "--password-file", password, "--recovery-out", recovery}, io.Discard); e != nil {
 		t.Fatal(e)
 	}
 	var out bytes.Buffer
 	invoke := func(command string, args ...string) error {
 		out.Reset()
-		return run(append([]string{command, "--vault", account, "--password-file", password}, args...), &out)
+		return run(append([]string{command, "--klefki", account, "--password-file", password}, args...), &out)
 	}
 	if e := invoke("add", filepath.Join(root, "bill.txt")); e != nil {
 		t.Fatal(e)

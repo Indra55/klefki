@@ -6,14 +6,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"github.com/godbus/dbus/v5"
 	"io"
 	"os/exec"
 	"slices"
 	"strings"
 	"time"
-	vc "vault/core/crypto"
-	vd "vault/core/desktop"
+
+	"github.com/godbus/dbus/v5"
+
+	vc "klefki/core/crypto"
+	vd "klefki/core/desktop"
 )
 
 const fprintName = "net.reactivated.Fprint"
@@ -202,7 +204,7 @@ func (p *linuxFingerprint) Store(ctx context.Context, binding string, data []byt
 	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
 	base64.StdEncoding.Encode(encoded, data)
 	defer vc.Wipe(encoded)
-	cmd := exec.CommandContext(ctx, p.tool, "store", "--collection=default", "--label=Vault fingerprint unlock", "application", "vault-desktop", "account-binding", binding)
+	cmd := exec.CommandContext(ctx, p.tool, "store", "--collection=default", "--label=Klefki fingerprint unlock", "application", "klefki-desktop", "account-binding", binding)
 	cmd.Stdin = bytes.NewReader(encoded)
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
@@ -228,7 +230,7 @@ func (b *boundedSecret) Write(p []byte) (int, error) {
 func (p *linuxFingerprint) Load(ctx context.Context, binding string) ([]byte, error) {
 	out := &boundedSecret{}
 	defer vc.Wipe(out.data)
-	cmd := exec.CommandContext(ctx, p.tool, "lookup", "application", "vault-desktop", "account-binding", binding)
+	cmd := exec.CommandContext(ctx, p.tool, "lookup", "application", "klefki-desktop", "account-binding", binding)
 	cmd.Stdout = out
 	cmd.Stderr = io.Discard
 	cmd.WaitDelay = time.Second
@@ -251,7 +253,7 @@ func (p *linuxFingerprint) Load(ctx context.Context, binding string) ([]byte, er
 	return data[:n], nil
 }
 func (p *linuxFingerprint) Delete(ctx context.Context, binding string) error {
-	cmd := exec.CommandContext(ctx, p.tool, "clear", "application", "vault-desktop", "account-binding", binding)
+	cmd := exec.CommandContext(ctx, p.tool, "clear", "application", "klefki-desktop", "account-binding", binding)
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
 	cmd.WaitDelay = time.Second

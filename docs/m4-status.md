@@ -1,6 +1,6 @@
 # M4 desktop status
 
-The Wails desktop app provides vault creation/password and recovery unlock,
+The Wails desktop app provides klefki creation/password and recovery unlock,
 folders, tags, favorites, import/export, PDF/image/text preview, trash/restore,
 sync status, manual lock, and automatic lock. Linux additionally provides optional
 fingerprint unlock, automatic listening, contact-driven animation, and themed

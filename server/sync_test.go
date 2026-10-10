@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
-	vc "vault/core/crypto"
-	"vault/core/syncwire"
+
+	vc "klefki/core/crypto"
+	"klefki/core/syncwire"
 )
 
 func TestRevisionLogAndCursor(t *testing.T) {

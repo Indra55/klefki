@@ -29,12 +29,12 @@ func TestPinnedModelContract(t *testing.T) {
 	}
 }
 func TestRealModel(t *testing.T) {
-	root := os.Getenv("VAULT_MODEL_DIR")
+	root := os.Getenv("KLEFKI_MODEL_DIR")
 	if root == "" || !Supported() {
-		if os.Getenv("VAULT_REQUIRE_ONNX") == "1" {
+		if os.Getenv("KLEFKI_REQUIRE_ONNX") == "1" {
 			t.Fatal("required model/runtime unavailable")
 		}
-		t.Skip("set VAULT_MODEL_DIR and build with -tags onnx")
+		t.Skip("set KLEFKI_MODEL_DIR and build with -tags onnx")
 	}
 	m, e := Open(root)
 	if e != nil {

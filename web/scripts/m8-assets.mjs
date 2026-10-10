@@ -4,7 +4,7 @@ const manifest = JSON.parse(
   await readFile(new URL("../../core/semantic/manifest.json", import.meta.url)),
 );
 const prefix = "/models/bge-small/";
-const source = process.env.VAULT_MODEL_DIR;
+const source = process.env.KLEFKI_MODEL_DIR;
 const publicRoot = new URL("../public/models/", import.meta.url);
 await rm(new URL("minilm/", publicRoot), { recursive: true, force: true });
 const assets = manifest.assets

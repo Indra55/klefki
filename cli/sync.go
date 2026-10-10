@@ -12,22 +12,22 @@ import (
 	"syscall"
 	"time"
 
-	vc "vault/core/crypto"
-	vs "vault/core/sync"
+	vc "klefki/core/crypto"
+	vs "klefki/core/sync"
 )
 
-const syncHelp = `vault register [--vault PATH] [--password-file PATH] --server URL [--dev-http]
-vault add [--vault PATH] [--password-file PATH] [--store PATH] [--object ID --base REVISION] FILE
-vault list [--vault PATH] [--password-file PATH] [--store PATH]
-vault export [--vault PATH] [--password-file PATH] [--store PATH] -o PATH REVISION
-vault sync [--vault PATH] [--password-file PATH] [--store PATH] --server URL [--dev-http]
+const syncHelp = `klefki register [--klefki PATH] [--password-file PATH] --server URL [--dev-http]
+klefki add [--klefki PATH] [--password-file PATH] [--store PATH] [--object ID --base REVISION] FILE
+klefki list [--klefki PATH] [--password-file PATH] [--store PATH]
+klefki export [--klefki PATH] [--password-file PATH] [--store PATH] -o PATH REVISION
+klefki sync [--klefki PATH] [--password-file PATH] [--store PATH] --server URL [--dev-http]
 Sync flags must precede positional arguments. HTTP requires explicit loopback development mode.`
 
 func runSync(args []string, out io.Writer) error {
 	command := args[0]
 	f := flag.NewFlagSet(command, flag.ContinueOnError)
 	f.SetOutput(io.Discard)
-	accountPath := f.String("vault", filepath.Join(".vault", "account.v1"), "")
+	accountPath := f.String("klefki", filepath.Join(".klefki", "account.v1"), "")
 	passwordPath := f.String("password-file", "", "")
 	var storePath, serverURL, object, base, dest string
 	var dev bool

@@ -15,9 +15,10 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-	vc "vault/core/crypto"
-	vs "vault/core/sync"
-	"vault/server"
+
+	vc "klefki/core/crypto"
+	vs "klefki/core/sync"
+	"klefki/server"
 )
 
 type harness struct {

@@ -2,7 +2,7 @@ import sodium from 'libsodium-wrappers-sumo';
 export const ready = sodium.ready;
 export const CHUNK = 4194304, MAX_METADATA = 1048576, ZERO = '0'.repeat(32);
 export function check(ok: unknown): asserts ok { if (!ok)
-    throw Error('Invalid vault data'); }
+    throw Error('Invalid klefki data'); }
 export const wipe = (b: Uint8Array) => sodium.memzero(b);
 export const random = (n: number) => sodium.randombytes_buf(n);
 export const hex = (b: Uint8Array) => Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
@@ -104,7 +104,7 @@ export function open(key: Uint8Array, c: Context, b: Uint8Array, extra = new Uin
         return sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, b.subarray(n), cat(utf8('vault/record/v1\0'), b.subarray(0, n), extra), b.subarray(n - 24, n), key);
     }
     catch {
-        throw Error('Vault authentication failed');
+        throw Error('Klefki authentication failed');
     }
 }
 export function chunkCount(n: number) { check(Number.isSafeInteger(n) && n >= 0); return Math.max(1, Math.ceil(n / CHUNK)); }
@@ -140,7 +140,7 @@ export function strictJSON(text: string): unknown {
             utf8(s);
             return s;
         }
-    } throw Error('Invalid vault data'); };
+    } throw Error('Invalid klefki data'); };
     function value(depth: number): void {
         check(depth <= 8);
         ws();

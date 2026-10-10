@@ -1,4 +1,4 @@
-// Package semantic runs optional local document analysis. It never receives vault keys.
+// Package semantic runs optional local document analysis. It never receives klefki keys.
 package semantic
 
 import (

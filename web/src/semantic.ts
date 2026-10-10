@@ -2,9 +2,9 @@ import * as c from "./crypto.ts";
 import { Store, type Head } from "./store.ts";
 import manifest from "./model-manifest.json";
 import { relevantQueryTerms, keywordEvidence, relevantSemanticHits } from "./search-ranking.ts";
-export const semanticTag = "vault:system:semantic-index",
-  correctionTag = "vault:system:analysis-correction",
-  indexTag = "vault:system:search-index";
+export const semanticTag = "klefki:system:semantic-index",
+  correctionTag = "klefki:system:analysis-correction",
+  indexTag = "klefki:system:search-index";
 export const categories = [
   "Identity",
   "Money",
@@ -47,12 +47,12 @@ type Index = {
 };
 export type Preferences = { enabled: boolean; cutoff: number; margin: number; modelFingerprint?: string };
 export const defaults: Preferences = { enabled: false, cutoff: 0.5, margin: 0.01 };
-export const cacheName = "vault-model-" + manifest.fingerprint;
+export const cacheName = "klefki-model-" + manifest.fingerprint;
 export const downloadBytes = manifest.assets.reduce((n, a) => n + a.size, 0);
 export function preferences(account: string): Preferences {
   try {
     const p = JSON.parse(
-      localStorage.getItem("vault-semantic-" + account) || "null",
+      localStorage.getItem("klefki-semantic-" + account) || "null",
     );
     if (
       p &&
@@ -69,7 +69,7 @@ export function preferences(account: string): Preferences {
   return { ...defaults };
 }
 export function savePreferences(account: string, p: Preferences) {
-  localStorage.setItem("vault-semantic-" + account, JSON.stringify({ ...p, modelFingerprint: manifest.fingerprint }));
+  localStorage.setItem("klefki-semantic-" + account, JSON.stringify({ ...p, modelFingerprint: manifest.fingerprint }));
 }
 export function internal(h: Head) {
   return h.metadata.tags.some((t) =>
@@ -140,7 +140,7 @@ function visible(heads: Head[]) {
   function hidden(h: Head, seen = new Set<string>()): boolean {
     if (
       internal(h) ||
-      h.metadata.tags.includes("vault:system:trash") ||
+      h.metadata.tags.includes("klefki:system:trash") ||
       seen.has(h.revision.object)
     )
       return true;
@@ -167,7 +167,7 @@ async function index(
       x.version === 1 &&
         typeof x.fingerprint === "string" &&
         x.fingerprint.length <= 128 &&
-        x.extraction === "vault:system:search-image-cache-v1" &&
+        x.extraction === "klefki:system:search-image-cache-v1" &&
         Array.isArray(x.labels) &&
         x.labels.length === 6 &&
         x.labels.every(vector) &&
@@ -520,7 +520,7 @@ async function keyword(
   for (const h of heads.filter(
     (h) =>
       h.metadata.tags.includes(indexTag) &&
-      h.metadata.tags.includes("vault:system:search-image-cache-v1"),
+      h.metadata.tags.includes("klefki:system:search-image-cache-v1"),
   )) {
     const x = await payload(store, key, h);
     check(x.version === 1 && Array.isArray(x.documents));

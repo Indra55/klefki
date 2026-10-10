@@ -1,9 +1,15 @@
 node_modules/
 .DS_Store
-/.vault/
-/vault
-/vault.exe
-/vault-server
+/.agents/
+/.aws/
+/.codex/
+.env
+.env.*
+!.env.example
+/.klefki/
+/klefki
+/klefki.exe
+/klefki-server
 /server-data/
 /tls/
 
@@ -14,11 +20,8 @@ node_modules/
 /desktop/frontend/wailsjs/
 /desktop/frontend/test-results/
 /desktop/frontend/playwright-report/
-
-/vault-recovery.txt
-
+/klefki-recovery.txt
 /web/dist/
 /web/test-results/
 /web/playwright-report/
-
 /web/public/models/

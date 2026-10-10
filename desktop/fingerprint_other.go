@@ -2,6 +2,6 @@
 
 package main
 
-import vd "vault/core/desktop"
+import vd "klefki/core/desktop"
 
 func newFingerprintProvider() vd.FingerprintProvider { return nil }

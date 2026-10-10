@@ -2,9 +2,10 @@ package search
 
 import (
 	"context"
-	vc "vault/core/crypto"
-	"vault/core/semantic"
-	vs "vault/core/sync"
+
+	vc "klefki/core/crypto"
+	"klefki/core/semantic"
+	vs "klefki/core/sync"
 )
 
 type LabelledQuery struct {

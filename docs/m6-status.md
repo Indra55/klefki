@@ -4,15 +4,15 @@ Completed 2026-10-10. [Backup and restore procedure](backup-restore.md).
 
 ## Delivered
 
-- `vault backup`: verified full encrypted export using existing `account.v1` and
+- `klefki backup`: verified full encrypted export using existing `account.v1` and
   SQLite formats; a consistent snapshot includes history and pending sync work.
-- `vault restore`: import into a fresh directory, authenticating all stored data
+- `klefki restore`: import into a fresh directory, authenticating all stored data
   with either the original password or the separate recovery code. Supports
   read-only backup media. Existing destinations are never overwritten.
-- `vault export-plain`: all document revisions plus a manifest retaining names,
+- `klefki export-plain`: all document revisions plus a manifest retaining names,
   folders, tags, favorites, trash, and revision ancestry. Opaque filenames avoid
   duplicate-name collisions and metadata path traversal.
-- `vault check`: SQLite integrity, revision ancestry, every metadata/file-key
+- `klefki check`: SQLite integrity, revision ancestry, every metadata/file-key
   record and every chunk, including historical revisions; rejects missing,
   reordered, modified, or orphan chunks.
 - `Store.Snapshot`, `Store.Check`, and `OpenExisting` support these operations
@@ -23,7 +23,7 @@ Completed 2026-10-10. [Backup and restore procedure](backup-restore.md).
 - `go test -race ./...` passed across CLI, crypto, desktop service, sync, and
   server packages.
 - `go vet ./...` passed.
-- `GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o /tmp/vault-m6.exe ./cli`
+- `GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o /tmp/klefki-m6.exe ./cli`
   passed. This proves compilation, not Windows runtime behavior.
 - `sh scripts/test-m6-restore.sh` passed in a fresh, network-disabled Linux
   container with a read-only root and read-only backup input. The original store,
@@ -45,7 +45,7 @@ Completed 2026-10-10. [Backup and restore procedure](backup-restore.md).
   for M6; the milestone is delivered through the CLI and shared Go store.
 - Web-only work must sync into a Go store before backup. Only locally present
   data is exported. Desktop must be closed to release the store lease.
-- This restores local vault state, not a lost server or its authentication and
+- This restores local klefki state, not a lost server or its authentication and
   change log. Server binding/cursor are preserved for the same surviving server.
 - Existing v1 rollback/deletion and unauthenticated sync-bookkeeping limitations
   remain. No new whole-backup authentication construction is claimed. The selected

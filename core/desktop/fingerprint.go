@@ -8,9 +8,10 @@ import (
 	"errors"
 	"slices"
 	"time"
-	vc "vault/core/crypto"
-	"vault/core/local"
-	vs "vault/core/sync"
+
+	vc "klefki/core/crypto"
+	"klefki/core/local"
+	vs "klefki/core/sync"
 )
 
 var (

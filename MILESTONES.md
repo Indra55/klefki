@@ -1,4 +1,4 @@
-# Vault milestones
+# Klefki milestones
 
 `PLAN.md` is the full specification. Check a milestone only after its acceptance
 criteria pass; link evidence and limitations here. Implementation/test completion is distinct from committing the work.
@@ -22,7 +22,7 @@ criteria pass; link evidence and limitations here. Implementation/test completio
   offline editing/reload. [Evidence and limitations](docs/m5-status.md).
 - [x] **M6 — Backup and safety net.** Full encrypted backup/restore, plaintext export,
   and every-chunk integrity checks. Password and recovery restores reproduced the
-  vault exactly in a clean Linux container.
+  klefki exactly in a clean Linux container.
   [Restore procedure](docs/backup-restore.md) · [Evidence and limitations](docs/m6-status.md).
 - [x] **M7 — Search and OCR.** Local Tesseract/PDF extraction, encrypted BM25 index,
   desktop and CLI search. Real scanned-document search and encrypted index sync

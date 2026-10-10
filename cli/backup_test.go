@@ -9,9 +9,9 @@ import (
 	"reflect"
 	"testing"
 
-	vc "vault/core/crypto"
-	"vault/core/local"
-	vs "vault/core/sync"
+	vc "klefki/core/crypto"
+	"klefki/core/local"
+	vs "klefki/core/sync"
 )
 
 func TestCLIBackupRestore(t *testing.T) {
@@ -22,7 +22,7 @@ func TestCLIBackupRestore(t *testing.T) {
 	if e := os.WriteFile(password, []byte("public backup fixture password"), 0600); e != nil {
 		t.Fatal(e)
 	}
-	if e := run([]string{"init", "--vault", accountPath, "--password-file", password, "--recovery-out", recovery}, io.Discard); e != nil {
+	if e := run([]string{"init", "--klefki", accountPath, "--password-file", password, "--recovery-out", recovery}, io.Discard); e != nil {
 		t.Fatal(e)
 	}
 	account, e := local.LoadAccount(accountPath)
@@ -49,7 +49,7 @@ func TestCLIBackupRestore(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.Edit(master, first, vs.Edit{Name: "duplicate.txt", Parent: &parent, Tags: []string{"vault:system:trash"}, Favorite: true}); e != nil {
+	if _, e = s.Edit(master, first, vs.Edit{Name: "duplicate.txt", Parent: &parent, Tags: []string{"klefki:system:trash"}, Favorite: true}); e != nil {
 		t.Fatal(e)
 	}
 	if _, e = s.Put(master, object.String(), first, vc.Metadata{Type: "file", Name: "duplicate.txt", Parent: &parent, Tags: []string{}}, bytes.NewReader(nil)); e != nil {
@@ -65,7 +65,7 @@ func TestCLIBackupRestore(t *testing.T) {
 	}
 	s.Close()
 	invoke := func(command, account, dest string, extra ...string) error {
-		args := []string{command, "--vault", account, "--password-file", password}
+		args := []string{command, "--klefki", account, "--password-file", password}
 		if dest != "" {
 			args = append(args, "-o", dest)
 		}

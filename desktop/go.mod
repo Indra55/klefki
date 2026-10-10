@@ -1,11 +1,11 @@
-module vault/desktop
+module klefki/desktop
 
 go 1.26.0
 
 require (
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/wailsapp/wails/v2 v2.15.0
-	vault v0.0.0
+	klefki v0.0.0
 )
 
 require (
@@ -52,4 +52,4 @@ require (
 	modernc.org/sqlite v1.53.0 // indirect
 )
 
-replace vault => ..
+replace klefki => ..

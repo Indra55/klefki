@@ -1,4 +1,4 @@
-module vault-m0-vectors
+module klefki-m0-vectors
 
 go 1.26.0
 

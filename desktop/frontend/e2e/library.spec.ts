@@ -7,8 +7,8 @@ test.beforeEach(async({page})=>{
  const tags=['Identity','Money','Legal','Health','Education'];
  const items=names.map((name,i)=>({object:String(i),revision:String(i),name,type:'file',parent:null,tags:[tags[i]],favorite:false,size:250000+i*12000,conflict:false,trashed:false,trashRoot:false}));
  (window as any).runtime={EventsOn:(name:string,fn:Function)=>{listeners[name]=fn;return()=>delete listeners[name]}};
- (window as any).__emitVaultEvent=(event:any)=>listeners['vault:event']?.(event);
- (window as any).go={main:{App:{AddFiles:async()=> 'upload-fixture',Cancel:async()=>{},State:async()=>structuredClone(state),List:async()=>({generation:state.generation,items}),Touch:async()=>{},Search:async(q:string)=>({generation:state.generation,hits:q==='nebula'?[{object:'0',revision:'0',name:'Passport',score:1}]:[]}),RebuildIndex:async()=> 'index-fixture',Lock:async()=>{state={...state,unlocked:false,generation:2};listeners['vault:event']?.({generation:2,kind:'locked'})},SetPreferences:async(p:any)=>{state.config.preferences=p},ClosePreview:async()=>{}}}};
+ (window as any).__emitKlefkiEvent=(event:any)=>listeners['klefki:event']?.(event);
+ (window as any).go={main:{App:{AddFiles:async()=> 'upload-fixture',Cancel:async()=>{},State:async()=>structuredClone(state),List:async()=>({generation:state.generation,items}),Touch:async()=>{},Search:async(q:string)=>({generation:state.generation,hits:q==='nebula'?[{object:'0',revision:'0',name:'Passport',score:1}]:[]}),RebuildIndex:async()=> 'index-fixture',Lock:async()=>{state={...state,unlocked:false,generation:2};listeners['klefki:event']?.({generation:2,kind:'locked'})},SetPreferences:async(p:any)=>{state.config.preferences=p},ClosePreview:async()=>{}}}};
  });
 });
 
@@ -19,7 +19,7 @@ for(const width of [320,390,600,800]){
   await page.goto('/');await expect(page.getByText('Passport',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Add files',exact:true}).click();
   await page.evaluate(()=>{
-   const emit=(window as any).__emitVaultEvent;
+   const emit=(window as any).__emitKlefkiEvent;
    emit({generation:1,kind:'file-start',operation:'upload-fixture',name:'DJS23 Version 1 Final Year B. Tech Syllabus updated June 2026.pdf'});
    emit({generation:1,kind:'file-finished',operation:'upload-fixture',name:'DJS23 Version 1 Final Year B. Tech Syllabus updated June 2026.pdf'});
    emit({generation:1,kind:'index-start',operation:'upload-fixture'});
@@ -27,7 +27,7 @@ for(const width of [320,390,600,800]){
   await expect(page.getByText('Indexing documents',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Cancel transfer'})).toBeVisible();
   await page.evaluate(()=>{
-   const emit=(window as any).__emitVaultEvent;
+   const emit=(window as any).__emitKlefkiEvent;
    emit({generation:1,kind:'index-finished',operation:'upload-fixture',durationMs:3500,name:'4 documents indexed; 0 with names and tags only'});
    emit({generation:1,kind:'finished',operation:'upload-fixture'});
   });
@@ -36,7 +36,7 @@ for(const width of [320,390,600,800]){
   await expect(page.getByText('Saved successfully',{exact:true})).toHaveCount(0);
   await expect(page.getByRole('complementary',{name:'File transfers'})).toHaveCount(0);
   // Another transfer can coexist with the toast without covering it.
-  await page.evaluate(()=>(window as any).__emitVaultEvent({generation:1,kind:'file-start',operation:'other-transfer',name:'Another document with a long filename that needs to wrap on mobile.pdf'}));
+  await page.evaluate(()=>(window as any).__emitKlefkiEvent({generation:1,kind:'file-start',operation:'other-transfer',name:'Another document with a long filename that needs to wrap on mobile.pdf'}));
   const transfers=page.getByRole('complementary',{name:'File transfers'});
   await expect(transfers).toBeVisible();
   const transferBox=(await transfers.boundingBox())!;
@@ -59,5 +59,5 @@ test('reference layout, themes, search and lock with an explicit fixture bridge'
  await page.getByLabel('Search your documents').fill('nebula');await expect(page.getByText('Passport',{exact:true})).toBeVisible();await expect(page.getByText('Rental agreement',{exact:true})).toHaveCount(0);await page.getByLabel('Clear search').click();
  await page.getByRole('button',{name:'All documents'}).click();await page.getByRole('menuitem',{name:'Settings',exact:true}).click();await page.getByLabel('Appearance').selectOption('light');await expect(page.locator('html')).toHaveAttribute('data-theme','light');await page.getByLabel('Close',{exact:true}).click();await page.screenshot({path:'test-results/library-light.png',fullPage:true});
  await page.setViewportSize({width:800,height:600});await page.screenshot({path:'test-results/library-small.png',fullPage:true});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
- await page.getByRole('button',{name:'Lock',exact:true}).click();await expect(page.getByText('Unlock your vault.')).toBeVisible();await expect(page.getByText('Passport',{exact:true})).toHaveCount(0);await page.screenshot({path:'test-results/locked.png',fullPage:true});expect(errors).toEqual([]);
+ await page.getByRole('button',{name:'Lock',exact:true}).click();await expect(page.getByText('Unlock Klefki.')).toBeVisible();await expect(page.getByText('Passport',{exact:true})).toHaveCount(0);await page.screenshot({path:'test-results/locked.png',fullPage:true});expect(errors).toEqual([]);
 });

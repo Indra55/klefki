@@ -1,7 +1,7 @@
 package sync
 
 import (
-	vc "vault/core/crypto"
+	vc "klefki/core/crypto"
 )
 
 type Edit struct {

@@ -1,6 +1,6 @@
-# Vault threat model
+# Klefki threat model
 
-Vault protects personal documents using client-side authenticated encryption.
+Klefki protects personal documents using client-side authenticated encryption.
 M0 through M3 now implement the formats, local CLI, ciphertext server and offline
 sync. Tests establish specific behavior, not a security audit.
 
@@ -44,7 +44,7 @@ monotonic history or anti-rollback checkpoint protocol is claimed.
   authenticate that code. A compromised web delivery origin can steal secrets
   on the next unlock. Desktop distribution/update trust is also required.
 - Plaintext exports, external PDF viewers, clipboard contents, thumbnails,
-  temporary files, crash dumps, swap, and user-created backups outside the vault.
+  temporary files, crash dumps, swap, and user-created backups outside the klefki.
   Later clients must minimize these surfaces; M0 implements none of them.
 - Deletion, denial of service, server loss, and rollback. Encrypted backups and
   tested restores are provided by [M6](backup-restore.md); replication alone is

@@ -12,7 +12,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-	"vault/server"
+
+	"klefki/server"
 )
 
 func main() { os.Exit(run()) }

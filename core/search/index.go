@@ -1,4 +1,4 @@
-// Package search builds a rebuildable, encrypted BM25 index using normal vault files.
+// Package search builds a rebuildable, encrypted BM25 index using normal klefki files.
 package search
 
 import (
@@ -12,13 +12,13 @@ import (
 	"strings"
 	"unicode"
 
-	vc "vault/core/crypto"
-	"vault/core/semantic"
-	vs "vault/core/sync"
+	vc "klefki/core/crypto"
+	"klefki/core/semantic"
+	vs "klefki/core/sync"
 )
 
-const IndexTag = "vault:system:search-index"
-const extractionTag = "vault:system:search-image-cache-v1"
+const IndexTag = "klefki:system:search-index"
+const extractionTag = "klefki:system:search-image-cache-v1"
 const maxIndex = 32 << 20
 const maxDocument = 64 << 20
 
@@ -76,7 +76,7 @@ func documents(heads []vs.Head) []vs.Head {
 			return true
 		}
 		for _, tag := range h.Metadata.Tags {
-			if tag == "vault:system:trash" {
+			if tag == "klefki:system:trash" {
 				return true
 			}
 		}

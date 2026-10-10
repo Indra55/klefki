@@ -7,11 +7,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	vc "vault/core/crypto"
+
+	vc "klefki/core/crypto"
 )
 
 var ErrExists = errors.New("destination already exists")
-var ErrInUse = errors.New("vault is open in another process")
+var ErrInUse = errors.New("klefki is open in another process")
 
 type Lease struct{ f *os.File }
 
@@ -70,7 +71,7 @@ func Publish(path string, fill func(io.Writer) error) error {
 	} else if !os.IsNotExist(e) {
 		return vc.ErrIO
 	}
-	f, e := os.CreateTemp(filepath.Dir(path), ".vault-stage-*")
+	f, e := os.CreateTemp(filepath.Dir(path), ".klefki-stage-*")
 	if e != nil {
 		return vc.ErrIO
 	}

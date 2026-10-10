@@ -25,10 +25,10 @@ cancellable through operation controls; locking cancels work and clears results.
 CLI, with flags before positional arguments:
 
 ```sh
-go build -o vault ./cli
-./vault index --vault /private/vault/account.v1 --language eng
-./vault search --vault /private/vault/account.v1 --query-file /private/query.txt
-./vault sync --vault /private/vault/account.v1 --server https://your-vault-server
+go build -o klefki ./cli
+./klefki index --klefki /private/klefki/account.v1 --language eng
+./klefki search --klefki /private/klefki/account.v1 --query-file /private/query.txt
+./klefki sync --klefki /private/klefki/account.v1 --server https://your-klefki-server
 ```
 
 Search reads standard input if `--query-file` is omitted. Passwords use the normal
@@ -43,7 +43,7 @@ Close desktop before opening its SQLite store with the CLI.
   Unicode letters/numbers are lowercased; query terms use OR matching. There is
   no stemming, phrase matching, semantic search, or snippet extraction.
 - The index is an ordinary encrypted file named `search-index.v1.json`, tagged
-  `vault:system:search-index` inside encrypted metadata. Existing master-key
+  `klefki:system:search-index` inside encrypted metadata. Existing master-key
   wrapping, file-key encryption, chunks, and sync are reused. Crypto formats,
   key hierarchy, server APIs, and dependencies were not changed.
 - Current nontrashed file heads are indexed, including conflict copies. Index
@@ -86,7 +86,7 @@ Close desktop before opening its SQLite store with the CLI.
   no notification overlap or horizontal overflow at 320, 390, 600, and 800 pixels.
   Linux and Windows binaries in `desktop/build/bin` were rebuilt. Browser checks
   use the explicit fixture bridge; no new native runtime check is claimed.
-- Automatic upload indexing passed `VAULT_REQUIRE_OCR=1 go test -race
+- Automatic upload indexing passed `KLEFKI_REQUIRE_OCR=1 go test -race
   ./core/desktop ./core/search` and focused `go vet`. Tests query the saved index
   directly before any desktop search, verify one rebuild for a partially
   successful batch, and retain uploads after extraction failure or cancellation.
@@ -101,7 +101,7 @@ Close desktop before opening its SQLite store with the CLI.
 - Scans of server database/WAL/blob storage and local stores found none of the
   known synthetic index words or private metadata in plaintext. PDF staging was
   removed after extraction.
-- `VAULT_REQUIRE_OCR=1 go test -race ./...` passed. After final image-input
+- `KLEFKI_REQUIRE_OCR=1 go test -race ./...` passed. After final image-input
   validation, required real OCR tests passed again. `go vet ./...` passed.
 - Fourteen desktop frontend interaction tests passed, including content matches,
   rebuild action, stale-index feedback, and results arriving after lock.
@@ -110,7 +110,7 @@ Close desktop before opening its SQLite store with the CLI.
   On this host's Node 26, run from `desktop/frontend` with
   `PW_DISABLE_TS_ESM=1 node node_modules/@playwright/test/cli.js test`.
 - Linux native desktop compilation and Windows desktop cross-compilation passed,
-  producing `/tmp/vault-desktop-m7` and `/tmp/vault-desktop-m7.exe`. These are build
+  producing `/tmp/klefki-desktop-m7` and `/tmp/klefki-desktop-m7.exe`. These are build
   checks; no new native manual walkthrough or Windows OCR runtime test is claimed.
 - No commits were created during implementation; repository contents were already
   untracked. The work is now committed as part of reconstructed history.
@@ -119,7 +119,7 @@ Close desktop before opening its SQLite store with the CLI.
 
 The initial M7 builds were placed only in `/tmp`; the normal `desktop/build/bin`
 artifacts still contained the older app. The corrected binaries are built in
-`desktop/build/bin/vault-desktop` and `desktop/build/bin/vault-desktop.exe`.
+`desktop/build/bin/klefki-desktop` and `desktop/build/bin/klefki-desktop.exe`.
 Desktop now automatically rebuilds on search when the index is missing/stale.
 Focused race regression tests passed for importing the synthetic PNG scan and
 finding an OCR word without clicking rebuild, and for searching after an edit.
@@ -127,7 +127,7 @@ The production frontend build passed. Quit the previously running app before
 launching the replacement binary; the app uses a single-instance lock.
 
 Reproduce core acceptance with
-`VAULT_REQUIRE_OCR=1 go test ./core/search -count=1`. Normal tests skip real OCR
+`KLEFKI_REQUIRE_OCR=1 go test ./core/search -count=1`. Normal tests skip real OCR
 acceptance when tools are absent; the environment variable makes it mandatory.
 Fixtures are synthetic scans generated with Pillow and the local Nimbus Sans font.
 
@@ -152,7 +152,7 @@ on mixed pages, and reuses results for repeated PDF image objects. Pure scans an
 masked composites still use rendered-page OCR. The new encrypted extraction tag
 invalidates older indexes; desktop rebuilds automatically on the next search.
 No new dependency or crypto/index payload format was added. The cache exists only
-for one document extraction and does not add files to the vault. Temporary images
+for one document extraction and does not add files to the klefki. Temporary images
 are removed on handled exit, and cache buffers are wiped when extraction returns.
 
 A user-selected 55-page PDF (1,039,554 bytes, 17,390 embedded words, five distinct

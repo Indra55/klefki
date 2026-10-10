@@ -1,10 +1,10 @@
 # Linux fingerprint unlock
 
-Linux desktop builds provide optional fingerprint unlock for each vault on this
+Linux desktop builds provide optional fingerprint unlock for each klefki on this
 machine. Unlock with the password, open **Settings → Fingerprint unlock**, and
 choose **Enable fingerprint unlock**. Touch the enrolled finger when prompted.
 Lock the app, then touch the enrolled finger while the lock screen is in focus.
-Vault starts listening automatically and shows a fingerprint beside the password
+Klefki starts listening automatically and shows a fingerprint beside the password
 field. The icon stays still while waiting and animates only when the reader reports
 a finger on the sensor. Removing the finger stops the animation, for setup and
 unlocking. Hovering or focusing the icon does not animate it. Typing a password, switching to recovery, or leaving the window
@@ -13,13 +13,13 @@ or timeout. Returning focus to the lock screen starts another scan if the passwo
 field is empty. A scan session allows three mismatches, automatically restarting
 the reader after the first two. Poor-contact retry prompts do not consume an
 attempt. The same option works after
-restarting Vault if the Linux keyring is available. Disable it in Settings to
+restarting Klefki if the Linux keyring is available. Disable it in Settings to
 remove the saved keyring entry. Password and recovery unlock remain available.
 
-Close any running Vault instance and launch the rebuilt executable:
+Close any running Klefki instance and launch the rebuilt executable:
 
 ```sh
-./desktop/build/bin/vault-desktop
+./desktop/build/bin/klefki-desktop
 ```
 
 ## Requirements
@@ -28,16 +28,16 @@ Close any running Vault instance and launch the rebuilt executable:
 - A default Secret Service keyring, such as GNOME Keyring or a compatible KWallet.
 - `secret-tool` from libsecret, installed in the desktop app's PATH.
 
-Vault uses your existing Linux enrollment. It does not enroll, export, store,
+Klefki uses your existing Linux enrollment. It does not enroll, export, store,
 change, or synchronize fingerprint templates. No root privileges are required.
 A busy reader, three mismatches, denied permission, missing keyring, cancellation,
-or 45-second timeout leaves the vault locked. A locked keyring may request its
+or 45-second timeout leaves the klefki locked. A locked keyring may request its
 own password through a native prompt.
 
 ## Security boundary
 
 This is Linux keyring-assisted convenience unlock. fprintd verifies the enrolled
-finger before Vault retrieves its keys from the keyring. Secret Service does not
+finger before Klefki retrieves its keys from the keyring. Secret Service does not
 cryptographically bind secret retrieval to that fingerprint result: another app
 running as the same user may retrieve entries from an unlocked keyring. This
 feature does not protect against a compromised logged-in user session. At-rest
@@ -78,7 +78,7 @@ On the Linux desktop, verify:
 3. Unlock with the enrolled finger; preview a previously imported document.
 4. Close/reopen the app and repeat fingerprint unlock.
 5. Cancel using the icon, type a password, switch to recovery, and leave the window
-   during separate scans; confirm the vault stays locked. Retry using the icon
+   during separate scans; confirm the klefki stays locked. Retry using the icon
    or return focus with an empty password field and confirm another attempt works.
 6. Disable fingerprint, lock/restart, and confirm password/recovery access works.
 7. Test an unavailable reader or keyring; confirm a readable error and password fallback.

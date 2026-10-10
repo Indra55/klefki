@@ -1,7 +1,7 @@
 import * as c from './crypto.ts';
 import { Store, unlockRevision, type Revision } from './store.ts';
 export class HTTPError extends Error {
-    constructor(readonly status: number, readonly after: number) { super('Vault server returned ' + status); }
+    constructor(readonly status: number, readonly after: number) { super('Klefki server returned ' + status); }
 }
 export interface Session {
     token: string;

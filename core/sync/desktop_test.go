@@ -6,8 +6,9 @@ import (
 	"errors"
 	"path/filepath"
 	"testing"
-	vc "vault/core/crypto"
-	vs "vault/core/sync"
+
+	vc "klefki/core/crypto"
+	vs "klefki/core/sync"
 )
 
 func TestMetadataEditRetainsContentAndSyncs(t *testing.T) {

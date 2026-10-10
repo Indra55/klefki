@@ -6,7 +6,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
-	vc "vault/core/crypto"
+
+	vc "klefki/core/crypto"
 )
 
 func TestBackupRoundTripAndIntegrity(t *testing.T) {
@@ -24,7 +25,7 @@ func TestBackupRoundTripAndIntegrity(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.Edit(master, first, Edit{Name: "renamed.txt", Tags: []string{"vault:system:trash"}, Favorite: true}); e != nil {
+	if _, e = s.Edit(master, first, Edit{Name: "renamed.txt", Tags: []string{"klefki:system:trash"}, Favorite: true}); e != nil {
 		t.Fatal(e)
 	}
 	folder, _ := vc.RandomID()

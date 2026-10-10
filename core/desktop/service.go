@@ -11,16 +11,17 @@ import (
 	"slices"
 	"sync"
 	"time"
-	vc "vault/core/crypto"
-	"vault/core/local"
-	"vault/core/semantic"
-	vs "vault/core/sync"
+
+	vc "klefki/core/crypto"
+	"klefki/core/local"
+	"klefki/core/semantic"
+	vs "klefki/core/sync"
 )
 
 var ErrLocked = errors.New("LOCKED")
 var ErrInvalid = errors.New("INVALID_INPUT")
 
-const TrashTag = "vault:system:trash"
+const TrashTag = "klefki:system:trash"
 
 type Preferences struct {
 	Theme       string `json:"theme"`

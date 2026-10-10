@@ -58,7 +58,7 @@ export function SemanticSettings({
   const completed = useRef(new Map<string, string>());
   useEffect(() => {
     if (!api().SemanticStatus) return;
-    const off = window.runtime?.EventsOn("vault:event", (e) => {
+    const off = window.runtime?.EventsOn("klefki:event", (e) => {
       if (e.generation !== state.generation || !e.operation) return;
       if (e.kind === "finished") {
         completed.current.set(e.operation, e.error || "");

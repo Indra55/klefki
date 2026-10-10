@@ -5,12 +5,14 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/godbus/dbus/v5"
 	"os"
 	"slices"
 	"testing"
 	"time"
-	vd "vault/core/desktop"
+
+	"github.com/godbus/dbus/v5"
+
+	vd "klefki/core/desktop"
 )
 
 type retryFingerprintDevice struct {
@@ -140,7 +142,7 @@ func TestFingerprintSignalShape(t *testing.T) {
 }
 
 func TestFingerprintAvailableOnHost(t *testing.T) {
-	if os.Getenv("VAULT_FINGERPRINT_HOST_TEST") != "1" {
+	if os.Getenv("KLEFKI_FINGERPRINT_HOST_TEST") != "1" {
 		t.Skip("explicit host service check")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	vc "vault/core/crypto"
-	"vault/core/syncwire"
+	vc "klefki/core/crypto"
+	"klefki/core/syncwire"
 )
 
 type Session struct {

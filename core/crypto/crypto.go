@@ -1,4 +1,4 @@
-// Package crypto implements Vault v1 records. It does not implement crypto primitives.
+// Package crypto implements Klefki v1 records. It does not implement crypto primitives.
 package crypto
 
 import (
@@ -36,9 +36,9 @@ const (
 )
 
 var (
-	ErrInvalid = errors.New("invalid vault data")
-	ErrAuth    = errors.New("vault authentication failed")
-	ErrIO      = errors.New("vault I/O failed")
+	ErrInvalid = errors.New("invalid klefki data")
+	ErrAuth    = errors.New("klefki authentication failed")
+	ErrIO      = errors.New("klefki I/O failed")
 )
 var recordDomain = []byte("vault/record/v1\x00")
 

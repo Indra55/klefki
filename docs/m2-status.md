@@ -7,7 +7,7 @@ as part of reconstructed milestone history.
 
 ## Delivered
 
-- Standalone `cmd/vault-server`, chi routing, SQLite accounts/sessions/metadata,
+- Standalone `cmd/klefki-server`, chi routing, SQLite accounts/sessions/metadata,
   and a disk blob store behind an interface.
 - Signup/login with the approved derived credential and constant-time verifier
   comparison; random per-device sessions, hashed tokens, expiry, listing/revocation.
@@ -38,7 +38,7 @@ as part of reconstructed milestone history.
   Scans also check hex/base64 encodings. This tests the proper encrypted-client
   path; the server cannot authenticate ciphertext or detect deliberately disguised
   plaintext without client keys.
-- `docker compose config --quiet` and `docker build -t cairn-vault:m2 .` passed.
+- `docker compose config --quiet` and `docker build -t klefki:m2 .` passed.
   The built image passed an HTTP/auth startup smoke test as UID 10001, with a
   read-only root filesystem, no capabilities and a temporary data mount. No host
   ports were published. Container TLS deployment with operator certificates was

@@ -8,8 +8,9 @@ import (
 	"strings"
 	"testing"
 	"time"
-	vc "vault/core/crypto"
-	vs "vault/core/sync"
+
+	vc "klefki/core/crypto"
+	vs "klefki/core/sync"
 )
 
 func testService(t *testing.T) (*Service, string) {

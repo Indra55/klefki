@@ -7,7 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"vault/server"
+
+	"klefki/server"
 )
 
 func TestCLIOfflineSyncWorkflow(t *testing.T) {
@@ -20,10 +21,10 @@ func TestCLIOfflineSyncWorkflow(t *testing.T) {
 		t.Fatal("fixture setup")
 	}
 	var out bytes.Buffer
-	if e := run([]string{"init", "--vault", account, "--password-file", password, "--recovery-out", filepath.Join(dir, "recovery")}, &out); e != nil {
+	if e := run([]string{"init", "--klefki", account, "--password-file", password, "--recovery-out", filepath.Join(dir, "recovery")}, &out); e != nil {
 		t.Fatal(e)
 	}
-	common := []string{"--vault", account, "--password-file", password}
+	common := []string{"--klefki", account, "--password-file", password}
 	invoke := func(command string, extra ...string) error {
 		out.Reset()
 		args := append([]string{command}, common...)

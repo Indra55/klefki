@@ -9,13 +9,13 @@ import (
 	"sort"
 	"strings"
 
-	vc "vault/core/crypto"
-	"vault/core/semantic"
-	vs "vault/core/sync"
+	vc "klefki/core/crypto"
+	"klefki/core/semantic"
+	vs "klefki/core/sync"
 )
 
-const SemanticTag = "vault:system:semantic-index"
-const CorrectionTag = "vault:system:analysis-correction"
+const SemanticTag = "klefki:system:semantic-index"
+const CorrectionTag = "klefki:system:analysis-correction"
 
 var ErrCorrectionConflict = errors.New("SEMANTIC_CORRECTION_CONFLICT")
 

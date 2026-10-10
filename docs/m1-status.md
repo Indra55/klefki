@@ -47,10 +47,10 @@ done
 for target in FuzzAccountContainer FuzzFileContainer; do
   go test ./cli -run '^$' -fuzz "^${target}$" -fuzztime=3s -parallel=2 || break
 done
-GOOS=windows GOARCH=amd64 go build -o /tmp/vault-m1.exe ./cli
+GOOS=windows GOARCH=amd64 go build -o /tmp/klefki-m1.exe ./cli
 ```
 
-Local verification used `GOCACHE=/tmp/vault-go-cache GOPROXY=off GOSUMDB=off`
+Local verification used `GOCACHE=/tmp/klefki-go-cache GOPROXY=off GOSUMDB=off`
 with cached pinned modules and `go.sum`. It did not perform a fresh online Go
 checksum-database lookup. Ordinary connected users should retain Go defaults.
 

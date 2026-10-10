@@ -7,7 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"vault/core/search"
+
+	"klefki/core/search"
 )
 
 func TestCLISearchWorkflow(t *testing.T) {
@@ -20,13 +21,13 @@ func TestCLISearchWorkflow(t *testing.T) {
 			t.Fatal(e)
 		}
 	}
-	if e := run([]string{"init", "--vault", account, "--password-file", password, "--recovery-out", recovery}, io.Discard); e != nil {
+	if e := run([]string{"init", "--klefki", account, "--password-file", password, "--recovery-out", recovery}, io.Discard); e != nil {
 		t.Fatal(e)
 	}
 	var out bytes.Buffer
 	invoke := func(command string, extra ...string) error {
 		out.Reset()
-		return run(append([]string{command, "--vault", account, "--password-file", password}, extra...), &out)
+		return run(append([]string{command, "--klefki", account, "--password-file", password}, extra...), &out)
 	}
 	if e := invoke("add", filepath.Join(root, "file.txt")); e != nil {
 		t.Fatal(e)
@@ -44,7 +45,7 @@ func TestCLISearchWorkflow(t *testing.T) {
 	if json.Unmarshal(out.Bytes(), &hits) != nil || len(hits) != 1 || hits[0].Name != "file.txt" {
 		t.Fatal("CLI content search")
 	}
-	if e := run([]string{"search", "--vault", account, "--recovery-file", recovery, "--query-file", filepath.Join(root, "query")}, io.Discard); e != nil {
+	if e := run([]string{"search", "--klefki", account, "--recovery-file", recovery, "--query-file", filepath.Join(root, "query")}, io.Discard); e != nil {
 		t.Fatal(e)
 	}
 }

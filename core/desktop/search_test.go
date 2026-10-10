@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-	"vault/core/search"
-	vs "vault/core/sync"
+
+	"klefki/core/search"
+	vs "klefki/core/sync"
 )
 
 func TestDesktopSearchRebuildAndLock(t *testing.T) {

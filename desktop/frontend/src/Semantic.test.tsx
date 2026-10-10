@@ -59,7 +59,7 @@ it("does not start inference or download until explicitly enabled and handles im
     screen.queryByText(/Setting up and indexing locally/),
   ).not.toBeInTheDocument();
 });
-it("offers replacement model setup for an already enabled vault", async () => {
+it("offers replacement model setup for an already enabled klefki", async () => {
   const setup = vi.fn(async () => "bge-setup");
   window.go = { main: { App: {
     SemanticStatus: vi.fn(async () => ({ enabled: true, supported: true, ready: false, downloadBytes: 156146754, thresholds: { cutoff: .5, margin: .01 } })),

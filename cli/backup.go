@@ -8,15 +8,15 @@ import (
 	"os"
 	"path/filepath"
 
-	vc "vault/core/crypto"
-	"vault/core/local"
-	vs "vault/core/sync"
+	vc "klefki/core/crypto"
+	"klefki/core/local"
+	vs "klefki/core/sync"
 )
 
-const backupHelp = `vault backup [--vault PATH] [--store PATH] [--password-file PATH | --recovery-file PATH] -o DIRECTORY
-vault restore [--password-file PATH | --recovery-file PATH] -o DIRECTORY BACKUP_DIRECTORY
-vault export-plain [--vault PATH] [--store PATH] [--password-file PATH | --recovery-file PATH] -o DIRECTORY
-vault check [--vault PATH] [--store PATH] [--password-file PATH | --recovery-file PATH]
+const backupHelp = `klefki backup [--klefki PATH] [--store PATH] [--password-file PATH | --recovery-file PATH] -o DIRECTORY
+klefki restore [--password-file PATH | --recovery-file PATH] -o DIRECTORY BACKUP_DIRECTORY
+klefki export-plain [--klefki PATH] [--store PATH] [--password-file PATH | --recovery-file PATH] -o DIRECTORY
+klefki check [--klefki PATH] [--store PATH] [--password-file PATH | --recovery-file PATH]
 Backup/restore destinations must not exist. Close desktop before using its store.
 export-plain writes unencrypted documents and metadata, including trash and history.`
 
@@ -24,7 +24,7 @@ func runBackup(args []string, out io.Writer) error {
 	command := args[0]
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
-	accountPath := flags.String("vault", filepath.Join(".vault", "account.v1"), "")
+	accountPath := flags.String("klefki", filepath.Join(".klefki", "account.v1"), "")
 	storePath := flags.String("store", "", "")
 	passwordPath := flags.String("password-file", "", "")
 	recoveryPath := flags.String("recovery-file", "", "")
@@ -37,7 +37,7 @@ func runBackup(args []string, out io.Writer) error {
 			return errUsage
 		}
 		flags.Visit(func(f *flag.Flag) {
-			if f.Name == "vault" || f.Name == "store" {
+			if f.Name == "klefki" || f.Name == "store" {
 				command = "invalid"
 			}
 		})
@@ -82,7 +82,7 @@ func runBackup(args []string, out io.Writer) error {
 	if *storePath == "" {
 		*storePath = filepath.Join(filepath.Dir(*accountPath), "local.db")
 	}
-	// Open normally creates a store; backup must never mistake a missing store for an empty vault.
+	// Open normally creates a store; backup must never mistake a missing store for an empty klefki.
 	stat, e := os.Stat(*storePath)
 	if e != nil || !stat.Mode().IsRegular() || stat.Size() == 0 {
 		return vc.ErrInvalid
@@ -125,7 +125,7 @@ func runBackup(args []string, out io.Writer) error {
 	}()
 	snapshotPath := filepath.Join(*dest, "local.db")
 	if command == "export-plain" {
-		temp, e := os.MkdirTemp("", "vault-export-*")
+		temp, e := os.MkdirTemp("", "klefki-export-*")
 		if e != nil {
 			return vc.ErrIO
 		}

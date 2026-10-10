@@ -9,7 +9,8 @@ import (
 	"sync"
 	"testing"
 	"time"
-	vc "vault/core/crypto"
+
+	vc "klefki/core/crypto"
 )
 
 type fakeFingerprint struct {

@@ -10,7 +10,8 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"vault/core/syncwire"
+
+	"klefki/core/syncwire"
 )
 
 // Existing M2 records are adopted once, without rewriting their ciphertext.

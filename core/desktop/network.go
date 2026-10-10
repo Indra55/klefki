@@ -4,8 +4,9 @@ import (
 	"errors"
 	"net"
 	"time"
-	vc "vault/core/crypto"
-	vs "vault/core/sync"
+
+	vc "klefki/core/crypto"
+	vs "klefki/core/sync"
 )
 
 func (s *Service) Connect(address string, register bool) error {

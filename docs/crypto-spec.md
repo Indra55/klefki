@@ -1,4 +1,4 @@
-# Vault cryptographic format v1
+# Klefki cryptographic format v1
 
 Status: reviewed and approved for M1 by the user on 2026-10-09. M0 tooling
 exercises these formats; it is not a security audit. Any later change to these
@@ -228,13 +228,13 @@ protection beyond the records already specified.
 
 CLI init writes the recovery code once to an explicit user-selected private file;
 it is not printed into logs or ordinary stdout. Treat that file as sensitive and
-store it separately from the encrypted vault. Local decryption may use this code
+store it separately from the encrypted klefki. Local decryption may use this code
 instead of the password. Secret file inputs remove one optional trailing LF or
 CRLF; other bytes, including leading/trailing spaces, are preserved. Interactive
 password input hides terminal echo and confirms the password at init. No password
 or recovery-code command-line value or environment-variable option is provided.
 
-Encrypted output defaults to an opaque file ID plus `.vault`. Plaintext output
+Encrypted output defaults to an opaque file ID plus `.klefki`. Plaintext output
 requires an explicit destination; never treat a decrypted filename as a path.
 Both operations stage a new private file in the destination directory, sync and
 close it, then publish with a non-overwriting hard link. Delete the staging name

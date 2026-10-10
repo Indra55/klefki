@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	vc "vault/core/crypto"
+	vc "klefki/core/crypto"
 )
 
 type pdfImage struct {
@@ -91,7 +91,7 @@ func mergeOCR(out *boundedBuffer, embedded []byte, ocr [][]byte) error {
 }
 
 func (x Extractor) pdf(ctx context.Context, data []byte, lang string) (string, error) {
-	dir, e := os.MkdirTemp(x.TempDir, "vault-ocr-*")
+	dir, e := os.MkdirTemp(x.TempDir, "klefki-ocr-*")
 	if e != nil {
 		return "", ErrTool
 	}

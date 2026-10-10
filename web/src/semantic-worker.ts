@@ -2,7 +2,7 @@
 import { BertTokenizer } from "@huggingface/transformers";
 import * as ort from "onnxruntime-web/wasm";
 import manifest from "./model-manifest.json";
-const cacheName = "vault-model-" + manifest.fingerprint;
+const cacheName = "klefki-model-" + manifest.fingerprint;
 let session: ort.InferenceSession | undefined,
   tokenizer: BertTokenizer | undefined;
 async function asset(path: string) {

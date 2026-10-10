@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	vc "vault/core/crypto"
-	"vault/core/local"
-	"vault/core/syncwire"
+	vc "klefki/core/crypto"
+	"klefki/core/local"
+	"klefki/core/syncwire"
 )
 
 // Snapshot copies a consistent SQLite snapshot, including pending work and history.
@@ -17,7 +17,7 @@ func (s *Store) Snapshot(path string) error {
 	defer s.syncMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	dir, e := os.MkdirTemp(filepath.Dir(path), ".vault-snapshot-*")
+	dir, e := os.MkdirTemp(filepath.Dir(path), ".klefki-snapshot-*")
 	if e != nil {
 		return ErrStore
 	}

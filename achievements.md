@@ -1,4 +1,4 @@
-# Vault achievements
+# Klefki achievements
 
 Implemented and evidenced as of 2026-10-10. These are project achievements,
 not claims that the techniques are new inventions.
@@ -17,7 +17,7 @@ Fully scanned PDFs still require more OCR. [Evidence](docs/m7-status.md).
 ## 2. Search that stays encrypted across devices
 
 Local Tesseract extraction feeds a BM25 index stored as an ordinary encrypted
-vault file. A second client searched the synced index with OCR tools unavailable.
+klefki file. A second client searched the synced index with OCR tools unavailable.
 Mixed-page tests found both selectable text and words inside scans; storage checks
 found no known indexed words in plaintext. [Evidence](docs/m7-status.md).
 

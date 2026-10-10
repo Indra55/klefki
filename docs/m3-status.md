@@ -27,7 +27,7 @@ committed as part of reconstructed milestone history.
 - `go test -race ./...`
 - `go vet ./...`
 - `go -C testvectors/tools/go test ./...`
-- `docker build -t cairn-vault:m3 .`
+- `docker build -t klefki:m3 .`
 
 The root suite includes existing crypto/vector and CLI tests. TypeScript was not
 rerun because neither the cryptographic formats nor its implementation changed.

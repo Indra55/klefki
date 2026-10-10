@@ -31,13 +31,13 @@ export function unlockRevision(master: Uint8Array, account: string, r: Revision)
         c.check(!r.file_key);
     return { metadata, key };
 }
-const req = <T>(r: IDBRequest<T>) => new Promise<T>((resolve, reject) => { r.onsuccess = () => resolve(r.result); r.onerror = () => reject(Error('Local vault storage failed')); });
-const done = (tx: IDBTransaction) => new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onabort = tx.onerror = () => reject(Error('Local vault transaction failed')); });
+const req = <T>(r: IDBRequest<T>) => new Promise<T>((resolve, reject) => { r.onsuccess = () => resolve(r.result); r.onerror = () => reject(Error('Local klefki storage failed')); });
+const done = (tx: IDBTransaction) => new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onabort = tx.onerror = () => reject(Error('Local klefki transaction failed')); });
 export class Store {
     private constructor(readonly db: IDBDatabase, readonly account: c.Account) { }
     static async open(account: c.Account) {
         c.validateAccount(account);
-        const r = indexedDB.open('vault-v1-' + account.account, 1);
+        const r = indexedDB.open('klefki-v1-' + account.account, 1);
         r.onupgradeneeded = () => { const db = r.result; db.createObjectStore('state'); db.createObjectStore('revisions', { keyPath: 'revision.id' }); db.createObjectStore('chunks'); };
         const db = await req(r);
         db.onversionchange = () => db.close();
