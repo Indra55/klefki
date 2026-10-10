@@ -190,3 +190,11 @@ Klefki currently focuses on one person's library across their devices. Shared
 libraries, link sharing, native Android, expiry reminders, emergency access, and
 local LLM features are future work. Web does not yet provide desktop PDF previews,
 trash management, browser OCR, recovery-code unlock, or backup archives.
+
+## License
+
+Copyright (c) 2026 Indra55. Klefki is licensed under the
+[GNU Affero General Public License v3.0](LICENSE) (`AGPL-3.0-only`).
+
+Third-party dependencies and adapted assets retain their own licenses, including
+the [fingerprint icon notices](desktop/frontend/public/fingerprint-license.txt).
