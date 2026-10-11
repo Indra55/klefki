@@ -85,6 +85,11 @@ other device, unlock with the same password, and connect to the same sync server
 Register the account once. Desktop and web offer sync controls; the CLI runs
 sync on demand.
 
+Server storage is optional: keep the default **Persistent storage**, or enable
+**Temporary relay** to remove delivered ciphertext after all linked devices save
+it, with at least two devices required. New devices then need an existing device
+to sync again. [Temporary relay and free Render setup](docs/temporary-relay.md).
+
 - **Desktop ↔ web:** documents added on either client can be opened on the other after syncing.
 - **Durable offline edits:** local changes and their queue entries are saved together.
 - **Interrupted uploads:** retry stored ciphertext and upload only chunks the server has not accepted.

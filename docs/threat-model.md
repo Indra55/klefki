@@ -94,3 +94,10 @@ are not authenticated history; replay, omitted changes and forged relationships
 remain outside v1 rollback/fork protection. Honest-server concurrent edits keep
 both heads as conflict copies. See [M3 evidence](m3-status.md) and the
 [sync protocol](sync-protocol.md) for tested restart/retry scenarios and limits.
+
+Optional [temporary relay](temporary-relay.md) deletes delivered server payloads
+using authenticated clients' durable acknowledgements. The server still sees
+account/device IDs, revision links, ciphertext digests and delivery cursors.
+Acknowledgements are trusted assertions, not proof of possession. Local copies
+and backups are necessary after cleanup or ephemeral-host resets; deletion does
+not prove forensic erasure from the hosting provider's infrastructure.

@@ -47,3 +47,9 @@ M0–M8 implementation is recorded in 36 reconstructed milestone commits.
 Commit dates were assigned retrospectively across September 10–October 10, 2026;
 recorded approval, implementation and validation dates remain unchanged.
 M8 private-document acceptance remains pending.
+
+Additional sync capability: [temporary relay and Render testing](docs/temporary-relay.md)
+implemented and locally verified on 2026-10-12. Go race/static checks, 43 web
+crypto checks, 30 desktop frontend tests, 29 PWA/passkey/relay browser cases,
+native Linux rebuild and the Render Docker build/smoke checks passed. Live Render
+deployment and provider restart acceptance remain pending.

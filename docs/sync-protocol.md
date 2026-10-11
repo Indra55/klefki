@@ -5,6 +5,12 @@ sync commands. It reuses the approved v1 envelopes, metadata fields and key
 hierarchy without changing the M1 account or file container formats. Sync JSON
 and SQLite schemas are transport/storage bookkeeping, not new crypto formats.
 
+This record describes the persistent-storage baseline. The optional
+[temporary relay extension](temporary-relay.md) adds account-wide delivery
+cleanup, stable local-store identities, queue limits and ephemeral-host recovery.
+Local history is retained in both modes; server payload retention depends on
+the selected mode.
+
 ## Local persistence and revisions
 
 `sync.Open(path, accountID)` opens a private SQLite database with WAL. One account

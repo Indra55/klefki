@@ -18,6 +18,7 @@
 
 - [Server API and deployment](server-api.md): TLS, Docker, authentication, and blob storage.
 - [Sync protocol](sync-protocol.md): offline queues, retries, device cursors, and conflict copies.
+- [Temporary relay and Render](temporary-relay.md): optional delivery cleanup, device enrollment, queue limits, and free-host recovery.
 - [Threat model](threat-model.md): protections, assumptions, and limits.
 - [Cryptographic format](crypto-spec.md): key hierarchy and exact v1 byte layouts.
 - [Shared test vectors](../testvectors/README.md): Go and TypeScript interoperability fixtures.
