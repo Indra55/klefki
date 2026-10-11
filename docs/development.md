@@ -19,6 +19,10 @@ See [M1 status](m1-status.md) for fuzz commands and exact evidence boundaries.
 
 ## Frontends
 
+For a Linux desktop build and launch, run `make linux-demo` from the repository
+root. `make linux-build` rebuilds without launching. Both build the frontend
+before embedding it in the executable and include native ONNX support.
+
 ```sh
 npm --prefix desktop/frontend ci --ignore-scripts --no-audit --no-fund
 npm --prefix desktop/frontend test

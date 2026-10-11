@@ -26,7 +26,21 @@ for deployment, TLS, and Docker.
 
 The desktop app targets Linux and Windows and uses Wails v2. It needs Go, Node,
 and the [Wails platform prerequisites](https://wails.io/docs/gettingstarted/installation).
-With Wails installed, build from the repository root:
+
+On Linux, with GTK 3 and WebKitGTK 4.1 development packages installed, run from
+the repository root:
+
+```sh
+make linux-demo
+```
+
+This installs frontend dependencies when needed, rebuilds the frontend and
+Linux executable with native ONNX support, and launches Klefki. It uses your
+existing app settings and library. Close any running Klefki window first so
+the new binary opens. The local model is downloaded only when enabled in Settings.
+Use `make linux-build` to build without launching.
+
+For a Wails build on either platform:
 
 ```sh
 cd desktop
