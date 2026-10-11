@@ -3,7 +3,7 @@ import * as c from './crypto.ts';
 import { Store, type Head } from './store.ts';
 import * as semantic from './semantic.ts';
 import * as passkey from './passkey.ts';
-import { Remote, sync, HTTPError } from './sync.ts';
+import { Remote, sync, setSyncMode, HTTPError, RelayWaiting } from './sync.ts';
 const app = document.querySelector<HTMLDivElement>('#app')!;
 let account: c.Account | undefined, store: Store | undefined, master: Uint8Array | undefined, credential: Uint8Array | undefined, remote: Remote | undefined, controller: AbortController | undefined;
 let modelSetupController:AbortController|undefined;
@@ -36,7 +36,7 @@ async function operation(fn: (key: Uint8Array, g: number) => Promise<void>) {
     }
     catch (e) {
         if (g === generation)
-            message(e instanceof HTTPError ? (e.status === 401 ? 'Sign-in expired. Sync again to reconnect.' : 'Server request failed. Your local edits are kept.') : 'Could not complete this action. Check your connection or klefki data.');
+            message(e instanceof RelayWaiting ? e.message : e instanceof HTTPError ? (e.status === 401 ? 'Sign-in expired. Sync again to reconnect.' : e.status===507 ? 'Relay storage is full. Your local edits are kept; sync the other linked devices to free space.' : e.status===428 ? 'This account uses temporary relay. Update this client to sync.' : 'Server request failed. Your local edits are kept.') : 'Could not complete this action. Check your connection or klefki data.');
         if (e instanceof HTTPError && e.status === 401)
             remote = undefined;
     }
@@ -200,22 +200,29 @@ function recoveryDialog(code: string) { const dialog = node('dialog'); dialog.ap
 async function refresh() { if (!store || !master)
     return; const g = generation, next = await store.heads(master); if (g !== generation)
     return; heads = next; await library(); }
+async function connectRemote(register=false){
+    const s=store!, r=new Remote(location.origin,controller!.signal);
+    await s.bind(r.origin);
+    await r.login(account!,credential!,register,await s.state('sync-mode')==='temporary-relay');
+    remote=r;
+}
 async function syncNow(register = false) {
     await operation(async (key, g) => {
         const s = store!;
         if (!remote) {
-            const r = new Remote(location.origin, controller!.signal);
-            await s.bind(r.origin);
-            await r.login(account!, credential!, register);
+            await connectRemote(register);
             if (g !== generation)
                 return;
-            remote = r;
         }
-        await sync(s, key, remote);
+        try { await sync(s,key,remote!); }
+        catch(e){if(!(e instanceof HTTPError)||e.status!==401||await s.state('sync-mode')!=='temporary-relay')throw e;await connectRemote();await sync(s,key,remote!);}
         if (g !== generation)
             return;
         await refresh();
-        message('Synced. All local changes are saved on the server.');
+        if(await s.state('sync-mode')==='temporary-relay'){
+            const status=await remote!.json<{queued:number}>('GET','/v1/sync/settings',undefined,1024);
+            message(status.queued?'Uploaded to the relay. Waiting for linked devices to save their copies.':'Synced. Delivered documents have been removed from the relay.');
+        }else message('Synced. All local changes are saved on the server.');
     });
 }
 function trashed(h: Head, seen = new Set<string>()): boolean { if (h.metadata.tags.includes('klefki:system:trash') && h.metadata.type === 'folder')
@@ -290,9 +297,25 @@ async function library() {
     status.id = 'status';
     status.setAttribute('role', 'status');
     main.append(status);
+    const syncMode=await store!.state<string>('sync-mode') || 'persistent';
+    const devices=await store!.state<string[]>('relay-devices')||[],ownDevice=await store!.state<string>('relay-device');
     const tools = node('details');
     tools.append(node('summary', 'Klefki settings'), node('p', 'Account ID: ' + account!.account, 'account-id'), button('Download encrypted account file', () => download(c.accountBytes(account!), 'account.klefki')), button('Register this store on server', () => void syncNow(true)), button('New folder', () => folderDialog()), node('p', 'Keep the account file and recovery code safe. Browser storage can be cleared or evicted.', 'footnote'));
     addPasskeySettings(tools);
+    const modeField=field('Server storage','checkbox');
+    modeField.wrap.firstChild!.textContent='Temporary relay';modeField.input.checked=syncMode==='temporary-relay';
+    modeField.input.onchange=()=>void operation(async(key,g)=>{
+        if(!remote)await connectRemote();
+        try { await setSyncMode(store!,key,remote!,modeField.input.checked?'temporary-relay':'persistent'); }
+        finally { if(g===generation)await refresh(); }
+        if(g===generation)message('Sync mode updated for this account.');
+    });
+    tools.append(modeField.wrap,node('p','Shared by this account. Temporary relay removes delivered documents after all linked devices save them, with at least two devices required. Offline devices keep deliveries queued. New devices need an existing device to reconnect. Keep local backups; free hosts can erase queued data.','footnote'));
+    for(const id of devices)if(id!==ownDevice)tools.append(button('Forget device '+id.slice(0,8),()=>void operation(async(key,g)=>{
+        if(!remote)await connectRemote();
+        await remote!.request('DELETE','/v1/sync/relay/devices/'+id,undefined,1024);
+        await sync(store!,key,remote!);if(g===generation){await refresh();message('Device removed from relay deliveries.');}
+    })));
     addSemanticSettings(tools,prefs);
     main.append(tools);
     root.append(main);

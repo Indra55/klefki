@@ -52,6 +52,24 @@ test('offline desktop and web edits preserve both conflict copies', async ({ pag
     await expect(page.getByText(/Conflict copy/)).toHaveCount(2);
     expect(bridge('verify-conflict')).toContain('PASS');
 });
+test('temporary relay transfers Go and browser documents after server cleanup',async({page})=>{
+    await connect(page);
+    await page.getByText('Klefki settings',{exact:true}).click();
+    await page.getByLabel('Temporary relay',{exact:true}).check();
+    await expect(page.getByRole('status')).toContainText('Sync mode updated');
+    await page.getByLabel('Add document').setInputFiles({name:'web.txt',mimeType:'text/plain',buffer:Buffer.from('uploaded from web')});
+    await expect(row(page,'web.txt')).toBeVisible();
+    await editText(page,'offline web text');
+    await page.getByRole('button',{name:'Sync now',exact:true}).click();
+    await expect(page.getByRole('status')).toContainText('Waiting for linked devices');
+    expect(bridge('verify')).toContain('PASS verify');
+    await page.getByRole('button',{name:'Sync now',exact:true}).click();
+    await expect(page.getByRole('status')).toContainText('removed from the relay');
+    const download=page.waitForEvent('download');
+    await row(page,'desktop.bin').getByRole('button',{name:'Download',exact:true}).click();
+    const data=readFileSync((await(await download).path())!);
+    expect(data.length).toBe(4194304+19);expect(data.every((x,i)=>x===i%251)).toBe(true);
+});
 test('interrupted uploads retain pending work and retry stored ciphertext', async ({ page }) => {
     await connect(page);
     await page.getByLabel('Add document').setInputFiles({ name: 'retry.txt', mimeType: 'text/plain', buffer: Buffer.from('durable queued upload') });

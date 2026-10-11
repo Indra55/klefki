@@ -66,6 +66,23 @@ export class Store {
         }
     }
     async state<T>(key: string): Promise<T | undefined> { return this.transaction(['state'], 'readonly', tx => req(tx.objectStore('state').get(key))); }
+    async relayState() {
+        return this.transaction(['state'],'readwrite',async tx => {
+            const state=tx.objectStore('state'), device=await req(state.get('relay-device')) || c.id();
+            state.put(device,'relay-device');
+            return {device:device as string,known:(await req(state.get('relay-devices')) || []) as string[]};
+        });
+    }
+    async saveRelay(mode: string, epoch: string, devices: string[]) {
+        c.check(mode==='persistent'||mode==='temporary-relay'); c.validID(epoch);
+        c.check(Array.isArray(devices)&&devices.length<=64); devices.forEach(c.validID);
+        await this.transaction(['state'],'readwrite',async tx => {
+            const state=tx.objectStore('state');
+            c.check(devices.includes(await req(state.get('relay-device'))));
+            if (await req(state.get('relay-epoch'))!==epoch) state.put(0,'cursor');
+            state.put(epoch,'relay-epoch');state.put(mode,'sync-mode');state.put(devices,'relay-devices');
+        });
+    }
     async bind(origin: string) { await this.transaction(['state'], 'readwrite', async (tx) => { const s = tx.objectStore('state'), old = await req(s.get('origin')); c.check(old === undefined || old === origin); s.put(origin, 'origin'); }); }
     async all(): Promise<Stored[]> { return this.transaction(['revisions'], 'readonly', tx => req(tx.objectStore('revisions').getAll())); }
     async revision(id: string): Promise<Revision> { c.validID(id); const x = await this.transaction(['revisions'], 'readonly', tx => req(tx.objectStore('revisions').get(id))); c.check(x); return x.revision; }

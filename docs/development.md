@@ -35,7 +35,7 @@ npm --prefix web run build
 For browser acceptance against a local Go server:
 
 ```sh
-PW_DISABLE_TS_ESM=1 npm --prefix web run test:e2e -- e2e/klefki.spec.ts e2e/passkey.spec.ts
+PW_DISABLE_TS_ESM=1 npm --prefix web run test:e2e -- e2e/klefki.spec.ts e2e/relay.spec.ts e2e/passkey.spec.ts
 ```
 
 The desktop frontend browser tests use a fixture bridge:
@@ -48,6 +48,9 @@ PW_DISABLE_TS_ESM=1 node node_modules/@playwright/test/cli.js test
 Browser tests require Chromium installed through Playwright and permission to
 open local ports. The desktop tests exercise the frontend; native dialogs and
 physical fingerprint scans have separate acceptance steps.
+The PWA test server uses an increased request budget on loopback so synthetic
+clients sharing one IP do not exhaust production throttling. Server tests check
+the actual rate limiter; the deployed server keeps its normal limits.
 
 ## Optional checks
 
