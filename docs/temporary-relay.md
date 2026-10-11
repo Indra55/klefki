@@ -42,7 +42,11 @@ is unsupported.
 
 The repository includes [render.yaml](../render.yaml) and
 [Dockerfile.render](../Dockerfile.render). These build the server and PWA together
-and run as an unprivileged user.
+and run as an unprivileged user. The image build downloads and checksum-verifies
+the pinned BGE-small assets so model installation works in the website and PWA.
+The browser downloads about 139 MiB only when semantic processing is enabled;
+inference runs on the user's device. These downloads count toward the service's
+outbound bandwidth.
 
 1. Put this revision in the Git repository you connect to Render.
 2. Create a Render Blueprint from that repository using `render.yaml`. Alternatively,

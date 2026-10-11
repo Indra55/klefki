@@ -59,6 +59,14 @@ correction revision in `resolve` after reviewing the selected values.
 Prepare model assets on the server's public web build before exposing the option:
 
 ```sh
+npm --prefix web run models -- --download
+npm --prefix web run build
+```
+
+The download command fetches the pinned public model/tokenizer assets and verifies
+their sizes and SHA-256 checksums. Alternatively, supply a verified local bundle:
+
+```sh
 KLEFKI_MODEL_DIR=/path/to/verified/model/bundle npm --prefix web run build
 ```
 
@@ -67,6 +75,9 @@ pinned browser WASM/runtime assets. Serve `web/dist` through the existing Klefki
 server. A build without a supplied model bundle remains usable for ordinary web
 features, but activation reports unavailable assets until they are provisioned.
 Model preparation is a deployment step; clients download assets only on opt-in.
+`Dockerfile.render` performs the verified download during image construction and
+includes the assets in the image. They remain available after container restarts;
+the server serves public files while inference runs in the browser.
 
 Browser users enable M8 independently in Klefki settings. Setup downloads about
 139 MiB of public model/tokenizer/WASM assets from the same origin, validates each
