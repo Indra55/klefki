@@ -190,8 +190,9 @@ private-document acceptance remains open. [Milestones and evidence](MILESTONES.m
 · [Measured achievements](achievements.md).
 
 Klefki currently focuses on one person's library across their devices. Shared
-libraries, link sharing, native Android, expiry reminders, emergency access, and
-local LLM features are future work. Web does not yet provide desktop PDF previews,
+libraries, link sharing, Android and iOS apps, macOS desktop support, broader
+vault and folder organization, expiry reminders, emergency access, and local
+LLM features are [planned future work](ROADMAP.md). Web does not yet provide desktop PDF previews,
 trash management, browser OCR, recovery-code unlock, or backup archives.
 
 ## License

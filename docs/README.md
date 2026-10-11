@@ -23,7 +23,7 @@
 
 ## Development
 
-[Builds and verification](development.md) · [Project plan](../PLAN.md) · [Milestones](../MILESTONES.md) · [Achievements](../achievements.md)
+[Builds and verification](development.md) · [Project plan](../PLAN.md) · [Milestones](../MILESTONES.md) · [Planned features](../ROADMAP.md) · [Achievements](../achievements.md)
 
 Implementation records preserve the evidence and remaining limitations for each milestone:
 

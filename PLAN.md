@@ -138,7 +138,11 @@ Do them in order. Each milestone ends with passing tests and a short note in `do
   [Implementation, evidence and pending acceptance](docs/m8-status.md).
 
 ### M9: Later
-Android app, expiry reminders, link sharing (key in URL fragment), emergency access, optional on-device LLM.
+General vault and folder organization, Android and iOS apps, macOS desktop
+support, expiry reminders, link sharing (key in URL fragment), emergency access,
+and optional on-device LLM. [Planned features and acceptance](ROADMAP.md).
+These are future scope; platform stacks and classification models are not yet
+selected. The current milestone scope above remains unchanged.
 
 ## 6. Working rules for the agent
 

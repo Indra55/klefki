@@ -32,7 +32,9 @@ criteria pass; link evidence and limitations here. Implementation/test completio
   implemented. Public 60-document /
   120-query evaluation passed the hybrid target; private-document acceptance
   remains pending. [Evidence, use and limitations](docs/m8-status.md).
-- [ ] **M9 — Later.** Android, reminders, sharing, emergency access and optional local LLM; scope not yet scheduled.
+- [ ] **M9 — Later.** General vault and folder organization, Android and iOS apps,
+  macOS desktop support, reminders, sharing, emergency access, and optional local
+  LLM features. [Planned scope and acceptance](ROADMAP.md); not yet scheduled.
 
 
 M0–M8 implementation is recorded in 36 reconstructed milestone commits.
