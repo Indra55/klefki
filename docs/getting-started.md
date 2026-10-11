@@ -39,6 +39,9 @@ The executable is written to `desktop/build/bin/klefki-desktop`
 
 Create a private space, save the recovery code, and add files. Use Settings to
 connect a sync server or export the encrypted account file for another device.
+Recovery setup asks for a folder, then confirms the full destination before
+saving a plaintext `klefki-recovery.txt`. An existing file is never overwritten;
+canceling either dialog stops account creation.
 The [desktop walkthrough](m4-acceptance.md) covers folders, previews, trash,
 locking, and sync. Linux users can also enable [fingerprint unlock](fingerprint-linux.md).
 

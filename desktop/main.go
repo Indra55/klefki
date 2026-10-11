@@ -90,12 +90,18 @@ func (a *App) Lock()                                  { a.service.Lock(); a.clea
 func (a *App) Touch()                                 { a.service.Touch() }
 func (a *App) SetPreferences(p vd.Preferences) error  { return safe(a.service.Preferences(p)) }
 func (a *App) Create(password string) error {
-	path, e := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{Title: "Save your recovery code", DefaultFilename: "klefki-recovery.txt"})
+	path, e := selectRecoveryPath(func() (string, error) {
+		return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{Title: "Choose a folder for your recovery code", CanCreateDirectories: true})
+	}, func(path string) (bool, error) {
+		answer, err := runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
+			Type: runtime.QuestionDialog, Title: "Save your recovery code?",
+			Message: recoveryConfirmationMessage(path),
+			Buttons: []string{"No", "Yes"}, DefaultButton: "No", CancelButton: "No",
+		})
+		return answer == "Yes", err
+	})
 	if e != nil {
-		return errors.New("DIALOG_FAILED")
-	}
-	if path == "" {
-		return errors.New("CANCELED")
+		return e
 	}
 	return safe(a.service.Create(password, path))
 }
