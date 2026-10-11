@@ -1,7 +1,15 @@
-.PHONY: linux-demo linux-build desktop-frontend
+.PHONY: linux-demo linux-build linux-install linux-update linux-rollback desktop-frontend
 
 linux-demo: linux-build
 	./desktop/build/bin/klefki-desktop
+
+linux-install: linux-build
+	python3 scripts/install-linux.py
+
+linux-update: linux-install
+
+linux-rollback:
+	python3 scripts/install-linux.py --rollback
 
 linux-build: desktop-frontend
 	pkg-config --print-errors --exists gtk+-3.0 webkit2gtk-4.1

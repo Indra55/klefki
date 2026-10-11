@@ -46,6 +46,38 @@ existing app settings and library. Close any running Klefki window first so
 the new binary opens. The local model is downloaded only when enabled in Settings.
 Use `make linux-build` to build without launching.
 
+To install a persistent Linux app with an app-drawer entry, use Python 3 and run
+as your normal desktop user (without `sudo`):
+
+```sh
+make linux-install
+```
+
+Open **Klefki** from the app drawer. The installed executable is
+`~/.local/bin/klefki-desktop`, independent of the repository and its build output.
+Your account, encrypted document database, and settings remain in
+`${XDG_CONFIG_HOME:-~/.config}/Klefki`; installation does not change them.
+The icon and launcher use `${XDG_DATA_HOME:-~/.local/share}`.
+
+After updating the source, rebuild and replace the installed app with:
+
+```sh
+make linux-update
+```
+
+A failed build leaves the installed executable intact. Installation replaces
+the executable atomically and retains the previous executable when it changes.
+Close and reopen Klefki to use the new version. To switch back:
+
+```sh
+make linux-rollback
+```
+
+Rollback swaps the installed and previous executables; it does not restore data
+or reverse database migrations. Keep [encrypted backups](backup-restore.md)
+for document recovery. The installed app still requires the Linux GTK 3 and
+WebKitGTK 4.1 runtime libraries.
+
 For a Wails build on either platform:
 
 ```sh
