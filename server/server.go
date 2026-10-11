@@ -34,10 +34,11 @@ type Config struct {
 	DataDir string
 	Logger  *slog.Logger
 	// AllowHTTP is only for explicitly configured loopback development listeners.
-	AllowHTTP  bool
-	RateBurst  int
-	SessionTTL time.Duration
-	Now        func() time.Time
+	AllowHTTP     bool
+	RelayMaxBytes int64
+	RateBurst     int
+	SessionTTL    time.Duration
+	Now           func() time.Time
 }
 type Server struct {
 	db      *sql.DB
@@ -45,6 +46,7 @@ type Server struct {
 	config  Config
 	handler http.Handler
 	mu      sync.Mutex
+	relayMu sync.Mutex
 	buckets map[string]bucket
 }
 type bucket struct {
@@ -87,6 +89,9 @@ func Open(c Config) (*Server, error) {
 	if c.RateBurst <= 0 {
 		c.RateBurst = 120
 	}
+	if c.RelayMaxBytes <= 0 {
+		c.RelayMaxBytes = 256 * 1024 * 1024
+	}
 	if c.SessionTTL <= 0 {
 		c.SessionTTL = 30 * 24 * time.Hour
 	}
@@ -104,7 +109,7 @@ func Open(c Config) (*Server, error) {
 		return nil, e
 	}
 	db.SetMaxOpenConns(1)
-	_, e = db.Exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
+	_, e = db.Exec(`PRAGMA auto_vacuum=INCREMENTAL; PRAGMA secure_delete=ON; PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
  CREATE TABLE IF NOT EXISTS accounts(id TEXT PRIMARY KEY, descriptor BLOB NOT NULL,password_wrapper BLOB NOT NULL,recovery_wrapper BLOB NOT NULL,verifier BLOB NOT NULL);
  CREATE TABLE IF NOT EXISTS sessions(device TEXT PRIMARY KEY,account TEXT NOT NULL REFERENCES accounts(id),token_hash BLOB UNIQUE NOT NULL,expires INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS metadata(account TEXT NOT NULL REFERENCES accounts(id),id TEXT NOT NULL,metadata BLOB NOT NULL,file_key BLOB,PRIMARY KEY(account,id));`)
@@ -113,6 +118,10 @@ func Open(c Config) (*Server, error) {
 		return nil, e
 	}
 	if e = migrateSync(db); e != nil {
+		db.Close()
+		return nil, e
+	}
+	if e = migrateRelay(db); e != nil {
 		db.Close()
 		return nil, e
 	}
@@ -128,6 +137,12 @@ func Open(c Config) (*Server, error) {
 	r.Get("/v1/accounts/{account}", s.account)
 	r.Group(func(r chi.Router) {
 		r.Use(s.auth)
+		r.Use(s.relayAccess)
+		r.Get("/v1/sync/settings", s.getSettings)
+		r.Put("/v1/sync/settings", s.putSettings)
+		r.Post("/v1/sync/relay/device", s.relayDevice)
+		r.Post("/v1/sync/relay/need", s.relayNeed)
+		r.Delete("/v1/sync/relay/devices/{device}", s.forgetRelayDevice)
 		r.Get("/v1/devices", s.devices)
 		r.Delete("/v1/devices/{device}", s.revoke)
 		r.Put("/v1/blobs/{blob}/chunks/{index}", s.putChunk)
@@ -486,6 +501,14 @@ func (s *Server) putChunk(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400)
 		return
 	}
+	if e := s.relayChunk(who(r).account, id, index, b); e != nil {
+		if errors.Is(e, errRelayFull) {
+			fail(w, 507)
+		} else {
+			fail(w, 500)
+		}
+		return
+	}
 	created, e := s.blobs.Put(who(r).account, id, index, b)
 	if errors.Is(e, ErrConflict) {
 		fail(w, 409)
@@ -539,6 +562,15 @@ func (s *Server) listChunks(w http.ResponseWriter, r *http.Request) {
 		n, e = strconv.ParseInt(after, 10, 64)
 		if e != nil || n < 0 || uint64(n) >= vc.ChunkCount(vc.MaxFileSize) {
 			fail(w, 400)
+			return
+		}
+	}
+	if settings, e := s.settings(who(r).account); e != nil {
+		fail(w, 500)
+		return
+	} else if settings.Mode == syncwire.TemporaryRelay {
+		if _, e = s.db.Exec(`INSERT OR IGNORE INTO relay_uploads VALUES(?,?)`, who(r).account, id); e != nil {
+			fail(w, 500)
 			return
 		}
 	}

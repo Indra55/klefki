@@ -28,6 +28,7 @@ type harness struct {
 	account    vc.Account
 	master     vc.Key
 	credential vc.Key
+	relayLimit int64
 }
 
 func setup(t *testing.T) *harness {
@@ -51,7 +52,7 @@ func setup(t *testing.T) *harness {
 func (h *harness) start(t *testing.T) {
 	t.Helper()
 	var e error
-	h.backend, e = server.Open(server.Config{DataDir: filepath.Join(h.root, "server"), RateBurst: 10000})
+	h.backend, e = server.Open(server.Config{DataDir: filepath.Join(h.root, "server"), RateBurst: 10000, RelayMaxBytes: h.relayLimit})
 	if e != nil {
 		t.Fatal(e)
 	}

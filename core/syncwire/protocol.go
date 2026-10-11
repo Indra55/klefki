@@ -21,3 +21,24 @@ type Page struct {
 type Cursor struct {
 	Sequence int64 `json:"sequence"`
 }
+
+const Persistent = "persistent"
+const TemporaryRelay = "temporary-relay"
+
+type SyncSettings struct {
+	Mode   string `json:"mode"`
+	Epoch  string `json:"epoch"`
+	Queued int    `json:"queued"`
+}
+type RelayDevice struct {
+	Device   string   `json:"device"`
+	Known    []string `json:"known"`
+	Sequence int64    `json:"sequence"`
+}
+type RelayState struct {
+	SyncSettings
+	Devices []string `json:"devices"`
+}
+type RelayNeed struct {
+	IDs []string `json:"ids"`
+}

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -27,6 +28,7 @@ type Session struct {
 type Remote struct {
 	base   string
 	client *http.Client
+	device string
 }
 
 func NewRemote(address string, client *http.Client, allowHTTP bool) (*Remote, error) {
@@ -80,6 +82,9 @@ func (r *Remote) request(ctx context.Context, method, path, token string, body a
 	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
+		if r.device != "" {
+			req.Header.Set("X-Klefki-Device", r.device)
+		}
 	}
 	if binary {
 		req.Header.Set("Content-Type", "application/octet-stream")
@@ -200,7 +205,7 @@ func (c *Client) request(ctx context.Context, method, path string, body any, lim
 		retry := e == ErrRemote
 		wait := delay
 		if h, ok := e.(*HTTPError); ok {
-			retry = h.Status == 408 || h.Status == 429 || h.Status >= 500
+			retry = h.Status == 408 || h.Status == 429 || h.Status >= 500 && h.Status != 507
 			wait = max(wait, h.retryAfter)
 		}
 		if !retry || attempt+1 >= attempts {
@@ -228,7 +233,15 @@ func (c *Client) Sync(ctx context.Context) error {
 	if e := c.Store.bind(c.Remote.base); e != nil {
 		return e
 	}
-	for {
+	var seedErr error
+	if e := c.prepareRelay(ctx, true); e != nil {
+		var he *HTTPError
+		if !errors.As(e, &he) || he.Status != 507 {
+			return e
+		}
+		seedErr = e
+	}
+	for seedErr == nil {
 		rev, e := c.Store.nextPending()
 		if e == sql.ErrNoRows {
 			break
@@ -260,6 +273,21 @@ func (c *Client) Sync(ctx context.Context) error {
 			if change.Sequence <= cursor {
 				return ErrInvalid
 			}
+			if len(change.Revision.Metadata) == 0 {
+				local, e := c.Store.localRevision(change.Revision.ID)
+				if e != nil {
+					if errors.Is(e, ErrRelayWaiting) {
+						if _, ackErr := c.request(ctx, "PUT", "/v1/sync/cursor", syncwire.Cursor{Sequence: cursor}, 1024); ackErr != nil {
+							return ackErr
+						}
+					}
+					return e
+				}
+				if local.Object != change.Revision.Object || local.Base != change.Revision.Base {
+					return ErrInvalid
+				}
+				change.Revision = local
+			}
 			e = c.Store.apply(ctx, c.Master, change, func(file string, index uint64) ([]byte, error) {
 				return c.request(ctx, "GET", "/v1/blobs/"+file+"/chunks/"+strconv.FormatUint(index, 10), nil, vc.ChunkSize+87)
 			})
@@ -273,7 +301,7 @@ func (c *Client) Sync(ctx context.Context) error {
 			return e
 		}
 		if len(page.Changes) == 0 {
-			return nil
+			return seedErr
 		}
 	}
 }

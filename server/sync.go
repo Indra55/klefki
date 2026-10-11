@@ -44,6 +44,17 @@ func appendChange(ctx context.Context, tx *sql.Tx, account string, r syncwire.Re
 	var sequence int64
 	e := tx.QueryRowContext(ctx, `SELECT sequence,object,base,metadata,file_key FROM changes WHERE account=? AND revision=?`, account, r.ID).Scan(&sequence, &old.Object, &old.Base, &old.Metadata, &old.FileKey)
 	if e == nil {
+		if len(old.Metadata) == 0 {
+			var digest []byte
+			if e = tx.QueryRowContext(ctx, `SELECT digest FROM relay_revisions WHERE account=? AND revision=?`, account, r.ID).Scan(&digest); e != nil {
+				return 0, false, e
+			}
+			if !bytes.Equal(digest, revisionDigest(r)) {
+				return 0, false, errRevisionConflict
+			}
+			_, e = tx.ExecContext(ctx, `UPDATE changes SET metadata=?,file_key=? WHERE account=? AND revision=?`, r.Metadata, r.FileKey, account, r.ID)
+			return sequence, false, e
+		}
 		if old.Object != r.Object || old.Base != r.Base || !bytes.Equal(old.Metadata, r.Metadata) || !bytes.Equal(old.FileKey, r.FileKey) {
 			return 0, false, errRevisionConflict
 		}
@@ -67,6 +78,9 @@ func appendChange(ctx context.Context, tx *sql.Tx, account string, r syncwire.Re
 		return 0, false, e
 	}
 	sequence, e = result.LastInsertId()
+	if e == nil {
+		_, e = tx.ExecContext(ctx, `INSERT INTO relay_revisions VALUES(?,?,?,?)`, account, r.ID, revisionDigest(r), revisionFile(r))
+	}
 	return sequence, true, e
 }
 func (s *Server) putRevision(w http.ResponseWriter, r *http.Request) {
@@ -77,6 +91,14 @@ func (s *Server) putRevision(w http.ResponseWriter, r *http.Request) {
 	account := who(r).account
 	if rev.ID != chi.URLParam(r, "revision") || !validRevision(rev, account) {
 		fail(w, 400)
+		return
+	}
+	if e := s.relayRevisionSpace(account, rev); e != nil {
+		if errors.Is(e, errRelayFull) {
+			fail(w, 507)
+		} else {
+			fail(w, 500)
+		}
 		return
 	}
 	tx, e := s.db.BeginTx(r.Context(), nil)
@@ -97,6 +119,12 @@ func (s *Server) putRevision(w http.ResponseWriter, r *http.Request) {
 	if tx.Commit() != nil {
 		fail(w, 500)
 		return
+	}
+	if file := revisionFile(rev); file != "" {
+		if _, e = s.db.Exec(`DELETE FROM relay_uploads WHERE account=? AND file=?`, account, file); e != nil {
+			fail(w, 500)
+			return
+		}
 	}
 	status := 200
 	if created {
@@ -132,6 +160,9 @@ func (s *Server) changes(w http.ResponseWriter, r *http.Request) {
 		if rows.Scan(&c.Sequence, &c.Revision.ID, &c.Revision.Object, &c.Revision.Base, &c.Revision.Metadata, &c.Revision.FileKey) != nil {
 			fail(w, 500)
 			return
+		}
+		if len(c.Revision.Metadata) == 0 {
+			c.Revision.Metadata = []byte{}
 		}
 		out.Changes = append(out.Changes, c)
 	}
@@ -173,6 +204,16 @@ func (s *Server) putCursor(w http.ResponseWriter, r *http.Request) {
 	if e != nil {
 		fail(w, 500)
 		return
+	}
+	if device := r.Header.Get("X-Klefki-Device"); validID(device) {
+		if _, e = s.db.Exec(`UPDATE relay_devices SET sequence=MAX(sequence,?) WHERE account=? AND device=?`, c.Sequence, who(r).account, device); e != nil {
+			fail(w, 500)
+			return
+		}
+		if e = s.cleanupRelay(who(r).account); e != nil {
+			fail(w, 500)
+			return
+		}
 	}
 	w.WriteHeader(204)
 }
