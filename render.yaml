@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: klefki
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile.render
+    healthCheckPath: /healthz
+    envVars:
+      - key: KLEFKI_RELAY_MAX_BYTES
+        value: "268435456"

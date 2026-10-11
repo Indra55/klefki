@@ -19,7 +19,7 @@ func WebHandler(api http.Handler, dir string) (http.Handler, error) {
 		return nil, errors.New("web build missing")
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1" || strings.HasPrefix(r.URL.Path, "/v1/") {
+		if r.URL.Path == "/healthz" || r.URL.Path == "/v1" || strings.HasPrefix(r.URL.Path, "/v1/") {
 			api.ServeHTTP(w, r)
 			return
 		}

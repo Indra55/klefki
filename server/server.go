@@ -35,6 +35,7 @@ type Config struct {
 	Logger  *slog.Logger
 	// AllowHTTP is only for explicitly configured loopback development listeners.
 	AllowHTTP     bool
+	TrustProxy    bool
 	RelayMaxBytes int64
 	RateBurst     int
 	SessionTTL    time.Duration
@@ -132,6 +133,13 @@ func Open(c Config) (*Server, error) {
 	}
 	s := &Server{db: db, blobs: blobs, config: c, buckets: make(map[string]bucket)}
 	r := chi.NewRouter()
+	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		if s.db.PingContext(r.Context()) != nil {
+			fail(w, 503)
+			return
+		}
+		w.WriteHeader(200)
+	})
 	r.Post("/v1/signup", s.signup)
 	r.Post("/v1/login", s.login)
 	r.Get("/v1/accounts/{account}", s.account)
@@ -265,7 +273,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	if r.TLS == nil && !s.config.AllowHTTP {
+	if r.TLS == nil && !s.config.AllowHTTP && !(s.config.TrustProxy && r.Header.Get("X-Forwarded-Proto") == "https") && !(r.Method == http.MethodGet && r.URL.Path == "/healthz") {
 		fail(sw, 426)
 		return
 	}

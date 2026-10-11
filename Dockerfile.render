@@ -1,0 +1,25 @@
+FROM node:26-alpine AS web
+WORKDIR /src/web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --ignore-scripts --no-audit --no-fund
+COPY web ./
+COPY core/semantic/manifest.json /src/core/semantic/manifest.json
+RUN npm run build
+
+FROM golang:1.26-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY core ./core
+COPY server ./server
+COPY cmd ./cmd
+RUN CGO_ENABLED=0 go build -trimpath -o /klefki-server ./cmd/klefki-server
+
+FROM alpine:3.23
+RUN addgroup -g 10001 klefki && adduser -D -u 10001 -G klefki klefki \
+    && mkdir /data && chown klefki:klefki /data
+COPY --from=build /klefki-server /usr/local/bin/klefki-server
+COPY --from=web /src/web/dist /web
+USER 10001:10001
+EXPOSE 10000
+CMD ["/bin/sh", "-c", "exec klefki-server -listen 0.0.0.0:${PORT:-10000} -data /data -web /web -proxy-http -relay-max-bytes ${KLEFKI_RELAY_MAX_BYTES:-268435456}"]

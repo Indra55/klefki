@@ -5,8 +5,11 @@ Run `go run ./cmd/klefki-server -dev-http` for loopback-only development on
 `-tls-cert PATH -tls-key PATH` and optionally `-listen HOST:PORT -data PATH`.
 Clients must validate the server certificate. HTTP is rejected unless explicitly
 allowed for development; the executable restricts that mode to literal loopback
-addresses. Forwarded headers are not trusted. TLS termination at a proxy is not
-configured by this milestone.
+addresses. Forwarded headers are ignored by default. Explicit `-proxy-http`
+supports an HTTPS-terminating proxy that restricts origin access and controls
+`X-Forwarded-Proto`; API requests must carry that header with exactly `https`.
+`GET /healthz` accepts an internal HTTP readiness probe. See
+[temporary relay and Render setup](temporary-relay.md).
 
 The server uses chi, SQLite (WAL) and a disk-backed `BlobStore` interface. The data
 directory must be private and controlled exclusively by the server operator; do
@@ -91,7 +94,8 @@ ID and receive fresh revision/file IDs. Deletion remains unimplemented.
   Initialization/listener errors use fixed messages. Low-level HTTP/TLS diagnostic
   logging is suppressed to avoid peer-controlled details.
 
-No storage/account quotas, distributed throttling, automatic expired-session or
+Temporary relay adds a per-account encrypted queue allowance; persistent mode
+has no storage quota. No distributed throttling, automatic expired-session or
 orphan-blob cleanup, password changes, remote recovery, or production enrollment
 controls are implemented. Restrict network exposure to trusted users during M2.
 The server cannot prove a malicious client submitted ciphertext rather than

@@ -24,10 +24,11 @@ func run() int {
 	key := flag.String("tls-key", "", "TLS key path")
 	web := flag.String("web", "", "built PWA directory (optional, same origin as API)")
 	dev := flag.Bool("dev-http", false, "allow HTTP on a loopback listener only")
+	proxy := flag.Bool("proxy-http", false, "allow HTTP behind an HTTPS proxy on a restricted origin; require X-Forwarded-Proto: https")
 	relayLimit := flag.Int64("relay-max-bytes", 256*1024*1024, "maximum queued ciphertext bytes per temporary-relay account")
 	flag.Parse()
 	log := slog.New(slog.NewJSONHandler(os.Stderr, nil))
-	if *relayLimit <= 0 {
+	if *relayLimit <= 0 || *proxy && (*dev || *cert != "" || *key != "") {
 		log.Error("invalid listener or relay limit configuration")
 		return 1
 	}
@@ -38,11 +39,11 @@ func run() int {
 			log.Error("dev HTTP requires a literal loopback address")
 			return 1
 		}
-	} else if *cert == "" || *key == "" {
+	} else if !*proxy && (*cert == "" || *key == "") {
 		log.Error("TLS certificate and key required")
 		return 1
 	}
-	s, e := server.Open(server.Config{DataDir: *data, AllowHTTP: *dev, RelayMaxBytes: *relayLimit, Logger: log})
+	s, e := server.Open(server.Config{DataDir: *data, AllowHTTP: *dev, TrustProxy: *proxy, RelayMaxBytes: *relayLimit, Logger: log})
 	if e != nil {
 		log.Error("server initialization failed")
 		return 1
@@ -63,7 +64,7 @@ func run() int {
 	defer stop()
 	done := make(chan error, 1)
 	go func() {
-		if *dev {
+		if *dev || *proxy {
 			done <- h.ListenAndServe()
 		} else {
 			done <- h.ListenAndServeTLS(*cert, *key)
