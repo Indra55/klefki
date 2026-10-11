@@ -48,6 +48,9 @@ type State struct {
 	LastSync     string              `json:"lastSync"`
 	Fingerprint  FingerprintState    `json:"fingerprint"`
 	Semantic     SemanticPreferences `json:"semantic"`
+	SyncMode     string              `json:"syncMode"`
+	SyncDevices  []string            `json:"syncDevices"`
+	SyncDevice   string              `json:"syncDevice"`
 }
 type Event struct {
 	Generation uint64  `json:"generation"`
@@ -87,6 +90,9 @@ type Service struct {
 	stopOnce            sync.Once
 	ops                 map[string]context.CancelFunc
 	syncRunning         bool
+	syncMode            string
+	syncDevices         []string
+	syncDevice          string
 	fingerprint         FingerprintProvider
 	fingerprintState    FingerprintState
 	fingerprintCancel   context.CancelFunc
@@ -153,7 +159,11 @@ func (s *Service) State() State {
 			p = v
 		}
 	}
-	st := State{Semantic: p, Config: cfg, Fingerprint: fp, Generation: s.generation, Sync: s.syncState, Pending: s.pending, LastSync: s.lastSync}
+	mode := s.syncMode
+	if mode == "" {
+		mode = "persistent"
+	}
+	st := State{SyncDevice: s.syncDevice, SyncDevices: slices.Clone(s.syncDevices), SyncMode: mode, Semantic: p, Config: cfg, Fingerprint: fp, Generation: s.generation, Sync: s.syncState, Pending: s.pending, LastSync: s.lastSync}
 	if x := s.session; x != nil {
 		st.Unlocked = true
 		st.AccountID = x.account.ID.String()
@@ -382,6 +392,10 @@ func Code(e error) string {
 		return "IN_USE"
 	case errors.Is(e, vs.ErrConflict):
 		return "STALE"
+	case errors.Is(e, vs.ErrRelayUnsupported):
+		return "RELAY_UNSUPPORTED"
+	case errors.Is(e, vs.ErrRelayWaiting):
+		return "RELAY_WAITING"
 	case errors.Is(e, vc.ErrInvalid):
 		return "INVALID_DATA"
 	case errors.Is(e, ErrInvalid):
@@ -390,7 +404,7 @@ func Code(e error) string {
 	switch e.Error() {
 	case "SEMANTIC_UNAVAILABLE", "SEMANTIC_MODEL_INVALID", "SEMANTIC_CORRECTION_CONFLICT", "SEMANTIC_DISABLED", "SEARCH_REBUILD_REQUIRED", "SEARCH_LIMIT", "SEARCH_INDEX_INVALID", "SEARCH_EXTRACTION_FAILED", "SEARCH_TOOL_UNAVAILABLE":
 		return e.Error()
-	case "UNLOCK_FAILED", "PREVIEW_UNSUPPORTED", "IMPORT_PARTIAL", "RECOVERY_LOCAL_ONLY", "FINGERPRINT_UNAVAILABLE", "FINGERPRINT_FAILED", "FINGERPRINT_DISABLED", "FINGERPRINT_MISSING", "FINGERPRINT_PASSWORD_REQUIRED", "FINGERPRINT_KEYRING", "FINGERPRINT_BUSY", "FINGERPRINT_CANCELED":
+	case "SYNC_CONNECT_REQUIRED", "UNLOCK_FAILED", "PREVIEW_UNSUPPORTED", "IMPORT_PARTIAL", "RECOVERY_LOCAL_ONLY", "FINGERPRINT_UNAVAILABLE", "FINGERPRINT_FAILED", "FINGERPRINT_DISABLED", "FINGERPRINT_MISSING", "FINGERPRINT_PASSWORD_REQUIRED", "FINGERPRINT_KEYRING", "FINGERPRINT_BUSY", "FINGERPRINT_CANCELED":
 		return e.Error()
 	}
 	return "OPERATION_FAILED"

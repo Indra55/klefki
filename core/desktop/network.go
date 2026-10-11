@@ -7,6 +7,7 @@ import (
 
 	vc "klefki/core/crypto"
 	vs "klefki/core/sync"
+	"klefki/core/syncwire"
 )
 
 func (s *Service) Connect(address string, register bool) error {
@@ -26,7 +27,11 @@ func (s *Service) Connect(address string, register bool) error {
 		if register {
 			session, e = r.Signup(x.ctx, x.account, x.credential)
 		} else {
-			session, e = r.Login(x.ctx, x.account.ID, x.credential)
+			local, err := x.store.RelayState()
+			if err != nil {
+				return err
+			}
+			session, e = r.LoginAccount(x.ctx, x.account, x.credential, local.Mode == syncwire.TemporaryRelay)
 		}
 		if e != nil {
 			return e
@@ -68,7 +73,11 @@ func (s *Service) SyncNow() {
 				if e != nil {
 					return e
 				}
-				session, e := r.Login(x.ctx, x.account.ID, x.credential)
+				local, err := x.store.RelayState()
+				if err != nil {
+					return err
+				}
+				session, e := r.LoginAccount(x.ctx, x.account, x.credential, local.Mode == syncwire.TemporaryRelay)
 				if e != nil {
 					return e
 				}
@@ -77,7 +86,21 @@ func (s *Service) SyncNow() {
 			}
 			c := vs.Client{Store: x.store, Remote: x.remote, Session: x.remoteSession, Master: x.master}
 			defer clear(c.Master[:])
-			return c.Sync(x.ctx)
+			e := c.SyncAccount(x.ctx, x.account, x.credential)
+			x.remoteSession = c.Session
+			if local, err := x.store.RelayState(); err == nil {
+				s.mu.Lock()
+				s.syncMode = local.Mode
+				s.syncDevices = local.Known
+				s.syncDevice = local.Device
+				s.mu.Unlock()
+			}
+			if e == nil {
+				if settings, err := c.Settings(x.ctx); err == nil && settings.Mode == syncwire.TemporaryRelay && settings.Queued > 0 {
+					return errors.New("RELAY_QUEUED")
+				}
+			}
+			return e
 		})
 		s.mu.Lock()
 		s.syncRunning = false
@@ -90,7 +113,14 @@ func (s *Service) SyncNow() {
 			s.lastSync = time.Now().Format(time.RFC3339)
 		} else {
 			var he *vs.HTTPError
-			if errors.As(e, &he) && (he.Status == 401 || he.Status == 403) {
+			if e.Error() == "RELAY_QUEUED" {
+				s.syncState = "Waiting for linked devices"
+				s.lastSync = time.Now().Format(time.RFC3339)
+			} else if errors.Is(e, vs.ErrRelayWaiting) {
+				s.syncState = "Waiting for another device"
+			} else if errors.As(e, &he) && he.Status == 507 {
+				s.syncState = "Relay storage full"
+			} else if errors.As(e, &he) && (he.Status == 401 || he.Status == 403) {
 				s.syncState = "Authentication required"
 			} else if errors.As(e, &he) {
 				s.syncState = "Sync error"
@@ -123,4 +153,46 @@ func (s *Service) SyncNow() {
 		})
 		s.event(Event{Generation: x.generation, Kind: "library"})
 	}()
+}
+
+func (s *Service) ForgetSyncDevice(id string) error {
+	e := s.with(func(x *session) error {
+		if x.recovery {
+			return errors.New("RECOVERY_LOCAL_ONLY")
+		}
+		if x.remote == nil {
+			return errors.New("SYNC_CONNECT_REQUIRED")
+		}
+		c := vs.Client{Store: x.store, Remote: x.remote, Session: x.remoteSession, Master: x.master}
+		defer clear(c.Master[:])
+		return c.ForgetDevice(x.ctx, id)
+	})
+	if e == nil {
+		s.SyncNow()
+	}
+	return e
+}
+
+func (s *Service) SetSyncMode(mode string) error {
+	e := s.with(func(x *session) error {
+		if x.recovery {
+			return errors.New("RECOVERY_LOCAL_ONLY")
+		}
+		if x.remote == nil {
+			return errors.New("SYNC_CONNECT_REQUIRED")
+		}
+		c := vs.Client{Store: x.store, Remote: x.remote, Session: x.remoteSession, Master: x.master}
+		defer clear(c.Master[:])
+		if e := c.SetMode(x.ctx, mode); e != nil {
+			return e
+		}
+		s.mu.Lock()
+		s.syncMode = mode
+		s.mu.Unlock()
+		return nil
+	})
+	if e == nil {
+		s.SyncNow()
+	}
+	return e
 }

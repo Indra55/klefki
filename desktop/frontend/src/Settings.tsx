@@ -25,6 +25,7 @@ export function Settings({ state, section, onSectionChange, scan, onScanStart, o
   operationError: string;
 }) {
   const [url, setURL] = useState(state.config.server);
+  const [syncMode,setSyncMode]=useState(state.syncMode || 'persistent');
   const [register, setRegister] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -37,6 +38,7 @@ export function Settings({ state, section, onSectionChange, scan, onScanStart, o
   const fingerprintBusy = fingerprintAction === 'enable';
 
   useEffect(() => { heading.current?.focus(); }, []);
+  useEffect(()=>{setSyncMode(state.syncMode || 'persistent');},[state.syncMode]);
   useEffect(() => { setError(''); setMessage(''); }, [section]);
 
   async function change(p: Preferences) {
@@ -140,11 +142,21 @@ export function Settings({ state, section, onSectionChange, scan, onScanStart, o
           </form>
           {state.recoveryOnly && <p className="muted small">Unlock with your password to sync. Recovery access is local.</p>}
           <section className="settings-section">
+            <h3>Server storage</h3>
+            <div className="preference-row"><div><label htmlFor="sync-mode">Sync mode</label><p>Shared by every device linked to this account.</p></div>
+              <select id="sync-mode" value={syncMode} disabled={busy || state.recoveryOnly} onChange={e=>setSyncMode(e.target.value as typeof syncMode)}><option value="persistent">Persistent storage</option><option value="temporary-relay">Temporary relay</option></select>
+            </div>
+            <p className="muted small">{syncMode==='temporary-relay'?'The server removes delivered documents after every linked device has saved them, with at least two devices required. Offline devices keep deliveries queued. Keep a local backup. New devices need an existing device to reconnect.':'Keep encrypted documents on the server so devices can download them later.'}</p>
+            {syncMode==='temporary-relay' && <p className="muted small">Free hosts can erase queued deliveries on restart. Existing devices retain their copies and supply them again when they reconnect.</p>}
+            <button className="secondary" disabled={busy || state.recoveryOnly || !state.config.server || syncMode===(state.syncMode || 'persistent')} onClick={()=>void(async()=>{setBusy(true);setError('');setMessage('');try{await api().SetSyncMode(syncMode);await onRefresh();setMessage('Sync mode updated for this account.');}catch(e){setError(errorMessage(e));}finally{setBusy(false);}})()}>Apply sync mode</button>
+          </section>
+          <section className="settings-section">
             <h3>Set up another device</h3>
             <p className="muted small">Save your encrypted account file, open it on the other device, and use your password and the same server.</p>
             <button className="quiet" onClick={() => void api().ExportAccount().catch(e => setError(errorMessage(e)))}>Save encrypted account file <ArrowUpRight size={15} /></button>
             <details className="settings-details"><summary>Account and local storage</summary><dl><dt>Account ID</dt><dd>{state.accountID}</dd><dt>Account file</dt><dd>{state.config.accountPath}</dd><dt>Document store</dt><dd>{state.config.storePath}</dd></dl></details>
           </section>
+          {!!state.syncDevices?.length && <section className="settings-section"><h3>Linked devices</h3><p className="muted small">Forget a device you no longer use so it stops holding deliveries in the relay. It will need a fresh local store to join again.</p>{state.syncDevices.map(id=><div className="preference-row" key={id}><span>{id===state.syncDevice?'This device':`Device ${id.slice(0,8)}`}</span>{id!==state.syncDevice&&<button className="quiet" disabled={busy||state.recoveryOnly} onClick={()=>void(async()=>{setBusy(true);setError('');try{await api().ForgetSyncDevice(id);await onRefresh();setMessage('Device removed from relay deliveries.');}catch(e){setError(errorMessage(e));}finally{setBusy(false);}})()}>Forget device</button>}</div>)}</section>}
         </section>}
 
         {section === 'search' && <section aria-labelledby="search-heading">

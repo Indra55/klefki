@@ -237,6 +237,11 @@ func (s *Service) startSession(ctx context.Context, cfg Config, a vc.Account, ma
 		st.Close()
 		return e
 	}
+	relay, e := st.RelayState()
+	if e != nil {
+		st.Close()
+		return e
+	}
 	sessionCtx, cancel := context.WithCancel(context.Background())
 	n, _ := st.Pending()
 	s.mu.Lock()
@@ -250,6 +255,7 @@ func (s *Service) startSession(ctx context.Context, cfg Config, a vc.Account, ma
 	s.session = &session{account: a, master: master, credential: credential, recovery: recovery, store: st, ctx: sessionCtx, cancel: cancel, generation: s.generation}
 	s.lastActivity = time.Now()
 	s.pending = n
+	s.syncMode, s.syncDevice, s.syncDevices = relay.Mode, relay.Device, relay.Known
 	s.syncState = "Local only"
 	s.mu.Unlock()
 	go s.SyncNow()

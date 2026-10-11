@@ -14,13 +14,14 @@ import (
 
 	vc "klefki/core/crypto"
 	vs "klefki/core/sync"
+	"klefki/core/syncwire"
 )
 
 const syncHelp = `klefki register [--klefki PATH] [--password-file PATH] --server URL [--dev-http]
 klefki add [--klefki PATH] [--password-file PATH] [--store PATH] [--object ID --base REVISION] FILE
 klefki list [--klefki PATH] [--password-file PATH] [--store PATH]
 klefki export [--klefki PATH] [--password-file PATH] [--store PATH] -o PATH REVISION
-klefki sync [--klefki PATH] [--password-file PATH] [--store PATH] --server URL [--dev-http]
+klefki sync [--klefki PATH] [--password-file PATH] [--store PATH] --server URL [--sync-mode persistent|temporary-relay] [--forget-device ID] [--dev-http]
 Sync flags must precede positional arguments. HTTP requires explicit loopback development mode.`
 
 func runSync(args []string, out io.Writer) error {
@@ -31,12 +32,18 @@ func runSync(args []string, out io.Writer) error {
 	passwordPath := f.String("password-file", "", "")
 	var storePath, serverURL, object, base, dest string
 	var dev bool
+	mode := ""
+	forget := ""
 	if command != "register" {
 		f.StringVar(&storePath, "store", "", "")
 	}
 	if command == "register" || command == "sync" {
 		f.StringVar(&serverURL, "server", "", "")
 		f.BoolVar(&dev, "dev-http", false, "")
+	}
+	if command == "sync" {
+		f.StringVar(&mode, "sync-mode", "", "")
+		f.StringVar(&forget, "forget-device", "", "")
 	}
 	if command == "add" {
 		f.StringVar(&object, "object", "", "")
@@ -47,6 +54,14 @@ func runSync(args []string, out io.Writer) error {
 	}
 	if f.Parse(args[1:]) != nil {
 		return errUsage
+	}
+	if mode != "" && mode != syncwire.Persistent && mode != syncwire.TemporaryRelay {
+		return errUsage
+	}
+	if forget != "" {
+		if _, e := vc.ParseID(forget); e != nil {
+			return errUsage
+		}
 	}
 	if command == "add" || command == "export" {
 		if f.NArg() != 1 {
@@ -79,7 +94,7 @@ func runSync(args []string, out io.Writer) error {
 	}
 	defer vc.Wipe(master[:])
 	if command == "register" {
-		return networkSync(nil, serverURL, dev, account, master, password, true, out)
+		return networkSync(nil, serverURL, dev, account, master, password, true, "", "", out)
 	}
 	if storePath == "" {
 		storePath = filepath.Join(filepath.Dir(*accountPath), "local.db")
@@ -140,11 +155,11 @@ func runSync(args []string, out io.Writer) error {
 		_, e = fmt.Fprintln(out, "Revision exported.")
 		return e
 	case "sync":
-		return networkSync(store, serverURL, dev, account, master, password, false, out)
+		return networkSync(store, serverURL, dev, account, master, password, false, mode, forget, out)
 	}
 	return errUsage
 }
-func networkSync(store *vs.Store, address string, dev bool, account vc.Account, master vc.Key, password []byte, register bool, out io.Writer) error {
+func networkSync(store *vs.Store, address string, dev bool, account vc.Account, master vc.Key, password []byte, register bool, mode, forget string, out io.Writer) error {
 	defer vc.Wipe(master[:])
 	remote, e := vs.NewRemote(address, nil, dev)
 	if e != nil {
@@ -163,7 +178,11 @@ func networkSync(store *vs.Store, address string, dev bool, account vc.Account, 
 	if register {
 		session, e = remote.Signup(ctx, account, credential)
 	} else {
-		session, e = remote.Login(ctx, account.ID, credential)
+		local, err := store.RelayState()
+		if err != nil {
+			return err
+		}
+		session, e = remote.LoginAccount(ctx, account, credential, local.Mode == syncwire.TemporaryRelay)
 	}
 	if e != nil {
 		return e
@@ -181,7 +200,19 @@ func networkSync(store *vs.Store, address string, dev bool, account vc.Account, 
 	}
 	client := vs.Client{Store: store, Remote: remote, Session: session, Master: master}
 	defer vc.Wipe(client.Master[:])
-	if e = client.Sync(ctx); e != nil {
+	if forget != "" {
+		if e = client.ForgetDevice(ctx, forget); e != nil {
+			return e
+		}
+	}
+	if mode != "" {
+		if e = client.SetMode(ctx, mode); e != nil {
+			return e
+		}
+	}
+	e = client.SyncAccount(ctx, account, credential)
+	session = client.Session
+	if e != nil {
 		return e
 	}
 	_, e = fmt.Fprintln(out, "Sync complete.")
