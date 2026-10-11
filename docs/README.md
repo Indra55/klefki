@@ -10,6 +10,7 @@
 | [Backup and restore](backup-restore.md) | Encrypted backups, recovery, exports, and integrity checks |
 | [Search and OCR](m7-status.md) | Local text extraction, prerequisites, and keyword search |
 | [Semantic search](m8-status.md) | Optional models, hybrid search, and reviewable suggestions |
+| [Organize files](organization.md) | Match tags by meaning and review new tags for unmatched files |
 | [Linux fingerprint unlock](fingerprint-linux.md) | Reader setup, keyring behavior, and security limits |
 
 ## Running a server and understanding the design

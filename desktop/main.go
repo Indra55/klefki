@@ -153,6 +153,14 @@ func (a *App) Analyze(revision string) (vd.DocumentAnalysis, error) {
 	v, e := a.service.Analyze(revision)
 	return v, safe(e)
 }
+func (a *App) SuggestOrganization(custom []string) (vd.OrganizationPlan, error) {
+	v, e := a.service.SuggestOrganization(custom)
+	return v, safe(e)
+}
+func (a *App) ApplyOrganization(generation uint64, changes []vs.TagChange) (int, error) {
+	v, e := a.service.ApplyOrganization(generation, changes)
+	return v, safe(e)
+}
 func (a *App) CorrectAnalysis(revision, category string, fields []semantic.Field, resolve []string) (string, error) {
 	v, e := a.service.CorrectAnalysis(revision, category, fields, resolve)
 	return v, safe(e)

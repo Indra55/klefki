@@ -22,6 +22,9 @@ core and provides tools for automation, recovery, and verification.
 
 - **Folders and tags:** create folders, move documents, rename them, and add custom tags.
 - **Categories:** browse Identity, Money, Legal, Health, Education, and Work alongside your own tags.
+- **Organize files:** use the local embedding model to match existing or custom tags,
+  group unmatched documents, and review editable new tag suggestions before applying.
+  [Desktop organizer](docs/organization.md).
 - **Favorites:** keep frequently used documents in a dedicated view.
 - **Sorting:** sort the desktop library by name, file type, or size.
 - **Import:** add files through the desktop picker or drag and drop; uploads show progress and can be canceled.

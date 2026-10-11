@@ -9,7 +9,11 @@ export type Field={kind:"date"|"amount";raw:string;value:string;currency?:string
 export type SemanticPreferences={enabled:boolean;thresholds:{cutoff:number;margin:number}};
 export type SemanticStatus=SemanticPreferences&{ready:boolean;supported:boolean;downloadBytes:number};
 export type Analysis={generation:number;prediction:{category:string;score:number;margin:number;method:string};confirmed:string;fields:Field[];conflicts:{revision:string;correction:{category:string;fields:Field[]}}[]};
+export type TagChange={revision:string;tag:string};
+export type TagSuggestion=TagChange&{name:string;tags:string[];new:boolean;basis:string;score:number};
+export type OrganizationPlan={generation:number;suggestions:TagSuggestion[];tags:string[];skipped:number};
 export interface API {
+ SuggestOrganization?(custom:string[]):Promise<OrganizationPlan>;ApplyOrganization?(generation:number,changes:TagChange[]):Promise<number>;
  SemanticStatus?():Promise<SemanticStatus>;ConfigureSemantic?(p:SemanticPreferences):Promise<void>;SetupSemantic?():Promise<string>;ImportSemanticModel?():Promise<string>;Analyze?(revision:string):Promise<Analysis>;CorrectAnalysis?(revision:string,category:string,fields:Field[],resolve:string[]):Promise<string>;
  State():Promise<State>; FingerprintStatus():Promise<FingerprintState>; EnableFingerprint():Promise<void>;DisableFingerprint():Promise<void>;UnlockFingerprint():Promise<void>;CancelFingerprint():Promise<void>; Unlock(secret:string,recovery:boolean):Promise<void>; Lock():Promise<void>; Touch():Promise<void>;
  SetPreferences(p:Preferences):Promise<void>;Create(password:string):Promise<void>;OpenExisting(copy:boolean):Promise<void>;

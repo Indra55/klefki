@@ -28,7 +28,8 @@ criteria pass; link evidence and limitations here. Implementation/test completio
   desktop and CLI search. Real scanned-document search and encrypted index sync
   acceptance passed. [Use, evidence and limitations](docs/m7-status.md).
 - [ ] **M8 — Semantic search and classification.** Optional local ONNX model,
-  hybrid search and reviewable analysis implemented. Public 60-document /
+  hybrid search, reviewable analysis, and [bulk tag organization](docs/organization.md)
+  implemented. Public 60-document /
   120-query evaluation passed the hybrid target; private-document acceptance
   remains pending. [Evidence, use and limitations](docs/m8-status.md).
 - [ ] **M9 — Later.** Android, reminders, sharing, emergency access and optional local LLM; scope not yet scheduled.
