@@ -11,3 +11,6 @@
 .search-tools{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:8px 0 18px}.search-tools .quiet{flex-shrink:0}
 
 @media(max-width:600px){.shell{padding:0 16px}.topbar{height:72px;gap:16px}.top-actions{gap:12px}.library{padding-top:30px}.search{font-size:30px;letter-spacing:-1px}.search-tools{flex-wrap:wrap;gap:8px}.search-tools>span{min-width:0;flex:1 1 160px}.category-line{gap:16px}.categories{min-width:0;gap:16px}.add-files{font-size:13px}.document{gap:12px}.document-title{font-size:16px}.document-meta{flex-wrap:wrap;gap:4px 8px;font-size:12px}.row-actions{gap:0}.list-footer{gap:12px;flex-wrap:wrap}.setup h1{font-size:36px}.topbar>.eyebrow{text-align:right}.library-tools{flex-wrap:wrap}.library-tools-right{gap:12px}}
+
+.library-actions{display:flex;align-items:center;gap:20px;flex-shrink:0}.library-actions .quiet{white-space:nowrap;padding:10px 0}
+@media(max-width:600px){.category-line{flex-wrap:wrap}.categories{flex:1 1 100%}.library-actions{margin-left:auto;gap:16px}.library-actions .quiet{font-size:13px}}
