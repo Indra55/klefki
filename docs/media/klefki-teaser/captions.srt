@@ -1,0 +1,23 @@
+1
+00:00:00,000 --> 00:00:03,000
+What was that file called?
+
+2
+00:00:03,000 --> 00:00:07,000
+Meet Klefki.
+An encrypted home for your documents.
+
+3
+00:00:07,000 --> 00:00:11,000
+Search inside your scans.
+OCR runs locally on your device.
+
+4
+00:00:11,000 --> 00:00:15,000
+Use it offline.
+Sync encrypted across devices.
+
+5
+00:00:15,000 --> 00:00:18,000
+Klefki. Your documents. Within reach.
+Open source. Linux, Windows, and Web.
