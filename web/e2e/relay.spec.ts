@@ -1,3 +1,4 @@
+import { openSettings, syncNow as syncUI, upload } from './ui.ts';
 import {test,expect,type Page} from '@playwright/test';
 import * as c from '../src/crypto.ts';
 
@@ -9,7 +10,7 @@ async function open(page:Page,account:c.Account){
     await page.getByRole('button',{name:'Unlock Klefki',exact:true}).click();
     await expect(page.getByRole('heading',{name:'Documents',exact:true})).toBeVisible();
 }
-async function syncNow(page:Page){await page.getByRole('button',{name:'Sync now',exact:true}).click();}
+async function syncNow(page:Page){await syncUI(page);}
 async function metadataState(page:Page,account:c.Account,credential:Uint8Array){
     return page.evaluate(async({id,credential})=>{
         const login=await fetch('/v1/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({account:id,credential})});
@@ -26,13 +27,14 @@ test('relay deletes delivered content, preserves offline edits, and bootstraps a
     const b=await second.newPage(),late=await third.newPage();
     try{
         await open(page,account);
-        await page.getByLabel('Add document').setInputFiles({name:'relay.txt',mimeType:'text/plain',buffer:Buffer.from('private relay browser bytes')});
+        await upload(page, {name:'relay.txt',mimeType:'text/plain',buffer:Buffer.from('private relay browser bytes')});
         await expect(page.getByText('relay.txt',{exact:true})).toBeVisible();
-        await page.getByText('Klefki settings',{exact:true}).click();
+        await openSettings(page, 'Sync & devices');
         await page.getByRole('button',{name:'Register this store on server',exact:true}).click();
         await expect(page.getByRole('status')).toContainText('Synced.');
-        await page.getByText('Klefki settings',{exact:true}).click();
-        await page.getByLabel('Temporary relay',{exact:true}).check();
+        await openSettings(page, 'Sync & devices');
+        await page.getByLabel('Sync mode',{exact:true}).selectOption('temporary-relay');
+    await page.getByRole('button',{name:'Apply sync mode'}).click();
         await expect(page.getByRole('status')).toContainText('Sync mode updated');
         expect((await metadataState(page,account,keys.credential)).mode).toBe('temporary-relay');
         expect((await metadataState(page,account,keys.credential)).queued).toBe(1);
@@ -45,13 +47,13 @@ test('relay deletes delivered content, preserves offline edits, and bootstraps a
         await expect(late.getByRole('status')).toContainText('another linked device');
         await syncNow(page);await expect(page.getByRole('status')).toContainText('Waiting for linked devices');
         await syncNow(late);await expect(late.getByText('relay.txt',{exact:true})).toBeVisible();
-        await late.locator('article').filter({has:late.getByText('relay.txt',{exact:true})}).getByRole('button',{name:'Open',exact:true}).click();
+        await late.getByRole('button',{name:'Open relay.txt',exact:true}).click();
         await expect(late.locator('dialog pre')).toHaveText('private relay browser bytes');
         await late.getByRole('button',{name:'Close',exact:true}).click();
         await page.evaluate(async()=>{await navigator.serviceWorker.ready;});
         await expect.poll(()=>page.evaluate(()=>!!navigator.serviceWorker.controller)).toBe(true);
         await page.context().setOffline(true);
-        await page.getByLabel('Add document').setInputFiles({name:'offline-relay.txt',mimeType:'text/plain',buffer:Buffer.from('offline relay edit')});
+        await upload(page, {name:'offline-relay.txt',mimeType:'text/plain',buffer:Buffer.from('offline relay edit')});
         await expect(page.getByText('offline-relay.txt',{exact:true})).toBeVisible();
         await page.reload();await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Unlock Klefki',exact:true}).click();
         await expect(page.getByText('offline-relay.txt',{exact:true})).toBeVisible();

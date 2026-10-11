@@ -3,6 +3,7 @@ WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY web ./
+COPY ui /src/ui
 COPY core/semantic/manifest.json /src/core/semantic/manifest.json
 RUN npm run build
 

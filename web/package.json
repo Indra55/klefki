@@ -12,9 +12,11 @@
     "models": "node scripts/m8-assets.mjs"
   },
   "dependencies": {
+    "@fontsource/inter": "5.2.8",
     "@huggingface/transformers": "3.8.1",
     "libsodium-wrappers-sumo": "0.7.15",
-    "onnxruntime-web": "1.23.2"
+    "onnxruntime-web": "1.23.2",
+    "pdfjs-dist": "5.4.296"
   },
   "overrides": {
     "libsodium-sumo": "0.7.15"

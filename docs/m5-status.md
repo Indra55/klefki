@@ -32,26 +32,64 @@ build above; the development server does not generate a service worker.
 1. On desktop, export the encrypted account file and sync the documents to the
    server. On web, select **Open an encrypted account file**, or enter the account
    ID to retrieve its wrapped records from the same server.
-2. Unlock with the existing password and select **Sync now**. Open or download the
+2. Unlock with the existing password, open the sync status menu in the top bar,
+   and select **Sync now**. Open or export the
    desktop document. This does not upload your password or master key.
 3. Add a document on web and select **Sync now**, then sync desktop and open it.
 4. After the web app has loaded online and installed its worker, disconnect.
-   Upload files or use **Edit** to change names, tags, favorites, or text content
+   Upload files or use a document's **Actions → Edit details & move** to change
+   names, tags, favorites, folders, or text content
    for supported text files up to 1 MiB. Reload, unlock, and check the local edit.
 5. Reconnect. An online event starts sync while unlocked; **Sync now** also works.
    Sync desktop to see the edit. Concurrent edits remain explicit conflict copies.
 
 New web accounts display a recovery code once. Save it separately, download the
-wrapped account file from **Klefki settings**, then register the account once using
-**Register this store on server**. Registration is explicit; account creation and
+wrapped account file from **Settings → Sync & devices**, then register the
+account once using **Register this store on server**. Registration is explicit; account creation and
 local edits work offline. Browser recovery-code unlock/reset is not implemented;
 the exported account is compatible with the existing local recovery tools.
+
+## Desktop design on web and PWA
+
+Desktop and web use the same `ui/style.css` and `ui/categories.ts`. The web library
+has the dark desktop layout, all six built-in category tabs plus synced custom
+tags, name/type/size sorting, favorites, folder breadcrumbs, and reversible trash.
+**All documents** includes files inside folders; **Folders** browses one level.
+Document actions and previews are available from the document row.
+
+**Settings** opens a dedicated page with Appearance, Privacy & lock, Sync &
+devices, and Search. Theme, spacing, default sort, and inactivity timeout are
+saved on this browser. Passkey controls remain browser-specific. OCR/index
+building and automatic file organization run on desktop; sync brings the index
+and reviewed tags to web. Browser local search and suggestions remain optional.
+
+Text, images, and PDFs preview after local authenticated decryption. PDF page
+navigation and zoom use the same PDF.js version as desktop and work offline.
+Unsupported formats offer export. Lock closes previews and clears their bytes.
+The PWA caches the PDF worker and Inter fonts with its shell; API responses and
+private plaintext are never added to that cache.
+
+After a deployment, existing browser tabs and installed PWA windows may keep the
+previous worker until all of them close. Close and reopen them once to pick up
+this UI. Subsequent updates show **Update and reopen**, which locks before
+activating the new worker and reloading. Account storage and ciphertext are kept;
+do not clear site data to refresh the UI.
+
+Verification on 2026-10-12: web and desktop frontend builds, a native Linux build,
+43 web crypto checks, 30 desktop frontend tests, and 34 browser tests passed.
+Browser checks cover encrypted desktop/browser transfers, conflicts, relay
+cleanup, passkeys, categories, folders/favorites/trash, saved preferences, mobile
+layout, offline PDF pages/zoom, lock cleanup, and update/reload persistence.
+Three optional M8 browser tests were skipped because a verified model bundle was
+not available. The server race suite passed. The Render image built and served
+its health endpoint, matching UI bundle, Inter font, and PDF worker successfully.
 
 ## Storage and locking
 
 Only wrapped account records, encrypted passkey unlock wrappers, encrypted
 revisions/chunks, opaque IDs, queue order,
-origin binding and cursor are persisted. Local storage remembers the wrapped
+origin binding, cursor, and browser appearance/lock preferences are persisted.
+Local storage remembers the wrapped
 account; IndexedDB holds the offline klefki. The worker caches only enumerated
 build assets, never `/v1`, plaintext downloads, credentials or account responses.
 An edit and its queue entry commit together. A pulled revision and cursor commit
@@ -62,7 +100,8 @@ Active unlock keys and bearer sessions stay in memory. Optional
 [passkey unlock](passkey-web.md) persists a PRF-protected encrypted wrapper for
 the document master key and server login credential, separately from synced
 account records. Manual lock, page exit,
-and five minutes of inactivity clear active keys, previews and object URLs;
+and the selected inactivity timeout (five minutes by default) clear active keys,
+previews and object URLs;
 ongoing network requests are canceled. Web Locks prevent two tabs from opening
 the same local account concurrently. Session tokens discarded on lock expire
 server-side normally; browser lock does not revoke the server device session.

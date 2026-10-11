@@ -1,3 +1,4 @@
+import { backToLibrary, openSettings, syncNow as syncUI, documentAction } from './ui.ts';
 import { test, expect, type Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, readFileSync, readdirSync } from "node:fs";
@@ -26,19 +27,19 @@ async function connect(page: Page) {
     .getByLabel("Open an encrypted account file")
     .setInputFiles(join(dir, "account.klefki"));
   await unlock(page);
-  await page.getByRole("button", { name: "Sync now", exact: true }).click();
+  await syncUI(page);
   await expect(page.locator("#status")).toContainText("Synced.");
 }
 async function enable(page: Page) {
-  await page.getByText("Klefki settings", { exact: true }).click();
+  await openSettings(page, "Search");
   await page
     .getByLabel("Semantic search and suggestions on this device", {
       exact: true,
     })
     .check();
-  await expect(
-    page.getByLabel("Find your documents", { exact: true }),
-  ).toBeVisible({ timeout: 90000 });
+  await expect(page.getByRole("button", {name:"Cancel setup",exact:true})).toBeHidden({timeout:90000});
+  await backToLibrary(page);
+  await expect(page.getByLabel("Find your documents", {exact:true})).toBeVisible({timeout:90000});
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
@@ -109,12 +110,13 @@ test("M8 is off by default; real browser model matches Go and works offline afte
       .locator("article")
       .filter({ has: page.getByText("note.txt", { exact: true }) }),
   ).toBeVisible();
-  await page.getByText("Klefki settings", { exact: true }).click();
+  await openSettings(page, "Search");
   await page
     .getByLabel("Semantic search and suggestions on this device", {
       exact: true,
     })
     .uncheck();
+  await backToLibrary(page);
   await expect(page.getByLabel("Search names and tags")).toBeVisible();
   await page.getByRole("button", { name: "Lock", exact: true }).click();
   await expect(page.locator("article")).toHaveCount(0);
@@ -123,23 +125,25 @@ test("web category corrections sync to Go and internal sidecars stay hidden", as
   page,
 }) => {
   await connect(page);
-  const account = (await page.locator(".account-id").textContent())!.replace("Account ID: ", "");
+  await openSettings(page, "Sync & devices");
+  const account = (await page.locator(".account-id").textContent())!;
   await page.evaluate((account) => {
     localStorage.setItem("klefki-semantic-" + account, JSON.stringify({ enabled: true, cutoff: .2, margin: 0, modelFingerprint: "legacy-minilm" }));
   }, account);
   await page.reload();
   await unlock(page);
-  await page.getByText("Klefki settings", { exact: true }).click();
+  await openSettings(page, "Search");
   await expect(page.getByLabel("Semantic search and suggestions on this device", { exact: true })).toBeChecked();
   await expect(page.getByLabel("Classification similarity cutoff")).toHaveValue("0.5");
   await expect(page.getByLabel("Winning category margin")).toHaveValue("0.01");
   await page.getByRole("button", { name: "Install BGE-small model", exact: true }).click();
   await expect(page.getByRole("button", { name: "Cancel setup", exact: true })).toBeHidden({ timeout: 90000 });
+  await backToLibrary(page);
   await expect(page.getByLabel("Find your documents", { exact: true })).toBeVisible({ timeout: 90000 });
   const row = page
     .locator("article")
     .filter({ has: page.getByText("note.txt", { exact: true }) });
-  await row.getByRole("button", { name: "Suggestions", exact: true }).click();
+  await documentAction(page, "note.txt", "Suggestions");
   await expect(
     page.getByRole("heading", { name: "Local suggestions" }),
   ).toBeVisible();
@@ -148,10 +152,10 @@ test("web category corrections sync to Go and internal sidecars stay hidden", as
     .getByRole("button", { name: "Confirm category and fields" })
     .click();
   await expect(page.locator("article")).toHaveCount(3);
-  await page.getByRole("button", { name: "Sync now", exact: true }).click();
+  await syncUI(page);
   await expect(page.locator("#status")).toContainText("Synced.");
   expect(bridge("verify-correction")).toContain("PASS correction");
-  await page.getByLabel("Document category").selectOption("Money");
+  await page.getByRole("navigation", {name:"Document categories"}).getByRole("button",{name:"Money",exact:true}).click();
   await expect(page.locator("article")).toHaveCount(1);
 });
 

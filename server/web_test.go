@@ -11,7 +11,7 @@ import (
 
 func TestWebHandler(t *testing.T) {
 	dir := t.TempDir()
-	for name, body := range map[string]string{"index.html": "<html>Klefki</html>", "sw.js": "// worker", "manifest.webmanifest": "{}"} {
+	for name, body := range map[string]string{"index.html": "<html>Klefki</html>", "sw.js": "// worker", "manifest.webmanifest": "{}", "font.woff2": "font", "pdf.worker.mjs": "// PDF worker"} {
 		if e := os.WriteFile(filepath.Join(dir, name), []byte(body), 0600); e != nil {
 			t.Fatal(e)
 		}
@@ -24,7 +24,7 @@ func TestWebHandler(t *testing.T) {
 	for _, tt := range []struct {
 		path   string
 		status int
-	}{{"/", 200}, {"/sw.js", 200}, {"/v1/sync/changes", 401}, {"/missing", 404}, {"/../account.klefki", 404}, {"/manifest.webmanifest", 200}} {
+	}{{"/", 200}, {"/sw.js", 200}, {"/v1/sync/changes", 401}, {"/missing", 404}, {"/../account.klefki", 404}, {"/manifest.webmanifest", 200}, {"/font.woff2", 200}, {"/pdf.worker.mjs", 200}} {
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, httptest.NewRequest("GET", tt.path, nil))
 		if w.Code != tt.status {
@@ -33,6 +33,9 @@ func TestWebHandler(t *testing.T) {
 		if tt.status == 200 {
 			if !strings.Contains(w.Header().Get("Content-Security-Policy"), "connect-src 'self'") {
 				t.Fatal("missing CSP")
+			}
+			if !strings.Contains(w.Header().Get("Content-Security-Policy"), "font-src 'self'") {
+				t.Fatal("missing local font policy")
 			}
 			if w.Header().Get("Cache-Control") != "no-cache" {
 				t.Fatal("shell must revalidate")

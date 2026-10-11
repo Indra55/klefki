@@ -5,14 +5,8 @@ import { relevantQueryTerms, keywordEvidence, relevantSemanticHits } from "./sea
 export const semanticTag = "klefki:system:semantic-index",
   correctionTag = "klefki:system:analysis-correction",
   indexTag = "klefki:system:search-index";
-export const categories = [
-  "Identity",
-  "Money",
-  "Legal",
-  "Health",
-  "Education",
-  "Work",
-];
+import { categories } from '../../ui/categories.ts';
+export { categories };
 export type Field = {
   kind: "date" | "amount";
   raw: string;

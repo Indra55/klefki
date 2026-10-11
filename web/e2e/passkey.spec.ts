@@ -1,3 +1,4 @@
+import { openSettings, upload } from './ui.ts';
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import * as c from '../src/crypto.ts';
 
@@ -21,7 +22,7 @@ async function create(page: Page) {
     await page.getByRole('button', { name: 'I have saved it' }).click();
     await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible();
 }
-async function settings(page: Page) { await page.getByText('Klefki settings', { exact: true }).click(); }
+async function settings(page: Page) { await openSettings(page, 'Privacy & lock'); }
 async function enable(page: Page) {
     await settings(page);
     await page.getByRole('button', { name: 'Enable passkey unlock', exact: true }).click();
@@ -41,7 +42,7 @@ async function passkeyUnlock(page: Page) {
 test('PRF passkey unlock persists, works offline, and retains the sync credential', async ({ page, context }) => {
     await authenticator(context, page);
     await create(page);
-    await page.getByLabel('Add document').setInputFiles({ name: 'private.txt', mimeType: 'text/plain', buffer: Buffer.from('private passkey fixture document') });
+    await upload(page, { name: 'private.txt', mimeType: 'text/plain', buffer: Buffer.from('private passkey fixture document') });
     await expect(page.getByText('private.txt', { exact: true })).toBeVisible();
     await enable(page);
     const persisted = await page.evaluate(() => Object.fromEntries(Object.entries(localStorage)));
@@ -58,7 +59,7 @@ test('PRF passkey unlock persists, works offline, and retains the sync credentia
     await context.setOffline(true);
     await page.reload();
     await passkeyUnlock(page);
-    await page.getByRole('button', { name: 'Open', exact: true }).click();
+    await page.getByRole('button', { name: 'Open private.txt', exact: true }).click();
     await expect(page.locator('dialog pre')).toHaveText('private passkey fixture document');
     await page.getByRole('button', { name: 'Close', exact: true }).click();
     await lock(page);
@@ -69,6 +70,7 @@ test('PRF passkey unlock persists, works offline, and retains the sync credentia
     await context.setOffline(false);
     await passkeyUnlock(page);
     await settings(page);
+    await openSettings(page, 'Sync & devices');
     await page.getByRole('button', { name: 'Register this store on server', exact: true }).click();
     await expect(page.getByRole('status')).toContainText('Synced.');
     await lock(page);
