@@ -12,7 +12,7 @@ your computers and browser.
 | App | What you can do |
 | --- | --- |
 | **Desktop: Linux and Windows** | Organize documents, preview PDFs/images/text, use local OCR and search, sync, and manage locking and appearance. Linux also supports fingerprint unlock. |
-| **Web: installable PWA** | Upload and download documents, edit names/tags/favorites, create folders, work offline, and sync with desktop. Supported text files up to 1 MiB can be edited in the browser. |
+| **Web: installable PWA** | Upload and download documents, edit names/tags/favorites, create folders, work offline, sync with desktop, and optionally unlock with a compatible passkey. Supported text files up to 1 MiB can be edited in the browser. |
 | **CLI** | Encrypt/decrypt individual files, manage a local document store, sync, index/search, run optional document analysis, and create/check/restore backups. |
 
 Desktop and web use compatible encryption formats. The CLI shares the desktop
@@ -119,7 +119,7 @@ you use the app. Valid old history, omitted documents, server rollback, and
 forked views are not reliably detectable. No independent security audit has
 been performed. [Threat model](docs/threat-model.md) · [Encryption format](docs/crypto-spec.md).
 
-## Locking and fingerprint access
+## Locking and biometric access
 
 Desktop supports password and recovery-code unlock, manual locking, configurable
 inactivity locking, and locking when minimized. Locking clears private views,
@@ -133,6 +133,14 @@ contact feedback, and keeps password fallback available. Klefki does not enroll
 or store fingerprint templates. This is convenience access: apps able to read
 an unlocked keyring may also access the stored unlock keys.
 [Fingerprint setup and security boundary](docs/fingerprint-linux.md).
+
+Web offers optional passkey unlock using WebAuthn PRF. Enable it after password
+unlock in **Klefki settings**; compatible devices can then verify with a
+fingerprint, face, or PIN. The browser chooses the verification method. An
+encrypted local wrapper protects the document key and sync credential; password
+access remains available. Setup requires an HTTPS domain (or `localhost` for
+development), a compatible browser/provider, and is saved per browser. Physical
+Android acceptance is pending. [Setup and limits](docs/passkey-web.md).
 
 | Light theme | Locked |
 | --- | --- |

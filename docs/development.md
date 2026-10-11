@@ -35,7 +35,7 @@ npm --prefix web run build
 For browser acceptance against a local Go server:
 
 ```sh
-npm --prefix web run test:e2e -- e2e/klefki.spec.ts
+PW_DISABLE_TS_ESM=1 npm --prefix web run test:e2e -- e2e/klefki.spec.ts e2e/passkey.spec.ts
 ```
 
 The desktop frontend browser tests use a fixture bridge:

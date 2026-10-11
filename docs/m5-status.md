@@ -49,7 +49,8 @@ the exported account is compatible with the existing local recovery tools.
 
 ## Storage and locking
 
-Only wrapped account records, encrypted revisions/chunks, opaque IDs, queue order,
+Only wrapped account records, encrypted passkey unlock wrappers, encrypted
+revisions/chunks, opaque IDs, queue order,
 origin binding and cursor are persisted. Local storage remembers the wrapped
 account; IndexedDB holds the offline klefki. The worker caches only enumerated
 build assets, never `/v1`, plaintext downloads, credentials or account responses.
@@ -57,7 +58,10 @@ An edit and its queue entry commit together. A pulled revision and cursor commit
 only after authenticating every chunk. Retries reuse existing ciphertext and
 skip already-uploaded chunks. Partial downloads are retried at revision granularity.
 
-Password-derived keys and bearer sessions stay in memory. Manual lock, page exit,
+Active unlock keys and bearer sessions stay in memory. Optional
+[passkey unlock](passkey-web.md) persists a PRF-protected encrypted wrapper for
+the document master key and server login credential, separately from synced
+account records. Manual lock, page exit,
 and five minutes of inactivity clear active keys, previews and object URLs;
 ongoing network requests are canceled. Web Locks prevent two tabs from opening
 the same local account concurrently. Session tokens discarded on lock expire

@@ -37,6 +37,12 @@ criteria pass; link evidence and limitations here. Implementation/test completio
   LLM features. [Planned scope and acceptance](ROADMAP.md); not yet scheduled.
 
 
+Additional PWA capability: [passkey unlock](docs/passkey-web.md) is implemented.
+Production web build, 43 crypto checks, 21 virtual-authenticator browser cases,
+and six existing PWA regression cases passed on 2026-10-11. Physical Android
+fingerprint/PIN, installed-PWA, and real-provider offline acceptance remain
+pending; this does not mark an Android milestone complete.
+
 M0–M8 implementation is recorded in 36 reconstructed milestone commits.
 Commit dates were assigned retrospectively across September 10–October 10, 2026;
 recorded approval, implementation and validation dates remain unchanged.

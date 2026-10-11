@@ -2,10 +2,12 @@ import './style.css';
 import * as c from './crypto.ts';
 import { Store, type Head } from './store.ts';
 import * as semantic from './semantic.ts';
+import * as passkey from './passkey.ts';
 import { Remote, sync, HTTPError } from './sync.ts';
 const app = document.querySelector<HTMLDivElement>('#app')!;
 let account: c.Account | undefined, store: Store | undefined, master: Uint8Array | undefined, credential: Uint8Array | undefined, remote: Remote | undefined, controller: AbortController | undefined;
 let modelSetupController:AbortController|undefined;
+let passkeyController: AbortController | undefined;
 let generation = 0, busy = false, lastActivity = Date.now(), release: (() => void) | undefined, heads: Head[] = [], parent: string | null = null, filter = '', favorites = false;
 const urls = new Set<string>();
 const previews = new Set<Uint8Array>();
@@ -18,7 +20,7 @@ function download(bytes: Uint8Array, name: string, type = 'application/octet-str
 function message(s: string) { const e = document.querySelector('#status'); if (e)
     e.textContent = s; }
 function shell() { app.replaceChildren(); const header = node('header'); header.append(node('a', 'Klefki', 'brand'), node('span', 'Your documents, privately kept.', 'muted')); app.append(header); return app; }
-function lock() { modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
+function lock() { passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
     c.wipe(master); if (credential)
     c.wipe(credential); master = credential = undefined; heads = []; store?.close(); store = undefined; release?.(); release = undefined; busy = false; parent = null; filter = ''; favorites = false; for (const url of urls)
     URL.revokeObjectURL(url); urls.clear(); for (const b of previews)
@@ -44,30 +46,43 @@ async function operation(fn: (key: Uint8Array, g: number) => Promise<void>) {
             busy = false;
     }
 }
-async function claim() {
+async function claim(target: c.Account) {
     c.check(navigator.locks);
-    await new Promise<void>((resolve, reject) => {
-        void navigator.locks.request('klefki-open-' + account!.account, { ifAvailable: true }, async (held) => { if (!held) {
+    return new Promise<() => void>((resolve, reject) => {
+        void navigator.locks.request('klefki-open-' + target.account, { ifAvailable: true }, async (held) => { if (!held) {
             reject(Error('Klefki open elsewhere'));
             return;
-        } await new Promise<void>(done => { release = done; resolve(); }); }).catch(reject);
+        } await new Promise<void>(done => resolve(done)); }).catch(reject);
     });
 }
 async function enter(password: string) {
-    const unlocked = c.unlock(account!, password);
-    master = unlocked.master;
-    credential = unlocked.credential;
+    const target = account!, g = generation;
+    await enterKeys(target, c.unlock(target, password), g);
+}
+async function enterKeys(target: c.Account, unlocked: passkey.Keys, g: number) {
+    let held: (() => void) | undefined, opened: Store | undefined, adopted = false;
     try {
-        await claim();
-        store = await Store.open(account!);
+        c.check(g === generation && account === target);
+        held = await claim(target);
+        c.check(g === generation && account === target);
+        opened = await Store.open(target);
+        c.check(g === generation && account === target);
+        master = unlocked.master;
+        credential = unlocked.credential;
+        store = opened;
+        release = held;
+        adopted = true;
         controller = new AbortController();
-        localStorage.setItem('klefki-account', JSON.stringify(account));
+        localStorage.setItem('klefki-account', JSON.stringify(target));
         await refresh();
-        lastActivity = Date.now();
+        if (g === generation) lastActivity = Date.now();
     }
     catch (e) {
-        lock();
+        if (adopted && g === generation) lock();
         throw e;
+    }
+    finally {
+        if (!adopted) { c.wipe(unlocked.master); c.wipe(unlocked.credential); opened?.close(); held?.(); }
     }
 }
 function locked() {
@@ -130,6 +145,24 @@ function locked() {
         };
     }
     card.append(form);
+    if (account && passkey.configured(account)) {
+        const target = account;
+        const go = button('Unlock with passkey', () => void (async () => {
+            if (busy) return;
+            const g = generation, pending = new AbortController();
+            busy = true; go.disabled = true; cancel.hidden = false; passkeyController = pending;
+            message('Verify with your fingerprint, face, or device PIN…');
+            try { await enterKeys(target, await passkey.unlock(target, pending.signal), g); }
+            catch (error) { if (g === generation) message(passkey.errorMessage(error)); }
+            finally {
+                if (passkeyController === pending) passkeyController = undefined;
+                if (g === generation) { busy = false; go.disabled = false; cancel.hidden = true; }
+            }
+        })(), 'passkey-unlock');
+        const cancel = button('Cancel passkey verification', () => passkeyController?.abort());
+        cancel.hidden = true;
+        card.append(go, cancel, node('p', 'Your device chooses fingerprint, face recognition, or PIN. Password unlock is always available.', 'muted'));
+    }
     if (!account) {
         const imp = field('Open an encrypted account file', 'file');
         imp.input.accept = '.klefki,.v1,application/octet-stream';
@@ -259,6 +292,7 @@ async function library() {
     main.append(status);
     const tools = node('details');
     tools.append(node('summary', 'Klefki settings'), node('p', 'Account ID: ' + account!.account, 'account-id'), button('Download encrypted account file', () => download(c.accountBytes(account!), 'account.klefki')), button('Register this store on server', () => void syncNow(true)), button('New folder', () => folderDialog()), node('p', 'Keep the account file and recovery code safe. Browser storage can be cleared or evicted.', 'footnote'));
+    addPasskeySettings(tools);
     addSemanticSettings(tools,prefs);
     main.append(tools);
     root.append(main);
@@ -376,6 +410,47 @@ if ('serviceWorker' in navigator)
     void navigator.serviceWorker.register('/sw.js').catch(() => message('Offline app installation is unavailable in this browser.'));
 
 function semanticMessage(code:string){return ({SEARCH_REBUILD_REQUIRED:'Sync a current index from desktop or CLI.',SEMANTIC_UNAVAILABLE:'The local model is unavailable. Enable it in settings.',SEMANTIC_MODEL_INVALID:'Model verification or inference failed.',SEMANTIC_CORRECTION_CONFLICT:'Choose a correction to resolve changes from different devices.',SEARCH_INDEX_INVALID:'The synced index is invalid. Rebuild it on desktop or CLI.',SEARCH_LIMIT:'The query exceeds local search limits.'} as Record<string,string>)[code]||'Local semantic search is unavailable.'}
+function addPasskeySettings(parent: HTMLElement) {
+    const target = account!, g = generation, section = node('section');
+    const feedback = node('p', passkey.configured(target) ? 'Passkey unlock is enabled in this browser.' : 'Enable device verification to unlock without typing your password.', 'muted');
+    feedback.setAttribute('aria-live', 'polite');
+    const enable = button('Enable passkey unlock', () => void (async () => {
+        if (busy || !master || !credential) return;
+        const pending = new AbortController();
+        busy = true; passkeyController = pending; enable.disabled = true;
+        cancel.hidden = false; disable.disabled = true;
+        feedback.textContent = 'Create a passkey, then verify it to finish setup. Your device may ask twice.';
+        try {
+            await passkey.enable(target, { master, credential }, pending.signal);
+            if (g !== generation) return;
+            feedback.textContent = 'Passkey unlock is enabled in this browser.';
+            enable.hidden = true; disable.hidden = false;
+        }
+        catch (error) { if (g === generation) feedback.textContent = passkey.errorMessage(error); }
+        finally {
+            if (passkeyController === pending) passkeyController = undefined;
+            if (g === generation) { busy = false; enable.disabled = false; cancel.hidden = true; disable.disabled = false; }
+        }
+    })());
+    const cancel = button('Cancel passkey setup', () => passkeyController?.abort());
+    cancel.hidden = true;
+    const disable = button('Remove passkey unlock', () => {
+        if (busy) return;
+        try {
+            passkey.remove(target); enable.hidden = false; disable.hidden = true;
+            feedback.textContent = 'Passkey unlock was removed from this browser. You can also delete the passkey in your device’s credential manager.';
+        }
+        catch { feedback.textContent = 'Browser storage could not be updated. Try removing passkey unlock again.'; }
+    });
+    enable.hidden = passkey.configured(target); disable.hidden = !enable.hidden;
+    section.append(node('h3', 'Passkey unlock'), feedback, enable, cancel, disable, node('p', 'Optional fingerprint, face, or PIN verification. Setup is saved only in this browser; your passkey provider may sync the passkey. Keep your password and recovery code. Clearing site data removes this setup.', 'footnote'));
+    parent.append(section);
+    void passkey.available().then(available => {
+        if (g !== generation || !section.isConnected || available) return;
+        enable.disabled = true;
+        feedback.textContent = passkey.errorMessage(new Error('PASSKEY_UNAVAILABLE'));
+    });
+}
 function addSemanticSettings(parent:HTMLElement,prefs:semantic.Preferences){
  const section=node('section'),enable=field('Semantic search and suggestions on this device','checkbox'),feedback=node('p','Optional. Processing stays on this device. One-time download: about '+Math.ceil(semantic.downloadBytes/1048576)+' MB. Desktop or CLI must build and sync the document index.','muted');enable.input.checked=prefs.enabled;let setupController:AbortController|undefined;const cancel=button('Cancel setup',()=>{setupController?.abort();semantic.clearPrivate()});cancel.hidden=true;
  async function setup(bundle?:File[]){const g=generation;setupController=new AbortController();modelSetupController=setupController;cancel.hidden=false;enable.input.disabled=true;install.disabled=true;try{await semantic.setup(setupController.signal,(done,total)=>{if(g===generation)feedback.textContent='Downloading local model: '+Math.round(done/total*100)+'%'},bundle);if(g!==generation)return;prefs.enabled=true;semantic.savePreferences(account!.account,prefs);await library()}catch(e){if(g===generation){enable.input.checked=false;feedback.textContent=semanticMessage(e instanceof Error?e.message:'SEMANTIC_UNAVAILABLE')}}finally{enable.input.disabled=false;install.disabled=false;cancel.hidden=true;setupController=undefined}}

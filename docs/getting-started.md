@@ -22,6 +22,12 @@ The HTTP command is for local development. Use HTTPS for normal operation.
 See [web setup and offline behavior](m5-status.md) and [server configuration](server-api.md)
 for deployment, TLS, and Docker.
 
+For optional [passkey unlock](passkey-web.md), open an HTTPS domain or
+`http://localhost:8080`, unlock with your password, then select **Enable passkey
+unlock** in **Klefki settings**. Fingerprint, face, or PIN verification depends
+on the device and PRF-capable credential provider. IP-address URLs cannot use
+WebAuthn; changing origins does not migrate browser storage.
+
 ## Desktop app
 
 The desktop app targets Linux and Windows and uses Wails v2. It needs Go, Node,

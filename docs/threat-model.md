@@ -67,6 +67,14 @@ wrapped master record and ciphertext to remain available. Losing both password
 and recovery key leaves no intentional decryption backdoor. Losing the ciphertext
 cannot be repaired by possessing a key.
 
+Optional [PWA passkey unlock](passkey-web.md) stores the existing document master
+key and server login credential only inside a local PRF-protected encrypted
+wrapper. Device verification may use biometrics or a PIN and the provider may
+sync the passkey. This adds a convenience recovery route for those keys, not a
+new account format or server authentication scheme. Copied valid wrappers,
+provider compromise, runtime copies, and malicious web-origin code remain limits;
+removing local setup does not revoke a copied wrapper.
+
 ## Evidence and future review
 
 M0 fixtures check interoperable primitives, record bytes and representative
