@@ -37,8 +37,11 @@ On Linux with WebKitGTK 4.1, use `wails build -tags webkit2_41`.
 The executable is written to `desktop/build/bin/klefki-desktop`
 (`klefki-desktop.exe` on Windows).
 
-Create a private space, save the recovery code, and add files. Use Settings to
-connect a sync server or export the encrypted account file for another device.
+Create a private space, save the recovery code, and add files. Open **Settings**
+from the top bar to choose a theme, document spacing, default sort order, and
+inactivity lock time. **Sync & devices** connects a sync server or exports the
+encrypted account file for another device; **Search** manages local indexing
+and optional semantic search. These preferences are saved on this device.
 Recovery setup asks for a folder, then confirms the full destination before
 saving a plaintext `klefki-recovery.txt`. An existing file is never overwritten;
 canceling either dialog stops account creation.

@@ -26,6 +26,8 @@ const TrashTag = "klefki:system:trash"
 type Preferences struct {
 	Theme       string `json:"theme"`
 	IdleMinutes int    `json:"idleMinutes"`
+	Density     string `json:"density"`
+	DefaultSort string `json:"defaultSort"`
 }
 type Config struct {
 	AccountPath         string                         `json:"accountPath"`
@@ -95,20 +97,23 @@ func New(root string, emit func(Event)) (*Service, error) {
 		return nil, vc.ErrIO
 	}
 	s := &Service{configPath: filepath.Join(root, "settings.json"), emit: emit, stop: make(chan struct{}), ops: map[string]context.CancelFunc{}, syncState: "Local only"}
-	s.config.Preferences = Preferences{"dark", 5}
+	s.config.Preferences = Preferences{Theme: "dark", IdleMinutes: 5, Density: "comfortable", DefaultSort: "name"}
 	if b, e := os.ReadFile(s.configPath); e == nil {
 		if json.Unmarshal(b, &s.config) != nil {
 			return nil, ErrInvalid
 		}
 	}
 	if !validPreferences(s.config.Preferences) {
-		s.config.Preferences = Preferences{"dark", 5}
+		s.config.Preferences = Preferences{Theme: "dark", IdleMinutes: 5, Density: "comfortable", DefaultSort: "name"}
 	}
 	go s.watch()
 	return s, nil
 }
 func validPreferences(p Preferences) bool {
-	return (p.Theme == "dark" || p.Theme == "light" || p.Theme == "system") && (p.IdleMinutes == 1 || p.IdleMinutes == 5 || p.IdleMinutes == 15 || p.IdleMinutes == 30)
+	return (p.Theme == "dark" || p.Theme == "light" || p.Theme == "system") &&
+		(p.IdleMinutes == 1 || p.IdleMinutes == 5 || p.IdleMinutes == 15 || p.IdleMinutes == 30) &&
+		(p.Density == "" || p.Density == "comfortable" || p.Density == "compact") &&
+		(p.DefaultSort == "" || p.DefaultSort == "name" || p.DefaultSort == "type" || p.DefaultSort == "size")
 }
 func (s *Service) save() error {
 	b, e := json.Marshal(s.config)
@@ -160,10 +165,21 @@ func (s *Service) Preferences(p Preferences) error {
 	if !validPreferences(p) {
 		return ErrInvalid
 	}
+	if p.Density == "" {
+		p.Density = "comfortable"
+	}
+	if p.DefaultSort == "" {
+		p.DefaultSort = "name"
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	previous := s.config.Preferences
 	s.config.Preferences = p
-	return s.save()
+	if e := s.save(); e != nil {
+		s.config.Preferences = previous
+		return e
+	}
+	return nil
 }
 func (s *Service) event(e Event) {
 	if s.emit != nil {

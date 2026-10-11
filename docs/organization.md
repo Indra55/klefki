@@ -68,7 +68,7 @@ bounded to 256, and a preview accepts at most 64 additional custom tags.
   similar resume is already tagged Identity, including hospital and law-firm
   vacancies. Section regressions cover company background overwhelming the
   document average, conflicting categories, and aggregate evidence.
-- All 26 desktop frontend tests and its production build pass. Three Chromium
+- All 29 desktop frontend tests and its production build pass. Three Chromium
   cases using an explicit fixture bridge cover review, group renaming, exclusions,
   tag filtering at 390/1200 px, and clearing the review on lock. These browser
   cases do not exercise native Wails bindings or real inference.

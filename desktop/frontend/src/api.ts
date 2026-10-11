@@ -1,4 +1,4 @@
-export type Preferences = {theme:'dark'|'light'|'system';idleMinutes:number};
+export type Preferences = {theme:'dark'|'light'|'system';idleMinutes:number;density?:'comfortable'|'compact';defaultSort?:'name'|'type'|'size'};
 export type FingerprintState={supported:boolean;available:boolean;enabled:boolean;reason:string};
 export type State = {config:{accountPath:string;storePath:string;server:string;preferences:Preferences};unlocked:boolean;generation:number;accountID:string;recoveryOnly:boolean;sync:string;pending:number;lastSync:string;semantic?:SemanticPreferences;fingerprint?:FingerprintState};
 export type Item = {object:string;revision:string;name:string;type:'file'|'folder';parent:string|null;tags:string[];favorite:boolean;size:number;conflict:boolean;trashed:boolean;trashRoot:boolean;category?:string};

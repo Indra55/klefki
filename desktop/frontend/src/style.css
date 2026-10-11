@@ -12,7 +12,58 @@
 
 @media(max-width:600px){.shell{padding:0 16px}.topbar{height:72px;gap:16px}.top-actions{gap:12px}.library{padding-top:30px}.search{font-size:30px;letter-spacing:-1px}.search-tools{flex-wrap:wrap;gap:8px}.search-tools>span{min-width:0;flex:1 1 160px}.category-line{gap:16px}.categories{min-width:0;gap:16px}.add-files{font-size:13px}.document{gap:12px}.document-title{font-size:16px}.document-meta{flex-wrap:wrap;gap:4px 8px;font-size:12px}.row-actions{gap:0}.list-footer{gap:12px;flex-wrap:wrap}.setup h1{font-size:36px}.topbar>.eyebrow{text-align:right}.library-tools{flex-wrap:wrap}.library-tools-right{gap:12px}}
 
+.organize-suggest{margin-top:16px}.organize-group{border-top:1px solid var(--border);margin-top:16px;padding-top:16px}.organize-file{align-items:flex-start;margin:12px 0;overflow-wrap:anywhere}.organize-file input{margin-top:4px;flex-shrink:0}.organize-file small{display:block}.library-tools-right{align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .library-actions{display:flex;align-items:center;gap:20px;flex-shrink:0}.library-actions .quiet{white-space:nowrap;padding:10px 0}
 @media(max-width:600px){.category-line{flex-wrap:wrap}.categories{flex:1 1 100%}.library-actions{margin-left:auto;gap:16px}.library-actions .quiet{font-size:13px}}
 
-.organize-suggest{margin-top:16px}.organize-group{border-top:1px solid var(--border);margin-top:16px;padding-top:16px}.organize-file{align-items:flex-start;margin:12px 0;overflow-wrap:anywhere}.organize-file input{margin-top:4px;flex-shrink:0}.organize-file small{display:block}.library-tools-right{align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.navbar-settings[aria-pressed=true]{color:var(--text)}
+.library[data-density=compact] .document{min-height:70px}
+.library[data-density=compact] .document-open{padding:12px 0}
+.library[data-density=compact] .document-title{font-size:16px;letter-spacing:-.2px}
+.library[data-density=compact] .document-meta{font-size:12px}
+.settings-page{padding:35px 0 80px}
+.settings-back{margin-bottom:26px;font-size:13px}
+.settings-heading h1{font-size:38px;letter-spacing:-1.3px;font-weight:400;margin:0 0 12px;outline:none}
+.settings-heading p{color:var(--muted);font-size:14px;line-height:1.8;margin:0}
+.settings-layout{display:grid;grid-template-columns:190px minmax(0,1fr);gap:54px;margin-top:38px;border-top:1px solid var(--border);padding-top:30px}
+.settings-nav{display:flex;flex-direction:column;align-items:stretch;gap:5px;align-self:start}
+.settings-nav button{display:flex;align-items:center;gap:12px;padding:12px 14px;color:var(--muted);font-size:13px;border-radius:5px;text-align:left}
+.settings-nav button[aria-current=page]{color:var(--text);background:var(--hover)}
+.settings-nav button:hover{background:var(--hover)}
+.settings-nav svg{flex-shrink:0}
+.settings-panel{min-width:0;max-width:640px}
+.settings-panel-heading{margin-bottom:26px}
+.settings-panel-heading h2{font-size:22px;font-weight:400;letter-spacing:-.5px;margin:0 0 9px}
+.settings-panel-heading p{font-size:14px;line-height:1.8;color:var(--muted);margin:0}
+.preference-row{display:flex;justify-content:space-between;align-items:center;gap:28px;border-bottom:1px solid var(--border);padding:24px 0}
+.preference-row:first-of-type{padding-top:8px}
+.preference-row>div{min-width:0;flex:1}
+.preference-row label{font-size:14px;color:var(--text)}
+.preference-row p{font-size:12px;line-height:1.8;color:var(--muted);margin:7px 0 0;max-width:300px}
+.preference-row select{width:175px;flex-shrink:0;border:1px solid var(--border);border-radius:5px;background:var(--surface);padding:11px 12px;font-size:13px}
+.settings-hint{font-size:12px;line-height:1.8;color:var(--muted);margin:16px 0 22px}
+.settings-hint kbd{font:11px Inter,system-ui,sans-serif;border:1px solid var(--border);border-radius:3px;padding:2px 5px}
+.settings-panel .settings-section{padding:22px 0;margin-bottom:0}
+.settings-panel .settings-section h3{font-size:15px;font-weight:500;margin:0 0 12px}
+.settings-panel .settings-section p{line-height:1.9;margin:0 0 18px}
+.settings-panel .settings-section .small{font-size:13px}
+.settings-details{font-size:12px;line-height:1.9;color:var(--muted);margin-top:22px}
+.settings-details summary{cursor:pointer;padding:5px 0;list-style-position:inside}
+.settings-details p{margin-top:12px!important}
+.settings-details dl{margin:12px 0 0}
+.settings-details dt{color:var(--text);margin-top:12px}
+.settings-details dd{margin:3px 0 0;font:12px/1.8 ui-monospace,monospace;overflow-wrap:anywhere;user-select:text}
+.connection-status{display:flex;align-items:center;justify-content:space-between;gap:20px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:18px 20px;margin-bottom:26px}
+.connection-status>div{min-width:0}
+.connection-status span{font-size:14px}
+.connection-status p{font-size:12px;color:var(--muted);line-height:1.8;margin:5px 0 0}
+.connection-status button{flex-shrink:0}
+.settings-connect{padding-bottom:26px;border-bottom:1px solid var(--border)}
+.settings-connect>label:first-child{font-size:14px;color:var(--text)}
+.settings-connect>input{width:100%;border:1px solid var(--border);border-radius:5px;padding:12px;margin-top:10px;background:var(--surface);font-size:14px}
+.settings-connect>.checkbox{margin-bottom:20px;font-size:12px}
+.settings-feedback{font-size:13px;line-height:1.8;padding:14px 0;margin:12px 0 0}
+.settings-panel details label{margin-top:14px}
+.settings-panel details button{margin-top:10px}
+@media(max-width:800px){.settings-layout{grid-template-columns:165px minmax(0,1fr);gap:30px}.preference-row{gap:18px}.preference-row select{width:150px}}
+@media(max-width:600px){.top-actions{gap:10px}.top-actions .quiet{font-size:12px;gap:5px}.top-actions .menu-trigger{font-size:11px}.settings-page{padding-top:22px}.settings-heading h1{font-size:30px}.settings-heading p{font-size:13px}.settings-layout{display:block;margin-top:24px;padding-top:12px}.settings-nav{flex-direction:row;overflow-x:auto;gap:5px;padding:0 0 12px;margin-bottom:22px}.settings-nav button{padding:10px;white-space:nowrap;flex-shrink:0}.settings-nav svg{display:none}.settings-panel-heading h2{font-size:20px}.preference-row{align-items:flex-start;flex-direction:column;gap:14px;padding:22px 0}.preference-row select{width:100%}.preference-row p{max-width:none}.connection-status{align-items:flex-start;flex-direction:column}.settings-back{margin-bottom:20px}.settings-panel .settings-section .small{font-size:12px}}

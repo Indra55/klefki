@@ -10,6 +10,45 @@ let state:State;let events:Record<string,(e:any)=>void>;
 beforeEach(()=>{state={config:{accountPath:'account.v1',storePath:'local.db',server:'',preferences:{theme:'dark',idleMinutes:5}},unlocked:true,generation:1,accountID:'account',recoveryOnly:false,sync:'Local only',pending:0,lastSync:''};events={};vi.spyOn(document,'hasFocus').mockReturnValue(true);window.matchMedia=vi.fn().mockReturnValue({matches:true,addEventListener:vi.fn(),removeEventListener:vi.fn()});window.runtime={EventsOn:(name,cb)=>{events[name]=cb;return()=>{delete events[name]}}};window.go={main:{App:{State:vi.fn(async()=>state),List:vi.fn(async()=>({generation:state.generation,items:[item]})),Touch:vi.fn(),Lock:vi.fn(async()=>{state={...state,unlocked:false,generation:2};events['klefki:event']?.({generation:2,kind:'locked'})}),Edit:vi.fn(async()=>''),ClosePreview:vi.fn()} as any}}});
 afterEach(()=>{cleanup();vi.restoreAllMocks()});
 describe('library',()=>{
+ it('opens the dedicated settings page and keeps the library search when returning',async()=>{
+  render(<App/>);await screen.findByText('Passport.txt');
+  await userEvent.type(screen.getByLabelText('Search your documents'),'passport');
+  await userEvent.click(screen.getByRole('button',{name:'Settings'}));
+  expect(screen.getByRole('heading',{name:'Settings'})).toHaveFocus();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.queryByRole('textbox',{name:'Search your documents'})).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button',{name:'Back to library'}));
+  expect(screen.getByLabelText('Search your documents')).toHaveValue('passport');
+ });
+ it('saves library spacing and default sorting without replacing other preferences',async()=>{
+  const bridge=window.go!.main.App;
+  bridge.SetPreferences=vi.fn(async p=>{state={...state,config:{...state.config,preferences:p}}});
+  render(<App/>);await screen.findByText('Passport.txt');
+  await userEvent.click(screen.getByRole('button',{name:'Settings'}));
+  await userEvent.selectOptions(screen.getByLabelText('Document spacing'),'compact');
+  await screen.findByText('Preferences saved on this device.');
+  await userEvent.selectOptions(screen.getByLabelText('Default sort order'),'size');
+  await waitFor(()=>expect(screen.getByLabelText('Default sort order')).toHaveValue('size'));
+  expect(bridge.SetPreferences).toHaveBeenLastCalledWith({theme:'dark',idleMinutes:5,density:'compact',defaultSort:'size'});
+  await userEvent.click(screen.getByRole('button',{name:'Back to library'}));
+  expect(screen.getByLabelText('Sort documents')).toHaveValue('size');
+  expect(document.querySelector('.library')).toHaveAttribute('data-density','compact');
+ });
+ it('shows failed saves and keeps recovery sync restrictions on the settings page',async()=>{
+  state.recoveryOnly=true;
+  const bridge=window.go!.main.App;
+  bridge.SetPreferences=vi.fn(async()=>{throw new Error('OPERATION_FAILED')});bridge.Connect=vi.fn();
+  render(<App/>);await screen.findByText('Passport.txt');
+  await userEvent.click(screen.getByRole('button',{name:'Settings'}));
+  await userEvent.selectOptions(screen.getByLabelText('Color theme'),'light');
+  expect(await screen.findByRole('alert')).toHaveTextContent('could not finish');
+  expect(screen.getByLabelText('Color theme')).toHaveValue('dark');
+  await userEvent.click(screen.getByRole('button',{name:'Sync & devices'}));
+  expect(screen.getByLabelText('Server address')).toBeDisabled();
+  expect(screen.getByRole('button',{name:'Connect server'})).toBeDisabled();
+  expect(screen.getByLabelText('Register this store on the server for the first time')).toBeDisabled();
+  expect(bridge.Connect).not.toHaveBeenCalled();
+ });
  it('filters metadata, excludes trash, and retains conflict copies',()=>{const trash={...item,revision:'trash',trashed:true};const conflict={...item,revision:'copy',conflict:true};expect(visibleItems([item,trash,conflict],'All documents',null,'Identity','passport','name')).toHaveLength(2);expect(visibleItems([item,trash],'Trash',null,'','','name')).toEqual([trash])});
  it('searches and reports no results',async()=>{render(<App/>);await screen.findByText('Passport.txt');await userEvent.type(screen.getByLabelText('Search your documents'),'missing');expect(screen.getByText('Nothing matches yet.')).toBeInTheDocument();expect(screen.queryByText('Passport.txt')).not.toBeInTheDocument()});
  it('clears document names on lock and ignores old events',async()=>{render(<App/>);await screen.findByText('Passport.txt');await userEvent.click(screen.getByRole('button',{name:/^Lock/}));await screen.findByText('Unlock Klefki.');expect(screen.queryByText('Passport.txt')).not.toBeInTheDocument();events['klefki:event']({generation:1,kind:'file-start',operation:'old',name:'private stale name'});expect(screen.queryByText('private stale name')).not.toBeInTheDocument()});
@@ -37,7 +76,7 @@ describe('library',()=>{
  state.unlocked=false;const bridge=window.go!.main.App;bridge.Unlock=vi.fn().mockRejectedValueOnce(new Error('UNLOCK_FAILED')).mockImplementation(async()=>{state={...state,unlocked:true,generation:2}});render(<App/>);await userEvent.type(await screen.findByLabelText('Password'),'password');await userEvent.click(screen.getByRole('button',{name:'Unlock Klefki'}));await screen.findByRole('alert');expect(screen.queryByText('Unlocked with password')).not.toBeInTheDocument();await userEvent.click(screen.getByRole('button',{name:'Unlock Klefki'}));await screen.findByText('Passport.txt');expect(screen.getByText('Unlocked with password')).toBeInTheDocument();await userEvent.click(screen.getByRole('button',{name:'Lock'}));await screen.findByText('Unlock Klefki.');expect(screen.queryByText('Unlocked with password')).not.toBeInTheDocument();
  });
  it('verifies fingerprint setup before showing success and does not scan on removal',async()=>{
- state.fingerprint={supported:true,available:true,enabled:false,reason:''};const bridge=window.go!.main.App;let finish!:()=>void;bridge.FingerprintStatus=vi.fn(async()=>state.fingerprint!);bridge.EnableFingerprint=vi.fn(()=>new Promise<void>(resolve=>{finish=()=>{state={...state,fingerprint:{...state.fingerprint!,enabled:true}};resolve()}}));bridge.DisableFingerprint=vi.fn(async()=>{state={...state,fingerprint:{...state.fingerprint!,enabled:false}}});render(<App/>);await screen.findByText('Passport.txt');await userEvent.click(screen.getByRole('button',{name:'All documents'}));await userEvent.click(screen.getByRole('menuitem',{name:'Settings'}));await userEvent.click(screen.getByRole('button',{name:'Enable fingerprint unlock'}));expect(screen.getByRole('status')).toHaveTextContent('Touch your fingerprint reader');expect(screen.queryByText('Fingerprint unlock enabled on this device.')).not.toBeInTheDocument();const enabling=screen.getByRole('button',{name:/Enable fingerprint unlock/});expect(enabling.querySelector('svg')).toHaveAttribute('data-state','idle');act(()=>events['klefki:event']({generation:1,kind:'fingerprint',name:'scanning'}));expect(enabling.querySelector('svg')).toHaveAttribute('data-state','scanning');act(()=>events['klefki:event']({generation:1,kind:'fingerprint',name:'touch'}));expect(enabling.querySelector('svg')).toHaveAttribute('data-state','idle');act(()=>events['klefki:event']({generation:1,kind:'fingerprint',name:'retry'}));expect(screen.getByRole('status')).toHaveTextContent('Lift your finger');await act(async()=>finish());const disable=await screen.findByRole('button',{name:'Disable fingerprint unlock'});expect(disable.querySelector('svg')).toHaveAttribute('data-state','success');expect(screen.getByRole('status')).toHaveTextContent('Fingerprint unlock enabled');await userEvent.click(disable);await screen.findByRole('button',{name:'Enable fingerprint unlock'});expect(screen.queryByRole('button',{name:'Cancel scan'})).not.toBeInTheDocument();expect(bridge.DisableFingerprint).toHaveBeenCalledOnce();expect(bridge.EnableFingerprint).toHaveBeenCalledOnce();
+ state.fingerprint={supported:true,available:true,enabled:false,reason:''};const bridge=window.go!.main.App;let finish!:()=>void;bridge.FingerprintStatus=vi.fn(async()=>state.fingerprint!);bridge.EnableFingerprint=vi.fn(()=>new Promise<void>(resolve=>{finish=()=>{state={...state,fingerprint:{...state.fingerprint!,enabled:true}};resolve()}}));bridge.DisableFingerprint=vi.fn(async()=>{state={...state,fingerprint:{...state.fingerprint!,enabled:false}}});render(<App/>);await screen.findByText('Passport.txt');await userEvent.click(screen.getByRole('button',{name:'Settings'}));await userEvent.click(screen.getByRole('button',{name:'Privacy & lock'}));await userEvent.click(screen.getByRole('button',{name:'Enable fingerprint unlock'}));expect(screen.getByRole('status')).toHaveTextContent('Touch your fingerprint reader');expect(screen.queryByText('Fingerprint unlock enabled on this device.')).not.toBeInTheDocument();const enabling=screen.getByRole('button',{name:/Enable fingerprint unlock/});expect(enabling.querySelector('svg')).toHaveAttribute('data-state','idle');act(()=>events['klefki:event']({generation:1,kind:'fingerprint',name:'scanning'}));expect(enabling.querySelector('svg')).toHaveAttribute('data-state','scanning');act(()=>events['klefki:event']({generation:1,kind:'fingerprint',name:'touch'}));expect(enabling.querySelector('svg')).toHaveAttribute('data-state','idle');act(()=>events['klefki:event']({generation:1,kind:'fingerprint',name:'retry'}));expect(screen.getByRole('status')).toHaveTextContent('Lift your finger');await act(async()=>finish());const disable=await screen.findByRole('button',{name:'Disable fingerprint unlock'});expect(disable.querySelector('svg')).toHaveAttribute('data-state','success');expect(screen.getByRole('status')).toHaveTextContent('Fingerprint unlock enabled');await userEvent.click(disable);await screen.findByRole('button',{name:'Enable fingerprint unlock'});expect(screen.queryByRole('button',{name:'Cancel scan'})).not.toBeInTheDocument();expect(bridge.DisableFingerprint).toHaveBeenCalledOnce();expect(bridge.EnableFingerprint).toHaveBeenCalledOnce();
  });
  it('opens accessible details with prefilled fields',async()=>{render(<App/>);await screen.findByText('Passport.txt');await userEvent.click(screen.getByRole('button',{name:'Actions for Passport.txt'}));await userEvent.click(screen.getByRole('menuitem',{name:'Edit details & move'}));expect(await screen.findByRole('dialog')).toHaveAccessibleName('Document details');expect(screen.getByLabelText('Name')).toHaveValue('Passport.txt');await userEvent.keyboard('{Escape}');await waitFor(()=>expect(screen.queryByRole('dialog')).not.toBeInTheDocument())});
 });
