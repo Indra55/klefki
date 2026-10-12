@@ -104,49 +104,44 @@ separate backups. [Multi-device setup and protocol](docs/sync-protocol.md).
 
 ## Temporary-relay benchmarks
 
-A live Render relay benchmark on **12 October 2026** completed **24 timed
-transfers** across synthetic TXT, CSV, PDF, PNG, ZIP, and binary files from
-1 KiB to 64 MiB. Every received file matched its source SHA-256 hash.
+The **13 October 2026** update reduced no-edit hosted Go sync time by about
+**71%** and 64 MiB browser upload time by about **54%**, using the same free
+Render hosting and unchanged production rate limits.
 
-The same harness and fixtures were run against a local relay on **13 October
-2026**. Browser → relay → Go sync core timings, including sync protocol overhead:
+| Hosted measurement | Before | After |
+| --- | ---: | ---: |
+| No-edit Go sync | 3.618s | **1.034s** |
+| No-edit browser sync | 4.529s | **1.481s** |
+| 1 KiB browser upload | 5.327s | **2.828s** |
+| 32 MiB browser upload | 25.511s | **11.267s** |
+| 64 MiB browser upload | 40.585s | **18.801s** |
+| 64 MiB Go receive | 31.375s | **25.205s** |
+| 32 MiB Go upload | 21.796s | **10.304s** |
+| 32 MiB browser receive | 22.820s | **10.828s** |
 
-| File | Size | Hosted upload | Local upload | Hosted receive | Local receive |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| TXT | 1 KiB | 5.33s | 0.583s | 4.36s | 0.038s |
-| CSV | 64 KiB | 6.00s | 0.562s | 4.48s | 0.036s |
-| TXT | 1 MiB | 6.25s | 0.559s | 5.56s | 0.044s |
-| Binary | 8 MiB | 9.89s | 0.795s | 8.57s | 0.203s |
-| Binary | 32 MiB | 25.51s | 1.553s | 20.21s | 0.631s |
-| Binary | 64 MiB | 40.59s | 2.479s | 31.38s | 1.089s |
+Combined preparation and history batching reduced an unchanged 84-revision sync
+from **10 production requests to 3**. Clients transfer up to four authenticated
+chunks concurrently, publish revisions sequentially, and acknowledge received
+changes after durable local commit. Encryption formats are unchanged.
 
-On the hosted relay, effective throughput at 64 MiB was **1.58 MiB/s upload**
-and **2.04 MiB/s receive**. In the reverse direction, a 32 MiB file took 21.80s to upload from
-the Go client and 22.82s to receive in the browser.
+All **nine received-file SHA-256 checks** passed across two corrected hosted
+sweeps. Duplicate imports, six zero-chunk no-edit checks, and relay cleanup also
+passed. Go race tests, vet, 43 browser crypto checks, and 12 browser integration
+tests passed; the compatible server was deployed before the updated clients.
 
-Reimporting the same ZIP under the same name created two separate document
-entries and uploaded another encrypted chunk. Three subsequent syncs without
-edits transferred zero file chunks and added no unexpected document revisions.
+These are session measurements of the combined update. Browser times include
+UI automation waits; Go times include a separate final settings read. Production
+no-edit Go sync alone measured **0.786s**. No-edit values are medians of three
+runs; forward 1 KiB and large-file comparisons use two updated trials. Reverse
+large-file medians combine two account-history sizes. The earlier large-file
+baseline has one trial per size. Timings exclude local import and discovery
+polling delay; interrupted runs and measurement limits remain in the
+[latest report, exact revisions, and raw measurements](docs/benchmarks/2026-10-13-relay-optimization/README.md).
 
-These measurements cover the hosted browser UI and production Go sync core on
-one machine against a warm service with existing account history. Small forward
-transfers use the median of two trials; large files and reverse transfers have
-one trial each. Timings exclude automatic polling delays and local file import.
-Native desktop UI timing, receipt into the already running desktop store, and
-relay ciphertext cleanup were not verified in this session.
-[Full report, plots, and raw measurements](docs/benchmarks/2026-10-12-relay/README.md).
-
-The local relay reduced the Go no-edit sync median from **3.62s to 0.022s**.
-Adding 300 ms to each of 11 sequential requests (10 protocol requests plus one
-harness check) raised it to **3.35s**,
-supporting accumulated request latency as the main cause of the hosted floor.
-All 24 local transfers passed their hash checks. The local sweep used a higher
-request burst allowance; a default-limit control also received a 1 KiB file in
-0.039s. Browser UI timings include fixed automation waits.
-[Local comparison, request traces, and controlled latency results](docs/benchmarks/2026-10-13-local-relay/README.md).
-
-Repeat the benchmarks with `make bench-local` or
-`make bench-hosted BENCH_SERVER=https://YOUR-RELAY`.
+The [original hosted baseline](docs/benchmarks/2026-10-12-relay/README.md) and
+[local comparison with injected latency](docs/benchmarks/2026-10-13-local-relay/README.md)
+explain the accumulated request-latency bottleneck. Repeat the benchmarks with
+`make bench-local` or `make bench-hosted BENCH_SERVER=https://YOUR-RELAY`.
 [Runner setup, quick checks, and output files](web/benchmarks/README.md).
 
 ## Security and privacy
