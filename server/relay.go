@@ -156,8 +156,6 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
 // Serialize content publication and cleanup. Older clients fail closed in relay mode.
 func (s *Server) relayAccess(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s.relayMu.Lock()
-		defer s.relayMu.Unlock()
 		settings, e := s.settings(who(r).account)
 		if e != nil {
 			fail(w, 500)
@@ -184,80 +182,73 @@ func (s *Server) relayDevice(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, 8192, &in) {
 		return
 	}
-	if !validID(in.Device) || len(in.Known) > 64 || in.Sequence < 0 {
+	if !validRelayDevice(in) {
 		fail(w, 400)
 		return
 	}
-	for _, id := range in.Known {
-		if !validID(id) {
-			fail(w, 400)
-			return
-		}
-	}
-	tx, e := s.db.Begin()
-	if e != nil {
-		fail(w, 500)
-		return
-	}
-	defer tx.Rollback()
-	for _, id := range append(in.Known, in.Device) {
-		var removed int
-		if tx.QueryRow(`SELECT COUNT(*) FROM relay_removed WHERE account=? AND device=?`, who(r).account, id).Scan(&removed) != nil {
-			fail(w, 500)
-			return
-		}
-		if removed > 0 {
-			if id == in.Device {
-				fail(w, 410)
-				return
-			}
-			continue
-		}
-		if _, e = tx.Exec(`INSERT OR IGNORE INTO relay_devices(account,device) VALUES(?,?)`, who(r).account, id); e != nil {
-			fail(w, 500)
-			return
-		}
-	}
-	// A restored local snapshot can be older than this device's previous receipt.
-	if _, e = tx.Exec(`UPDATE relay_devices SET sequence=MIN(sequence,?) WHERE account=? AND device=?`, in.Sequence, who(r).account, in.Device); e != nil {
-		fail(w, 500)
-		return
-	}
-	var count int
-	if tx.QueryRow(`SELECT COUNT(*) FROM relay_devices WHERE account=?`, who(r).account).Scan(&count) != nil || count > 64 {
-		fail(w, 409)
-		return
-	}
-	if tx.Commit() != nil {
-		fail(w, 500)
-		return
-	}
-	settings, e := s.settings(who(r).account)
-	if e != nil {
-		fail(w, 500)
-		return
-	}
-	rows, e := s.db.Query(`SELECT device FROM relay_devices WHERE account=? ORDER BY device`, who(r).account)
-	if e != nil {
-		fail(w, 500)
-		return
-	}
-	defer rows.Close()
-	out := syncwire.RelayState{SyncSettings: settings, Devices: []string{}}
-	for rows.Next() {
-		var id string
-		if rows.Scan(&id) != nil {
-			fail(w, 500)
-			return
-		}
-		out.Devices = append(out.Devices, id)
-	}
-	if rows.Err() != nil {
-		fail(w, 500)
+	out, status := s.enrollRelay(who(r).account, in)
+	if status != 200 {
+		fail(w, status)
 		return
 	}
 	reply(w, 200, out)
 }
+
+func (s *Server) enrollRelay(account string, in syncwire.RelayDevice) (out syncwire.RelayState, status int) {
+	tx, e := s.db.Begin()
+	if e != nil {
+		return out, 500
+	}
+	defer tx.Rollback()
+	for _, id := range append(in.Known, in.Device) {
+		var removed int
+		if tx.QueryRow(`SELECT COUNT(*) FROM relay_removed WHERE account=? AND device=?`, account, id).Scan(&removed) != nil {
+			return out, 500
+		}
+		if removed > 0 {
+			if id == in.Device {
+				return out, 410
+			}
+			continue
+		}
+		if _, e = tx.Exec(`INSERT OR IGNORE INTO relay_devices(account,device) VALUES(?,?)`, account, id); e != nil {
+			return out, 500
+		}
+	}
+	// A restored local snapshot can be older than this device's previous receipt.
+	if _, e = tx.Exec(`UPDATE relay_devices SET sequence=MIN(sequence,?) WHERE account=? AND device=?`, in.Sequence, account, in.Device); e != nil {
+		return out, 500
+	}
+	var count int
+	if tx.QueryRow(`SELECT COUNT(*) FROM relay_devices WHERE account=?`, account).Scan(&count) != nil || count > 64 {
+		return out, 409
+	}
+	if tx.Commit() != nil {
+		return out, 500
+	}
+	settings, e := s.settings(account)
+	if e != nil {
+		return out, 500
+	}
+	rows, e := s.db.Query(`SELECT device FROM relay_devices WHERE account=? ORDER BY device`, account)
+	if e != nil {
+		return out, 500
+	}
+	defer rows.Close()
+	out = syncwire.RelayState{SyncSettings: settings, Devices: []string{}}
+	for rows.Next() {
+		var id string
+		if rows.Scan(&id) != nil {
+			return out, 500
+		}
+		out.Devices = append(out.Devices, id)
+	}
+	if rows.Err() != nil {
+		return out, 500
+	}
+	return out, 200
+}
+
 func (s *Server) relayNeed(w http.ResponseWriter, r *http.Request) {
 	var in syncwire.RelayNeed
 	if !decode(w, r, 2048, &in) {
@@ -267,33 +258,37 @@ func (s *Server) relayNeed(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400)
 		return
 	}
-	settings, e := s.settings(who(r).account)
-	if e != nil {
-		fail(w, 500)
+	out, status := s.neededRelay(who(r).account, in.IDs)
+	if status != 200 {
+		fail(w, status)
 		return
+	}
+	reply(w, 200, out)
+}
+func (s *Server) neededRelay(account string, ids []string) (out syncwire.RelayNeed, status int) {
+	settings, e := s.settings(account)
+	if e != nil {
+		return out, 500
 	}
 	var floor int64
-	if s.db.QueryRow(`SELECT COALESCE(MIN(sequence),0) FROM relay_devices WHERE account=?`, who(r).account).Scan(&floor) != nil {
-		fail(w, 500)
-		return
+	if s.db.QueryRow(`SELECT COALESCE(MIN(sequence),0) FROM relay_devices WHERE account=?`, account).Scan(&floor) != nil {
+		return out, 500
 	}
-	out := syncwire.RelayNeed{IDs: []string{}}
-	for _, id := range in.IDs {
+	out = syncwire.RelayNeed{IDs: []string{}}
+	for _, id := range ids {
 		if !validID(id) {
-			fail(w, 400)
-			return
+			return out, 400
 		}
 		var seq int64
 		var size int
-		e = s.db.QueryRow(`SELECT sequence,length(metadata) FROM changes WHERE account=? AND revision=?`, who(r).account, id).Scan(&seq, &size)
+		e = s.db.QueryRow(`SELECT sequence,length(metadata) FROM changes WHERE account=? AND revision=?`, account, id).Scan(&seq, &size)
 		if e == sql.ErrNoRows || e == nil && size == 0 && (settings.Mode == syncwire.Persistent || seq > floor) {
 			out.IDs = append(out.IDs, id)
 		} else if e != nil {
-			fail(w, 500)
-			return
+			return out, 500
 		}
 	}
-	reply(w, 200, out)
+	return out, 200
 }
 
 func (s *Server) cleanupRelay(account string) error {
@@ -473,4 +468,64 @@ func (s *Server) relayRevisionSpace(account string, rev syncwire.Revision) error
 		return errRelayFull
 	}
 	return nil
+}
+
+func validRelayDevice(in syncwire.RelayDevice) bool {
+	if !validID(in.Device) || len(in.Known) > 64 || in.Sequence < 0 {
+		return false
+	}
+	for _, id := range in.Known {
+		if !validID(id) {
+			return false
+		}
+	}
+	return true
+}
+func validRelayIDs(ids []string) bool {
+	if len(ids) > syncwire.RelayBatchSize {
+		return false
+	}
+	for _, id := range ids {
+		if !validID(id) {
+			return false
+		}
+	}
+	return true
+}
+func (s *Server) relayPrepare(w http.ResponseWriter, r *http.Request) {
+	var in syncwire.RelayPrepare
+	if !decode(w, r, 16384, &in) {
+		return
+	}
+	if !validRelayDevice(in.RelayDevice) || !validRelayIDs(in.IDs) {
+		fail(w, 400)
+		return
+	}
+	state, status := s.enrollRelay(who(r).account, in.RelayDevice)
+	if status != 200 {
+		fail(w, status)
+		return
+	}
+	needed, status := s.neededRelay(who(r).account, in.IDs)
+	if status != 200 {
+		fail(w, status)
+		return
+	}
+	reply(w, 200, syncwire.RelayPrepared{RelayState: state, IDs: needed.IDs})
+}
+func (s *Server) relayNeedBatch(w http.ResponseWriter, r *http.Request) {
+	var in syncwire.RelayNeed
+	if !decode(w, r, 16384, &in) {
+		return
+	}
+	if !validRelayIDs(in.IDs) {
+		fail(w, 400)
+		return
+	}
+	out, status := s.neededRelay(who(r).account, in.IDs)
+	if status != 200 {
+		fail(w, status)
+		return
+	}
+	reply(w, 200, out)
 }

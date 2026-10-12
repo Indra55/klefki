@@ -93,3 +93,14 @@ type Provenance struct {
 type ProvenancePage struct {
 	Changes []Provenance `json:"changes"`
 }
+
+const RelayBatchSize = 256
+
+type RelayPrepare struct {
+	RelayDevice
+	IDs []string `json:"ids"`
+}
+type RelayPrepared struct {
+	RelayState
+	IDs []string `json:"ids"`
+}

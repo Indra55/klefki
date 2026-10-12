@@ -93,8 +93,8 @@ func TestDevicePresenceReceiptsAndIsolation(t *testing.T) {
 			t.Fatal("stale device still live", d)
 		}
 	}
-	// Status must stay responsive while a transfer owns the global relay lock.
-	s.relayMu.Lock()
+	// Status must stay responsive while a transfer owns the account relay lock.
+	unlock := s.relayLocks.lock(f.account.ID.String())
 	finished := make(chan int, 1)
 	go func() { finished <- statusRequest(s, session.Token, a.String(), "GET", "/v1/sync/status", nil).Code }()
 	select {
@@ -105,7 +105,7 @@ func TestDevicePresenceReceiptsAndIsolation(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Error("status blocked behind relay transfer")
 	}
-	s.relayMu.Unlock()
+	unlock()
 	if w := statusRequest(s, session.Token, a.String(), "DELETE", "/v1/sync/relay/devices/"+b.String(), nil); w.Code != 204 {
 		t.Fatal(w.Code)
 	}

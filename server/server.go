@@ -47,7 +47,7 @@ type Server struct {
 	config     Config
 	handler    http.Handler
 	mu         sync.Mutex
-	relayMu    sync.Mutex
+	relayLocks accountLocks
 	buckets    map[string]bucket
 	presenceMu sync.Mutex
 	presences  map[string]syncwire.DeviceStatus
@@ -157,11 +157,14 @@ func Open(c Config) (*Server, error) {
 	})
 	r.Group(func(r chi.Router) {
 		r.Use(s.auth)
+		r.Use(s.relayBuffered)
 		r.Use(s.relayAccess)
 		r.Get("/v1/sync/settings", s.getSettings)
 		r.Put("/v1/sync/settings", s.putSettings)
 		r.Post("/v1/sync/relay/device", s.relayDevice)
 		r.Post("/v1/sync/relay/need", s.relayNeed)
+		r.Post("/v1/sync/relay/prepare", s.relayPrepare)
+		r.Post("/v1/sync/relay/need-batch", s.relayNeedBatch)
 		r.Delete("/v1/sync/relay/devices/{device}", s.forgetRelayDevice)
 		r.Get("/v1/devices", s.devices)
 		r.Delete("/v1/devices/{device}", s.revoke)
