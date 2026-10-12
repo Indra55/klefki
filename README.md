@@ -102,6 +102,39 @@ Sync runs while the app is unlocked; it is not a background service for a locked
 library. Browser storage can be cleared or evicted, so keep synced copies and
 separate backups. [Multi-device setup and protocol](docs/sync-protocol.md).
 
+## Temporary-relay benchmarks
+
+A live Render relay benchmark on **12 October 2026** completed **24 timed
+transfers** across synthetic TXT, CSV, PDF, PNG, ZIP, and binary files from
+1 KiB to 64 MiB. Every received file matched its source SHA-256 hash.
+
+Browser → relay → Go sync core, including sync protocol overhead:
+
+| File | Size | Upload sync | Receive sync |
+| --- | ---: | ---: | ---: |
+| TXT | 1 KiB | 5.33s | 4.36s |
+| CSV | 64 KiB | 6.00s | 4.48s |
+| TXT | 1 MiB | 6.25s | 5.56s |
+| Binary | 8 MiB | 9.89s | 8.57s |
+| Binary | 32 MiB | 25.51s | 20.21s |
+| Binary | 64 MiB | 40.59s | 31.38s |
+
+At 64 MiB, effective throughput was **1.58 MiB/s upload** and **2.04 MiB/s
+receive**. In the reverse direction, a 32 MiB file took 21.80s to upload from
+the Go client and 22.82s to receive in the browser.
+
+Reimporting the same ZIP under the same name created two separate document
+entries and uploaded another encrypted chunk. Three subsequent syncs without
+edits transferred zero file chunks and added no unexpected document revisions.
+
+These measurements cover the hosted browser UI and production Go sync core on
+one machine against a warm service with existing account history. Small forward
+transfers use the median of two trials; large files and reverse transfers have
+one trial each. Timings exclude automatic polling delays and local file import.
+Native desktop UI timing, receipt into the already running desktop store, and
+relay ciphertext cleanup were not verified in this session.
+[Full report, plots, and raw measurements](docs/benchmarks/2026-10-12-relay/README.md).
+
 ## Security and privacy
 
 Encryption and decryption happen on the client. The server receives encrypted

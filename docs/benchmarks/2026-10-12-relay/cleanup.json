@@ -1,0 +1,132 @@
+{
+  "time": "2026-10-12T18:27:13.652Z",
+  "before": {
+    "epoch": "f51739d46128b779e9f114fda7b07028",
+    "latestSequence": 84,
+    "devices": [
+      {
+        "device": "785a0e9f8d3f3f357b333b1f6073af64",
+        "clientKind": "",
+        "phase": "unknown",
+        "doneBytes": 0,
+        "totalBytes": 0,
+        "lastSeen": 0,
+        "sequence": 0,
+        "outstanding": 84
+      },
+      {
+        "device": "93b5674ce034115357daec17e5e44934",
+        "clientKind": "pwa",
+        "phase": "unknown",
+        "doneBytes": 0,
+        "totalBytes": 0,
+        "lastSeen": 1791828529463,
+        "sequence": 59,
+        "outstanding": 25
+      },
+      {
+        "device": "957238c451362a06af83ff6e3c42545f",
+        "clientKind": "web",
+        "phase": "unknown",
+        "doneBytes": 0,
+        "totalBytes": 0,
+        "lastSeen": 1791828478447,
+        "sequence": 59,
+        "outstanding": 25
+      },
+      {
+        "device": "be252e28acbe2995da5c8bcf6096e110",
+        "clientKind": "",
+        "phase": "unknown",
+        "doneBytes": 0,
+        "totalBytes": 0,
+        "lastSeen": 0,
+        "sequence": 84,
+        "outstanding": 0
+      },
+      {
+        "device": "ce07fdd094737e77bebd171ea0534fbc",
+        "clientKind": "",
+        "phase": "unknown",
+        "doneBytes": 0,
+        "totalBytes": 0,
+        "lastSeen": 0,
+        "sequence": 0,
+        "outstanding": 84
+      },
+      {
+        "device": "d030468cebd51e5ae831ca2e5cd8914d",
+        "clientKind": "web",
+        "phase": "unknown",
+        "doneBytes": 0,
+        "totalBytes": 0,
+        "lastSeen": 1791829576525,
+        "sequence": 84,
+        "outstanding": 0
+      }
+    ]
+  },
+  "removed": [
+    {
+      "device": "d030468cebd51e5ae831ca2e5cd8914d",
+      "status": 204
+    },
+    {
+      "device": "be252e28acbe2995da5c8bcf6096e110",
+      "status": 204
+    }
+  ],
+  "after": {
+    "epoch": "f51739d46128b779e9f114fda7b07028",
+    "latestSequence": 84,
+    "devices": [
+      {
+        "device": "785a0e9f8d3f3f357b333b1f6073af64",
+        "clientKind": "",
+        "phase": "unknown",
+        "doneBytes": 0,
+        "totalBytes": 0,
+        "lastSeen": 0,
+        "sequence": 0,
+        "outstanding": 84
+      },
+      {
+        "device": "93b5674ce034115357daec17e5e44934",
+        "clientKind": "pwa",
+        "phase": "unknown",
+        "doneBytes": 0,
+        "totalBytes": 0,
+        "lastSeen": 1791828529463,
+        "sequence": 59,
+        "outstanding": 25
+      },
+      {
+        "device": "957238c451362a06af83ff6e3c42545f",
+        "clientKind": "web",
+        "phase": "unknown",
+        "doneBytes": 0,
+        "totalBytes": 0,
+        "lastSeen": 1791828478447,
+        "sequence": 59,
+        "outstanding": 25
+      },
+      {
+        "device": "ce07fdd094737e77bebd171ea0534fbc",
+        "clientKind": "",
+        "phase": "unknown",
+        "doneBytes": 0,
+        "totalBytes": 0,
+        "lastSeen": 0,
+        "sequence": 0,
+        "outstanding": 84
+      }
+    ]
+  },
+  "settings": {
+    "mode": "temporary-relay",
+    "epoch": "f51739d46128b779e9f114fda7b07028",
+    "queued": 84
+  },
+  "original_devices_preserved": true,
+  "cleanup_login_revoked": true
+}

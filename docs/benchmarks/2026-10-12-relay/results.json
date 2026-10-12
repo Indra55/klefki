@@ -1,0 +1,1411 @@
+{
+  "started": "2026-10-12T18:15:38.651Z",
+  "base": "https://klefki.onrender.com",
+  "method": "Hosted browser UI and production Go sync core, fresh stores with existing account",
+  "rows": [
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-browser-tiny-r1.txt",
+      "type": "text/plain",
+      "size": 1024,
+      "expected_sha256": "b39d643f95378c5c8751c81eb03b17ce423ebe79bcdcd7763a572f8bc0bc7c38",
+      "local_save_seconds": 0.1515544450000016,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 5.595808259999998,
+        "requests": 17,
+        "request_bytes": 3145,
+        "response_bytes": 2427,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "chunk_seconds": 0.40870206099999634,
+        "http_errors": []
+      },
+      "source_total_seconds": 5.747749006999999,
+      "destination": {
+        "chunks_down": 1,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 2410,
+        "requests": 13,
+        "response_bytes": 2450,
+        "seconds": 4.078431843,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 60
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "b39d643f95378c5c8751c81eb03b17ce423ebe79bcdcd7763a572f8bc0bc7c38",
+            "revision": "25af661bf1bfce3b661bd1eed3e477ac",
+            "size": 1024
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 0.003042058
+      },
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-browser-tiny-r2.txt",
+      "type": "text/plain",
+      "size": 1024,
+      "expected_sha256": "b39d643f95378c5c8751c81eb03b17ce423ebe79bcdcd7763a572f8bc0bc7c38",
+      "local_save_seconds": 0.1488528759999972,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 5.057440931000005,
+        "requests": 17,
+        "request_bytes": 3180,
+        "response_bytes": 2427,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "chunk_seconds": 0.28946437800000424,
+        "http_errors": []
+      },
+      "source_total_seconds": 5.206334349999997,
+      "destination": {
+        "chunks_down": 1,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 2445,
+        "requests": 13,
+        "response_bytes": 2450,
+        "seconds": 4.64864306,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 61
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "b39d643f95378c5c8751c81eb03b17ce423ebe79bcdcd7763a572f8bc0bc7c38",
+            "revision": "a2847f2989e743d87ed2bec67ac0313e",
+            "size": 1024
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 0.00271368
+      },
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-browser-table-r1.csv",
+      "type": "text/csv",
+      "size": 65536,
+      "expected_sha256": "904b27c1de94441d2b5654e94ae6f92063e13b3a432ec04db0c2a295c8d89312",
+      "local_save_seconds": 0.16047880599999917,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 6.052082020000002,
+        "requests": 17,
+        "request_bytes": 3219,
+        "response_bytes": 2431,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "chunk_seconds": 0.5602627769999963,
+        "http_errors": []
+      },
+      "source_total_seconds": 6.212612385999994,
+      "destination": {
+        "chunks_down": 1,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 2480,
+        "requests": 13,
+        "response_bytes": 66966,
+        "seconds": 4.741328323,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 62
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "904b27c1de94441d2b5654e94ae6f92063e13b3a432ec04db0c2a295c8d89312",
+            "revision": "a3c817d0d558507b297544b1258dbc45",
+            "size": 65536
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 0.003065227
+      },
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-browser-table-r2.csv",
+      "type": "text/csv",
+      "size": 65536,
+      "expected_sha256": "904b27c1de94441d2b5654e94ae6f92063e13b3a432ec04db0c2a295c8d89312",
+      "local_save_seconds": 0.1785522820000042,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 5.9523992430000074,
+        "requests": 17,
+        "request_bytes": 3254,
+        "response_bytes": 2431,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "chunk_seconds": 0.3468213280000054,
+        "http_errors": []
+      },
+      "source_total_seconds": 6.130999480999992,
+      "destination": {
+        "chunks_down": 1,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 2515,
+        "requests": 13,
+        "response_bytes": 66966,
+        "seconds": 4.220116399,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 63
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "904b27c1de94441d2b5654e94ae6f92063e13b3a432ec04db0c2a295c8d89312",
+            "revision": "61d376e3ab6f0af466ad020697152bc8",
+            "size": 65536
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 0.00414278
+      },
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-browser-text-r1.txt",
+      "type": "text/plain",
+      "size": 1048576,
+      "expected_sha256": "591849e70f6d767c46e32f2de8e496264e6c6328ca4bc0f0ed692be254f199a7",
+      "local_save_seconds": 0.47138986199999633,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 6.2559272629999905,
+        "requests": 18,
+        "request_bytes": 3397,
+        "response_bytes": 2431,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "chunk_seconds": 1.2265742089999985,
+        "http_errors": []
+      },
+      "source_total_seconds": 6.727356469999998,
+      "destination": {
+        "chunks_down": 1,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 2550,
+        "requests": 13,
+        "response_bytes": 1050006,
+        "seconds": 4.565146383,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 64
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "591849e70f6d767c46e32f2de8e496264e6c6328ca4bc0f0ed692be254f199a7",
+            "revision": "14d6be60f9f5b5d0aa8322c9c0880df7",
+            "size": 1048576
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 0.024278841
+      },
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-browser-text-r2.txt",
+      "type": "text/plain",
+      "size": 1048576,
+      "expected_sha256": "591849e70f6d767c46e32f2de8e496264e6c6328ca4bc0f0ed692be254f199a7",
+      "local_save_seconds": 0.5708860879999993,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 6.242143261999998,
+        "requests": 19,
+        "request_bytes": 3450,
+        "response_bytes": 2438,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "chunk_seconds": 1.3202467620000098,
+        "http_errors": []
+      },
+      "source_total_seconds": 6.813079127000004,
+      "destination": {
+        "chunks_down": 1,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 2585,
+        "requests": 13,
+        "response_bytes": 1050006,
+        "seconds": 6.553835334,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 65
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "591849e70f6d767c46e32f2de8e496264e6c6328ca4bc0f0ed692be254f199a7",
+            "revision": "9568b6da80f099f48ebfbddb63257f39",
+            "size": 1048576
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 0.018573851
+      },
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-browser-document-r1.pdf",
+      "type": "application/pdf",
+      "size": 1048576,
+      "expected_sha256": "da5491646f6da113867ec6f59959e58bcb97f925a81c01c6cf9066ab059d25bd",
+      "local_save_seconds": 0.4108807400000078,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 5.905138558999999,
+        "requests": 18,
+        "request_bytes": 3376,
+        "response_bytes": 2455,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "chunk_seconds": 0.653773067999995,
+        "http_errors": []
+      },
+      "source_total_seconds": 6.316070044000007,
+      "destination": {
+        "chunks_down": 1,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 2629,
+        "requests": 14,
+        "response_bytes": 1050025,
+        "seconds": 6.556277126,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 66
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "da5491646f6da113867ec6f59959e58bcb97f925a81c01c6cf9066ab059d25bd",
+            "revision": "afe2c0656cd2fd0fe65b6c5e18ab7c82",
+            "size": 1048576
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 0.033391777
+      },
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-browser-document-r2.pdf",
+      "type": "application/pdf",
+      "size": 1048576,
+      "expected_sha256": "da5491646f6da113867ec6f59959e58bcb97f925a81c01c6cf9066ab059d25bd",
+      "local_save_seconds": 0.5605966600000102,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 6.249581230000011,
+        "requests": 18,
+        "request_bytes": 3411,
+        "response_bytes": 2449,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "chunk_seconds": 0.7986448930000187,
+        "http_errors": []
+      },
+      "source_total_seconds": 6.810221066000013,
+      "destination": {
+        "chunks_down": 1,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 2664,
+        "requests": 14,
+        "response_bytes": 1050025,
+        "seconds": 6.700165034,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 67
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "da5491646f6da113867ec6f59959e58bcb97f925a81c01c6cf9066ab059d25bd",
+            "revision": "f6d50df09be08e00c76adaf20e769304",
+            "size": 1048576
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 0.029068191
+      },
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-browser-photo-r1.png",
+      "type": "image/png",
+      "size": 1046345,
+      "expected_sha256": "4825de148acedaa0de0790e783a066ae9d5dd6b821b7358e2ba9715e16e86c4c",
+      "local_save_seconds": 0.3406299310000031,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 6.090747964000009,
+        "requests": 18,
+        "request_bytes": 3550,
+        "response_bytes": 2446,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "chunk_seconds": 0.6589432990000059,
+        "http_errors": []
+      },
+      "source_total_seconds": 6.431447347000009,
+      "destination": {
+        "chunks_down": 1,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 2699,
+        "requests": 14,
+        "response_bytes": 1047790,
+        "seconds": 6.042386217,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 68
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "4825de148acedaa0de0790e783a066ae9d5dd6b821b7358e2ba9715e16e86c4c",
+            "revision": "bc33f26fb5df5885c55d31376e4e159b",
+            "size": 1046345
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 0.02846894
+      },
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-browser-photo-r2.png",
+      "type": "image/png",
+      "size": 1046345,
+      "expected_sha256": "4825de148acedaa0de0790e783a066ae9d5dd6b821b7358e2ba9715e16e86c4c",
+      "local_save_seconds": 0.3530974619999761,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 6.176685179000022,
+        "requests": 18,
+        "request_bytes": 3477,
+        "response_bytes": 2442,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "chunk_seconds": 0.8326668350000109,
+        "http_errors": []
+      },
+      "source_total_seconds": 6.529854156999995,
+      "destination": {
+        "chunks_down": 1,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 2734,
+        "requests": 14,
+        "response_bytes": 1047790,
+        "seconds": 4.98187524,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 69
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "4825de148acedaa0de0790e783a066ae9d5dd6b821b7358e2ba9715e16e86c4c",
+            "revision": "9ea626a3511f8aa984ff8479c028d580",
+            "size": 1046345
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 0.047135938
+      },
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-browser-archive-r1.zip",
+      "type": "application/zip",
+      "size": 1048576,
+      "expected_sha256": "fe553e6a109d1664b752b644fd80248c7d9a1ab1dd7d92e9a3fc2d130ae2a376",
+      "local_save_seconds": 0.46740162399999097,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 5.5693916809999795,
+        "requests": 18,
+        "request_bytes": 3512,
+        "response_bytes": 2448,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "chunk_seconds": 0.7065757309999899,
+        "http_errors": []
+      },
+      "source_total_seconds": 6.036818050000002,
+      "destination": {
+        "chunks_down": 1,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 2769,
+        "requests": 14,
+        "response_bytes": 1050021,
+        "seconds": 6.401498273,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 70
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "fe553e6a109d1664b752b644fd80248c7d9a1ab1dd7d92e9a3fc2d130ae2a376",
+            "revision": "917a10cc800134f267453828e179ef2f",
+            "size": 1048576
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 0.022173795
+      },
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-browser-archive-r2.zip",
+      "type": "application/zip",
+      "size": 1048576,
+      "expected_sha256": "fe553e6a109d1664b752b644fd80248c7d9a1ab1dd7d92e9a3fc2d130ae2a376",
+      "local_save_seconds": 0.289793147999997,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 5.38261338700002,
+        "requests": 19,
+        "request_bytes": 3547,
+        "response_bytes": 2448,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "chunk_seconds": 0.8154764620000206,
+        "http_errors": []
+      },
+      "source_total_seconds": 5.672430112000002,
+      "destination": {
+        "chunks_down": 1,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 2804,
+        "requests": 14,
+        "response_bytes": 1050021,
+        "seconds": 5.864852135,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 71
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "fe553e6a109d1664b752b644fd80248c7d9a1ab1dd7d92e9a3fc2d130ae2a376",
+            "revision": "fca71d318fe7eb52d63709c4002b686c",
+            "size": 1048576
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 0.032961679
+      },
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-browser-binary-8MiB-r1.bin",
+      "type": "application/octet-stream",
+      "size": 8388608,
+      "expected_sha256": "547e0f849e7dc1699a0295a7781f4de80e8f4ed844743482301132913bf35dd8",
+      "local_save_seconds": 2.030777976000012,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 9.891146684999985,
+        "requests": 20,
+        "request_bytes": 3782,
+        "response_bytes": 2456,
+        "chunks_up": 2,
+        "chunks_down": 0,
+        "chunk_seconds": 5.112057818000001,
+        "http_errors": []
+      },
+      "source_total_seconds": 11.921966314999997,
+      "destination": {
+        "chunks_down": 2,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 2839,
+        "requests": 15,
+        "response_bytes": 8390148,
+        "seconds": 8.566723267,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 72
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "547e0f849e7dc1699a0295a7781f4de80e8f4ed844743482301132913bf35dd8",
+            "revision": "a159957772e4fefe68d0774c753fd86c",
+            "size": 8388608
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 0.145437615
+      },
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-browser-binary-32MiB-r1.bin",
+      "type": "application/octet-stream",
+      "size": 33554432,
+      "expected_sha256": "945d5c96ed65bea89918719bc2682b8f23cc7496e2bdd70286e691dacd4f13d6",
+      "local_save_seconds": 6.830989850000012,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 25.511448681000008,
+        "requests": 30,
+        "request_bytes": 4581,
+        "response_bytes": 2455,
+        "chunks_up": 8,
+        "chunks_down": 0,
+        "chunk_seconds": 20.123488291000015,
+        "http_errors": []
+      },
+      "source_total_seconds": 32.342484673,
+      "destination": {
+        "chunks_down": 8,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 2874,
+        "requests": 21,
+        "response_bytes": 33556494,
+        "seconds": 20.209860059,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 73
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "945d5c96ed65bea89918719bc2682b8f23cc7496e2bdd70286e691dacd4f13d6",
+            "revision": "b471a57baba6ab9912fb40dc7ea2e2c4",
+            "size": 33554432
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 0.517492759
+      },
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-browser-binary-64MiB-r1.bin",
+      "type": "application/octet-stream",
+      "size": 67108864,
+      "expected_sha256": "c9f8e7985e93145c0c44777e6c67351f85788d3e2a984bede31cedd7f74daaa2",
+      "local_save_seconds": 1.201331295,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 40.585231949000004,
+        "requests": 41,
+        "request_bytes": 5014,
+        "response_bytes": 3579,
+        "chunks_up": 16,
+        "chunks_down": 0,
+        "chunk_seconds": 34.12377426999999,
+        "http_errors": []
+      },
+      "source_total_seconds": 41.786978856000005,
+      "destination": {
+        "chunks_down": 16,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 2909,
+        "requests": 29,
+        "response_bytes": 67111626,
+        "seconds": 31.375182588,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 74
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "c9f8e7985e93145c0c44777e6c67351f85788d3e2a984bede31cedd7f74daaa2",
+            "revision": "bf8f50ac3071d92bd6d6346ab8547a76",
+            "size": 67108864
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 1.001544073
+      },
+      "integrity_ok": true
+    },
+    {
+      "direction": "go-to-browser",
+      "name": "relaybench-20261012-go-tiny.txt",
+      "type": "text/plain",
+      "size": 1024,
+      "expected_sha256": "b39d643f95378c5c8751c81eb03b17ce423ebe79bcdcd7763a572f8bc0bc7c38",
+      "local_save": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "revision": "a36377e871090d3a4eca3f02cae1bf24",
+        "seconds": 0.002531108
+      },
+      "source": {
+        "chunks_down": 0,
+        "chunks_up": 1,
+        "http_errors": null,
+        "request_bytes": 4685,
+        "requests": 16,
+        "response_bytes": 1395,
+        "seconds": 5.338941134,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 75
+        }
+      },
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 4.899841010999997,
+        "requests": 16,
+        "request_bytes": 3040,
+        "response_bytes": 3489,
+        "chunks_up": 0,
+        "chunks_down": 1,
+        "chunk_seconds": 0.3026931820000027,
+        "http_errors": []
+      },
+      "received_count": 1,
+      "received_sha256": "b39d643f95378c5c8751c81eb03b17ce423ebe79bcdcd7763a572f8bc0bc7c38",
+      "integrity_ok": true
+    },
+    {
+      "direction": "go-to-browser",
+      "name": "relaybench-20261012-go-table.csv",
+      "type": "text/csv",
+      "size": 65536,
+      "expected_sha256": "904b27c1de94441d2b5654e94ae6f92063e13b3a432ec04db0c2a295c8d89312",
+      "local_save": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "revision": "04c78ee7fabc0842638da8fcce4321fa",
+        "seconds": 0.004211143
+      },
+      "source": {
+        "chunks_down": 0,
+        "chunks_up": 1,
+        "http_errors": null,
+        "request_bytes": 69232,
+        "requests": 16,
+        "response_bytes": 1395,
+        "seconds": 4.81634253,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 76
+        }
+      },
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 4.846589550999997,
+        "requests": 16,
+        "request_bytes": 3076,
+        "response_bytes": 2378,
+        "chunks_up": 0,
+        "chunks_down": 1,
+        "chunk_seconds": 0.7496041740000073,
+        "http_errors": [
+          {
+            "path": "/v1/blobs/7321a95a72f3a0c09d9c908a666e8693/chunks/0",
+            "failed": "net::ERR_ABORTED"
+          }
+        ]
+      },
+      "received_count": 1,
+      "received_sha256": "904b27c1de94441d2b5654e94ae6f92063e13b3a432ec04db0c2a295c8d89312",
+      "integrity_ok": true
+    },
+    {
+      "direction": "go-to-browser",
+      "name": "relaybench-20261012-go-text.txt",
+      "type": "text/plain",
+      "size": 1048576,
+      "expected_sha256": "591849e70f6d767c46e32f2de8e496264e6c6328ca4bc0f0ed692be254f199a7",
+      "local_save": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "revision": "c1d3ab417488ed0447a60c928cdc01cd",
+        "seconds": 0.014442445
+      },
+      "source": {
+        "chunks_down": 0,
+        "chunks_up": 1,
+        "http_errors": null,
+        "request_bytes": 1052311,
+        "requests": 16,
+        "response_bytes": 1399,
+        "seconds": 6.243287018,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 77
+        }
+      },
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 6.429925046000004,
+        "requests": 17,
+        "request_bytes": 3228,
+        "response_bytes": 2079,
+        "chunks_up": 0,
+        "chunks_down": 1,
+        "chunk_seconds": 1.7773942430000025,
+        "http_errors": [
+          {
+            "path": "/v1/sync/relay/device",
+            "failed": "net::ERR_ABORTED"
+          },
+          {
+            "path": "/v1/blobs/8cad33953a3d9ad05fc1416d05189dba/chunks/0",
+            "failed": "net::ERR_ABORTED"
+          }
+        ]
+      },
+      "received_count": 1,
+      "received_sha256": "591849e70f6d767c46e32f2de8e496264e6c6328ca4bc0f0ed692be254f199a7",
+      "integrity_ok": true
+    },
+    {
+      "direction": "go-to-browser",
+      "name": "relaybench-20261012-go-document.pdf",
+      "type": "application/pdf",
+      "size": 1048576,
+      "expected_sha256": "da5491646f6da113867ec6f59959e58bcb97f925a81c01c6cf9066ab059d25bd",
+      "local_save": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "revision": "ed931aefb278afc1a5d242aad2a99ad3",
+        "seconds": 0.013067794
+      },
+      "source": {
+        "chunks_down": 0,
+        "chunks_up": 1,
+        "http_errors": null,
+        "request_bytes": 1052350,
+        "requests": 16,
+        "response_bytes": 1403,
+        "seconds": 5.3273516260000005,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 78
+        }
+      },
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 6.246325954,
+        "requests": 16,
+        "request_bytes": 3146,
+        "response_bytes": 2392,
+        "chunks_up": 0,
+        "chunks_down": 1,
+        "chunk_seconds": 1.7603067909999954,
+        "http_errors": [
+          {
+            "path": "/v1/blobs/bcaa194956a0e72c0601126d58a12e25/chunks/0",
+            "failed": "net::ERR_ABORTED"
+          }
+        ]
+      },
+      "received_count": 1,
+      "received_sha256": "da5491646f6da113867ec6f59959e58bcb97f925a81c01c6cf9066ab059d25bd",
+      "integrity_ok": true
+    },
+    {
+      "direction": "go-to-browser",
+      "name": "relaybench-20261012-go-photo.png",
+      "type": "image/png",
+      "size": 1046345,
+      "expected_sha256": "4825de148acedaa0de0790e783a066ae9d5dd6b821b7358e2ba9715e16e86c4c",
+      "local_save": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "revision": "834f105fadcbcdc692c192f359873f80",
+        "seconds": 0.018706035
+      },
+      "source": {
+        "chunks_down": 0,
+        "chunks_up": 1,
+        "http_errors": null,
+        "request_bytes": 1050150,
+        "requests": 16,
+        "response_bytes": 1399,
+        "seconds": 5.720092587,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 79
+        }
+      },
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 5.785453382999986,
+        "requests": 17,
+        "request_bytes": 3289,
+        "response_bytes": 2383,
+        "chunks_up": 0,
+        "chunks_down": 1,
+        "chunk_seconds": 1.670331141999981,
+        "http_errors": [
+          {
+            "path": "/v1/blobs/f9d05438fbe1b9637cd49a401343e0ef/chunks/0",
+            "failed": "net::ERR_ABORTED"
+          }
+        ]
+      },
+      "received_count": 1,
+      "received_sha256": "4825de148acedaa0de0790e783a066ae9d5dd6b821b7358e2ba9715e16e86c4c",
+      "integrity_ok": true
+    },
+    {
+      "direction": "go-to-browser",
+      "name": "relaybench-20261012-go-archive.zip",
+      "type": "application/zip",
+      "size": 1048576,
+      "expected_sha256": "fe553e6a109d1664b752b644fd80248c7d9a1ab1dd7d92e9a3fc2d130ae2a376",
+      "local_save": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "revision": "4f0f55f133be9152b8a058cbd08238e8",
+        "seconds": 0.009340586
+      },
+      "source": {
+        "chunks_down": 0,
+        "chunks_up": 1,
+        "http_errors": null,
+        "request_bytes": 1052420,
+        "requests": 16,
+        "response_bytes": 1403,
+        "seconds": 5.6450097,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 80
+        }
+      },
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 5.522179097999993,
+        "requests": 16,
+        "request_bytes": 3216,
+        "response_bytes": 2383,
+        "chunks_up": 0,
+        "chunks_down": 1,
+        "chunk_seconds": 0.8000334330000042,
+        "http_errors": [
+          {
+            "path": "/v1/blobs/61cf69660e853f348dae1bbde01d0995/chunks/0",
+            "failed": "net::ERR_ABORTED"
+          }
+        ]
+      },
+      "received_count": 1,
+      "received_sha256": "fe553e6a109d1664b752b644fd80248c7d9a1ab1dd7d92e9a3fc2d130ae2a376",
+      "integrity_ok": true
+    },
+    {
+      "direction": "go-to-browser",
+      "name": "relaybench-20261012-go-binary-8MiB.bin",
+      "type": "application/octet-stream",
+      "size": 8388608,
+      "expected_sha256": "547e0f849e7dc1699a0295a7781f4de80e8f4ed844743482301132913bf35dd8",
+      "local_save": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "revision": "51f76c4684d70b0c45a2c0cedfdf12c4",
+        "seconds": 0.089176632
+      },
+      "source": {
+        "chunks_down": 0,
+        "chunks_up": 2,
+        "http_errors": null,
+        "request_bytes": 8392587,
+        "requests": 18,
+        "response_bytes": 1418,
+        "seconds": 10.00173518,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 81
+        }
+      },
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 10.318088420999993,
+        "requests": 17,
+        "request_bytes": 3335,
+        "response_bytes": 8391172,
+        "chunks_up": 0,
+        "chunks_down": 2,
+        "chunk_seconds": 5.6011245660000135,
+        "http_errors": []
+      },
+      "received_count": 1,
+      "received_sha256": "547e0f849e7dc1699a0295a7781f4de80e8f4ed844743482301132913bf35dd8",
+      "integrity_ok": true
+    },
+    {
+      "direction": "go-to-browser",
+      "name": "relaybench-20261012-go-binary-32MiB.bin",
+      "type": "application/octet-stream",
+      "size": 33554432,
+      "expected_sha256": "945d5c96ed65bea89918719bc2682b8f23cc7496e2bdd70286e691dacd4f13d6",
+      "local_save": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "revision": "dfea7e046fab85a7054cff8598b6b915",
+        "seconds": 0.192258599
+      },
+      "source": {
+        "chunks_down": 0,
+        "chunks_up": 8,
+        "http_errors": null,
+        "request_bytes": 33558972,
+        "requests": 24,
+        "response_bytes": 1422,
+        "seconds": 21.795766104,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 82
+        }
+      },
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 22.81969860600002,
+        "requests": 27,
+        "request_bytes": 3888,
+        "response_bytes": 29363142,
+        "chunks_up": 0,
+        "chunks_down": 8,
+        "chunk_seconds": 17.19991469200002,
+        "http_errors": [
+          {
+            "path": "/v1/blobs/c51124735c25be1eb68cf207cb2548c0/chunks/7",
+            "failed": "net::ERR_ABORTED"
+          }
+        ]
+      },
+      "received_count": 1,
+      "received_sha256": "945d5c96ed65bea89918719bc2682b8f23cc7496e2bdd70286e691dacd4f13d6",
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-20261012-duplicate.zip",
+      "type": "application/zip",
+      "size": 1048576,
+      "expected_sha256": "fe553e6a109d1664b752b644fd80248c7d9a1ab1dd7d92e9a3fc2d130ae2a376",
+      "local_save_seconds": 0.2977578510000021,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 6.184655079999997,
+        "requests": 19,
+        "request_bytes": 3964,
+        "response_bytes": 2533,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "chunk_seconds": 0.7000768629999947,
+        "http_errors": []
+      },
+      "source_total_seconds": 6.482508996999997,
+      "destination": {
+        "chunks_down": 1,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 3233,
+        "requests": 15,
+        "response_bytes": 1050020,
+        "seconds": 7.551576916,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 83
+        }
+      },
+      "destination_verification": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "matches": [
+          {
+            "hash": "fe553e6a109d1664b752b644fd80248c7d9a1ab1dd7d92e9a3fc2d130ae2a376",
+            "revision": "089018d468add4b7400a9e6a64392d61",
+            "size": 1048576
+          }
+        ],
+        "request_bytes": 0,
+        "requests": 0,
+        "response_bytes": 0,
+        "seconds": 0.035425572
+      },
+      "integrity_ok": true
+    }
+  ],
+  "checks": [
+    {
+      "check": "same file same name selected twice",
+      "second_upload": {
+        "seconds": 11.690466809000005,
+        "requests": 33,
+        "request_bytes": 7395,
+        "response_bytes": 5066,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "chunk_seconds": 0.7778712640000158,
+        "http_errors": []
+      },
+      "matches": [
+        {
+          "hash": "fe553e6a109d1664b752b644fd80248c7d9a1ab1dd7d92e9a3fc2d130ae2a376",
+          "revision": "bcc0eb233ffa907276b5f69b4a494a03",
+          "size": 1048576
+        },
+        {
+          "hash": "fe553e6a109d1664b752b644fd80248c7d9a1ab1dd7d92e9a3fc2d130ae2a376",
+          "revision": "089018d468add4b7400a9e6a64392d61",
+          "size": 1048576
+        }
+      ]
+    },
+    {
+      "check": "no-edit sync 1",
+      "browser": {
+        "seconds": 4.528553775000008,
+        "requests": 14,
+        "request_bytes": 3400,
+        "response_bytes": 1582,
+        "chunks_up": 0,
+        "chunks_down": 0,
+        "chunk_seconds": 0,
+        "http_errors": []
+      },
+      "go": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 3288,
+        "requests": 11,
+        "response_bytes": 549,
+        "seconds": 3.246984747,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 84
+        }
+      }
+    },
+    {
+      "check": "no-edit sync 2",
+      "browser": {
+        "seconds": 4.788526394000044,
+        "requests": 14,
+        "request_bytes": 3400,
+        "response_bytes": 1586,
+        "chunks_up": 0,
+        "chunks_down": 0,
+        "chunk_seconds": 0,
+        "http_errors": []
+      },
+      "go": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 3288,
+        "requests": 11,
+        "response_bytes": 549,
+        "seconds": 3.6177401160000002,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 84
+        }
+      }
+    },
+    {
+      "check": "no-edit sync 3",
+      "browser": {
+        "seconds": 3.554853538000025,
+        "requests": 14,
+        "request_bytes": 3400,
+        "response_bytes": 1586,
+        "chunks_up": 0,
+        "chunks_down": 0,
+        "chunk_seconds": 0,
+        "http_errors": []
+      },
+      "go": {
+        "chunks_down": 0,
+        "chunks_up": 0,
+        "http_errors": null,
+        "request_bytes": 3288,
+        "requests": 11,
+        "response_bytes": 549,
+        "seconds": 3.75537562,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "f51739d46128b779e9f114fda7b07028",
+          "queued": 84
+        }
+      }
+    }
+  ],
+  "initial": {
+    "settings": {
+      "mode": "temporary-relay",
+      "epoch": "f51739d46128b779e9f114fda7b07028",
+      "queued": 59
+    }
+  },
+  "go_device": "be252e28acbe2995da5c8bcf6096e110",
+  "setup_cleanup": {
+    "chunks_down": 0,
+    "chunks_up": 0,
+    "http_errors": null,
+    "request_bytes": 558,
+    "requests": 5,
+    "response_bytes": 737,
+    "seconds": 2.017404089
+  },
+  "live_assets": [
+    "/assets/index-DeTBR0Gk.js"
+  ],
+  "bootstrap": {
+    "chunks_down": 0,
+    "chunks_up": 0,
+    "http_errors": null,
+    "request_bytes": 2894,
+    "requests": 10,
+    "response_bytes": 538,
+    "seconds": 2.8630561549999998,
+    "settings": {
+      "mode": "temporary-relay",
+      "epoch": "f51739d46128b779e9f114fda7b07028",
+      "queued": 73
+    }
+  },
+  "initial_relay": {
+    "status": 200,
+    "body": {
+      "mode": "temporary-relay",
+      "epoch": "f51739d46128b779e9f114fda7b07028",
+      "queued": 59
+    }
+  },
+  "browser_device": "d030468cebd51e5ae831ca2e5cd8914d",
+  "native_initial": {
+    "chunks_down": 0,
+    "chunks_up": 0,
+    "http_errors": null,
+    "matches": null,
+    "request_bytes": 0,
+    "requests": 0,
+    "response_bytes": 0,
+    "seconds": 0.01753368
+  },
+  "harness_interruptions": [
+    "Cannot set buffer larger than 50Mb, please write it to a file and pass its path instead."
+  ],
+  "final_relay": {
+    "status": 200,
+    "body": {
+      "mode": "temporary-relay",
+      "epoch": "f51739d46128b779e9f114fda7b07028",
+      "queued": 84
+    }
+  },
+  "native_final": {
+    "chunks_down": 0,
+    "chunks_up": 0,
+    "http_errors": null,
+    "matches": null,
+    "request_bytes": 0,
+    "requests": 0,
+    "response_bytes": 0,
+    "seconds": 0.00405191
+  },
+  "summary": {
+    "benchmark_heads": 25,
+    "chunks_down": 0,
+    "chunks_up": 0,
+    "device": "be252e28acbe2995da5c8bcf6096e110",
+    "http_errors": null,
+    "request_bytes": 0,
+    "requests": 0,
+    "response_bytes": 0,
+    "seconds": 0.004644841
+  },
+  "finished": "2026-10-12T18:26:23.405Z"
+}
