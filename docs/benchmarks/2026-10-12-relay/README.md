@@ -50,3 +50,5 @@ Measured 2026-10-12T18:15:38.651Z through 2026-10-12T18:26:23.405Z. Relay: `http
 - The benchmark created only documents named `relaybench-20261012-*`. They remain available locally in the benchmark stores and queued for your existing devices. No preexisting documents were edited or deleted. Temporary benchmark device cleanup is recorded separately in `cleanup.json`.
 
 Raw timing and hashes: [transfers.csv](transfers.csv). Request counts, errors, repeat-sync checks, and relay settings: [results.json](results.json). Private account bytes, passwords, bearer tokens, user-document names and browser screenshots are excluded from these artifacts.
+
+The [local relay comparison](../2026-10-13-local-relay/README.md) reused this harness and its fixtures. The Go no-edit sync median fell from 3.62s to 0.022s; adding 300 ms per sequential request reproduced a 3.35s floor. That report records the request chain, browser automation overhead, and separate default-rate-limit control.

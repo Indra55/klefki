@@ -108,19 +108,20 @@ A live Render relay benchmark on **12 October 2026** completed **24 timed
 transfers** across synthetic TXT, CSV, PDF, PNG, ZIP, and binary files from
 1 KiB to 64 MiB. Every received file matched its source SHA-256 hash.
 
-Browser → relay → Go sync core, including sync protocol overhead:
+The same harness and fixtures were run against a local relay on **13 October
+2026**. Browser → relay → Go sync core timings, including sync protocol overhead:
 
-| File | Size | Upload sync | Receive sync |
-| --- | ---: | ---: | ---: |
-| TXT | 1 KiB | 5.33s | 4.36s |
-| CSV | 64 KiB | 6.00s | 4.48s |
-| TXT | 1 MiB | 6.25s | 5.56s |
-| Binary | 8 MiB | 9.89s | 8.57s |
-| Binary | 32 MiB | 25.51s | 20.21s |
-| Binary | 64 MiB | 40.59s | 31.38s |
+| File | Size | Hosted upload | Local upload | Hosted receive | Local receive |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| TXT | 1 KiB | 5.33s | 0.583s | 4.36s | 0.038s |
+| CSV | 64 KiB | 6.00s | 0.562s | 4.48s | 0.036s |
+| TXT | 1 MiB | 6.25s | 0.559s | 5.56s | 0.044s |
+| Binary | 8 MiB | 9.89s | 0.795s | 8.57s | 0.203s |
+| Binary | 32 MiB | 25.51s | 1.553s | 20.21s | 0.631s |
+| Binary | 64 MiB | 40.59s | 2.479s | 31.38s | 1.089s |
 
-At 64 MiB, effective throughput was **1.58 MiB/s upload** and **2.04 MiB/s
-receive**. In the reverse direction, a 32 MiB file took 21.80s to upload from
+On the hosted relay, effective throughput at 64 MiB was **1.58 MiB/s upload**
+and **2.04 MiB/s receive**. In the reverse direction, a 32 MiB file took 21.80s to upload from
 the Go client and 22.82s to receive in the browser.
 
 Reimporting the same ZIP under the same name created two separate document
@@ -134,6 +135,15 @@ one trial each. Timings exclude automatic polling delays and local file import.
 Native desktop UI timing, receipt into the already running desktop store, and
 relay ciphertext cleanup were not verified in this session.
 [Full report, plots, and raw measurements](docs/benchmarks/2026-10-12-relay/README.md).
+
+The local relay reduced the Go no-edit sync median from **3.62s to 0.022s**.
+Adding 300 ms to each of 11 sequential requests (10 protocol requests plus one
+harness check) raised it to **3.35s**,
+supporting accumulated request latency as the main cause of the hosted floor.
+All 24 local transfers passed their hash checks. The local sweep used a higher
+request burst allowance; a default-limit control also received a 1 KiB file in
+0.039s. Browser UI timings include fixed automation waits.
+[Local comparison, request traces, and controlled latency results](docs/benchmarks/2026-10-13-local-relay/README.md).
 
 ## Security and privacy
 

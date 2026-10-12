@@ -1,0 +1,283 @@
+{
+  "rate_burst": 120,
+  "initial_history_seed_seconds": 61.212158654,
+  "initial_history_seed_http_errors": [
+    429
+  ],
+  "successful_transfer": {
+    "direction": "browser-to-go",
+    "name": "relaybench-20261013-browser-tiny-r1.txt",
+    "type": "text/plain",
+    "size": 1024,
+    "expected_sha256": "b39d643f95378c5c8751c81eb03b17ce423ebe79bcdcd7763a572f8bc0bc7c38",
+    "local_save_seconds": 0.14711427599999297,
+    "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+    "browser_sync": {
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/v1/sync/status",
+          "start_ms": 102.36482400000386,
+          "end_ms": 110.40983499999857,
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/v1/sync/settings",
+          "start_ms": 194.1623680000048,
+          "end_ms": 200.37690100001055,
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/v1/sync/relay/device",
+          "start_ms": 207.10108000000764,
+          "end_ms": 214.7226590000064,
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/v1/sync/relay/need",
+          "start_ms": 223.3555020000058,
+          "end_ms": 232.44628000000375,
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/v1/sync/relay/need",
+          "start_ms": 232.26049300000886,
+          "end_ms": 243.52862800000003,
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/v1/sync/relay/need",
+          "start_ms": 243.41099800000666,
+          "end_ms": 253.54625400000077,
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/v1/sync/relay/need",
+          "start_ms": 252.5498910000024,
+          "end_ms": 266.39726900000824,
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/v1/blobs/59bf63b068a2effb88118d2b53821eee/chunks",
+          "start_ms": 272.1335240000044,
+          "end_ms": 287.8833900000027,
+          "status": 200
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/blobs/59bf63b068a2effb88118d2b53821eee/chunks/0",
+          "start_ms": 287.6793670000043,
+          "end_ms": 303.95760999999766,
+          "status": 201
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/sync/revisions/9d5e42b882dd6d06e59e56f8a42bb200",
+          "start_ms": 299.75849500000186,
+          "end_ms": 310.6381410000031,
+          "status": 201
+        },
+        {
+          "method": "GET",
+          "path": "/v1/sync/changes",
+          "start_ms": 318.414380000002,
+          "end_ms": 327.4384310000023,
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/v1/sync/provenance",
+          "start_ms": 327.05658600000606,
+          "end_ms": 335.2815680000058,
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/v1/sync/changes",
+          "start_ms": 340.76887400000123,
+          "end_ms": 350.3223799999978,
+          "status": 200
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/sync/cursor",
+          "start_ms": 350.197748999999,
+          "end_ms": 359.5259820000065,
+          "status": 204
+        },
+        {
+          "method": "GET",
+          "path": "/v1/sync/settings",
+          "start_ms": 362.2631180000026,
+          "end_ms": 368.9856209999998,
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/v1/sync/status",
+          "start_ms": 402.0859700000001,
+          "end_ms": 422.17332300001,
+          "status": 200
+        }
+      ],
+      "seconds": 0.5805355110000091,
+      "requests": 16,
+      "request_bytes": 3033,
+      "response_bytes": 3402,
+      "chunks_up": 1,
+      "chunks_down": 0,
+      "chunk_seconds": 0.01627824299999338,
+      "http_errors": [],
+      "foreground_span_seconds": 0.17482325299999502
+    },
+    "source_total_seconds": 0.7278410949999962,
+    "destination": {
+      "chunks_down": 1,
+      "chunks_up": 0,
+      "http_errors": null,
+      "injected_delay_ms": 0,
+      "request_bytes": 2410,
+      "requests": 13,
+      "response_bytes": 2450,
+      "seconds": 0.038617262,
+      "settings": {
+        "mode": "temporary-relay",
+        "epoch": "d31da4c0abba410f41d10d23910178ac",
+        "queued": 60
+      },
+      "trace": [
+        {
+          "method": "GET",
+          "path": "/v1/sync/settings",
+          "start_ms": 0.706,
+          "headers_ms": 2.116,
+          "elapsed_ms": 2.166,
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/v1/sync/relay/device",
+          "start_ms": 3.189,
+          "headers_ms": 2.084,
+          "elapsed_ms": 2.128,
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/v1/sync/relay/need",
+          "start_ms": 6.053,
+          "headers_ms": 2.096,
+          "elapsed_ms": 2.188,
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/v1/sync/relay/need",
+          "start_ms": 8.828,
+          "headers_ms": 1.982,
+          "elapsed_ms": 2.039,
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/v1/sync/relay/need",
+          "start_ms": 11.8,
+          "headers_ms": 3.872,
+          "elapsed_ms": 4.012,
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "path": "/v1/sync/relay/need",
+          "start_ms": 16.514,
+          "headers_ms": 3.537,
+          "elapsed_ms": 3.602,
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/v1/sync/changes",
+          "start_ms": 21.028,
+          "headers_ms": 2.683,
+          "elapsed_ms": 2.768,
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/v1/sync/provenance",
+          "start_ms": 23.985,
+          "headers_ms": 1.25,
+          "elapsed_ms": 1.295,
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/v1/blobs/59bf63b068a2effb88118d2b53821eee/chunks/0",
+          "start_ms": 26.332,
+          "headers_ms": 1.787,
+          "elapsed_ms": 1.88,
+          "status": 200
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/sync/cursor",
+          "start_ms": 29.845,
+          "headers_ms": 2.393,
+          "elapsed_ms": 2.409,
+          "status": 204
+        },
+        {
+          "method": "GET",
+          "path": "/v1/sync/changes",
+          "start_ms": 32.919,
+          "headers_ms": 2.265,
+          "elapsed_ms": 2.304,
+          "status": 200
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/sync/cursor",
+          "start_ms": 35.396,
+          "headers_ms": 1.568,
+          "elapsed_ms": 1.61,
+          "status": 204
+        },
+        {
+          "method": "GET",
+          "path": "/v1/sync/settings",
+          "start_ms": 37.054,
+          "headers_ms": 1.469,
+          "elapsed_ms": 1.512,
+          "status": 200
+        }
+      ]
+    },
+    "destination_verification": {
+      "chunks_down": 0,
+      "chunks_up": 0,
+      "http_errors": null,
+      "injected_delay_ms": 0,
+      "matches": [
+        {
+          "hash": "b39d643f95378c5c8751c81eb03b17ce423ebe79bcdcd7763a572f8bc0bc7c38",
+          "revision": "9d5e42b882dd6d06e59e56f8a42bb200",
+          "size": 1024
+        }
+      ],
+      "request_bytes": 0,
+      "requests": 0,
+      "response_bytes": 0,
+      "seconds": 0.00220203,
+      "trace": null
+    },
+    "integrity_ok": true
+  },
+  "note": "Priming exhausted the default burst and retried after 60 seconds. The first measured transfer subsequently completed without HTTP errors. This control was stopped before the next trial, which encountered rate limiting."
+}

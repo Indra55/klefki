@@ -1,0 +1,251 @@
+{
+  "host_idle_go_seconds": 3.6177401160000002,
+  "local_idle_go_seconds": 0.02213267,
+  "host_idle_browser_seconds": 4.528553775000008,
+  "local_idle_browser_seconds": 0.6174099519999945,
+  "local_browser_foreground_seconds": 0.11568910699999833,
+  "local_default_burst_receive_seconds": 0.038617262,
+  "latency_probes": [
+    {
+      "delay_ms": 0,
+      "runs": 5,
+      "median_seconds": 0.025458041,
+      "min_seconds": 0.020198015,
+      "max_seconds": 0.029139405,
+      "requests": 11
+    },
+    {
+      "delay_ms": 100,
+      "runs": 5,
+      "median_seconds": 1.134990466,
+      "min_seconds": 1.126485,
+      "max_seconds": 1.147994532,
+      "requests": 11
+    },
+    {
+      "delay_ms": 300,
+      "runs": 5,
+      "median_seconds": 3.347708275,
+      "min_seconds": 3.344761828,
+      "max_seconds": 3.349679171,
+      "requests": 11
+    }
+  ],
+  "request_chain": [
+    {
+      "method": "GET",
+      "path": "/v1/sync/settings",
+      "count": 2
+    },
+    {
+      "method": "POST",
+      "path": "/v1/sync/relay/device",
+      "count": 1
+    },
+    {
+      "method": "POST",
+      "path": "/v1/sync/relay/need",
+      "count": 6
+    },
+    {
+      "method": "GET",
+      "path": "/v1/sync/changes",
+      "count": 1
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/sync/cursor",
+      "count": 1
+    }
+  ],
+  "local_request_median_ms": 1.692,
+  "comparison": [
+    {
+      "direction": "browser-to-go",
+      "type": "text/plain",
+      "bytes": 1024,
+      "runs": 2,
+      "host_upload_seconds": 5.326624595500002,
+      "local_upload_seconds": 0.5834598035000004,
+      "host_receive_seconds": 4.3635374515,
+      "local_receive_seconds": 0.037709741000000005,
+      "local_browser_foreground_seconds": 0.16407827399999952
+    },
+    {
+      "direction": "browser-to-go",
+      "type": "text/csv",
+      "bytes": 65536,
+      "runs": 2,
+      "host_upload_seconds": 6.002240631500005,
+      "local_upload_seconds": 0.5616034990000007,
+      "host_receive_seconds": 4.480722361,
+      "local_receive_seconds": 0.035611594499999996,
+      "local_browser_foreground_seconds": 0.1501732965000001
+    },
+    {
+      "direction": "browser-to-go",
+      "type": "text/plain",
+      "bytes": 1048576,
+      "runs": 2,
+      "host_upload_seconds": 6.249035262499994,
+      "local_upload_seconds": 0.5588935119999996,
+      "host_receive_seconds": 5.5594908585,
+      "local_receive_seconds": 0.043739886000000006,
+      "local_browser_foreground_seconds": 0.16645610099999977
+    },
+    {
+      "direction": "browser-to-go",
+      "type": "application/pdf",
+      "bytes": 1048576,
+      "runs": 2,
+      "host_upload_seconds": 6.077359894500005,
+      "local_upload_seconds": 0.6863263399999997,
+      "host_receive_seconds": 6.62822108,
+      "local_receive_seconds": 0.061400030999999994,
+      "local_browser_foreground_seconds": 0.19647485950000101
+    },
+    {
+      "direction": "browser-to-go",
+      "type": "image/png",
+      "bytes": 1046345,
+      "runs": 2,
+      "host_upload_seconds": 6.133716571500015,
+      "local_upload_seconds": 0.6593116304999994,
+      "host_receive_seconds": 5.5121307285,
+      "local_receive_seconds": 0.046897056000000006,
+      "local_browser_foreground_seconds": 0.20442779550000068
+    },
+    {
+      "direction": "browser-to-go",
+      "type": "application/zip",
+      "bytes": 1048576,
+      "runs": 2,
+      "host_upload_seconds": 5.476002533999999,
+      "local_upload_seconds": 0.6647190269999974,
+      "host_receive_seconds": 6.133175204,
+      "local_receive_seconds": 0.0563302505,
+      "local_browser_foreground_seconds": 0.1957047599999987
+    },
+    {
+      "direction": "browser-to-go",
+      "type": "application/octet-stream",
+      "bytes": 8388608,
+      "runs": 1,
+      "host_upload_seconds": 9.891146684999985,
+      "local_upload_seconds": 0.7951385220000011,
+      "host_receive_seconds": 8.566723267,
+      "local_receive_seconds": 0.203147187,
+      "local_browser_foreground_seconds": 0.39039468199999827
+    },
+    {
+      "direction": "browser-to-go",
+      "type": "application/octet-stream",
+      "bytes": 33554432,
+      "runs": 1,
+      "host_upload_seconds": 25.511448681000008,
+      "local_upload_seconds": 1.553087907000001,
+      "host_receive_seconds": 20.209860059,
+      "local_receive_seconds": 0.631324444,
+      "local_browser_foreground_seconds": 1.166336608999998
+    },
+    {
+      "direction": "browser-to-go",
+      "type": "application/octet-stream",
+      "bytes": 67108864,
+      "runs": 1,
+      "host_upload_seconds": 40.585231949000004,
+      "local_upload_seconds": 2.479499128000003,
+      "host_receive_seconds": 31.375182588,
+      "local_receive_seconds": 1.089216637,
+      "local_browser_foreground_seconds": 2.054258962
+    },
+    {
+      "direction": "go-to-browser",
+      "type": "text/plain",
+      "bytes": 1024,
+      "runs": 1,
+      "host_upload_seconds": 5.338941134,
+      "local_upload_seconds": 0.03872902,
+      "host_receive_seconds": 4.899841010999997,
+      "local_receive_seconds": 0.6425762649999961,
+      "local_browser_foreground_seconds": 0.15997481400000105
+    },
+    {
+      "direction": "go-to-browser",
+      "type": "text/csv",
+      "bytes": 65536,
+      "runs": 1,
+      "host_upload_seconds": 4.81634253,
+      "local_upload_seconds": 0.054067625,
+      "host_receive_seconds": 4.846589550999997,
+      "local_receive_seconds": 0.6808410469999945,
+      "local_browser_foreground_seconds": 0.174731077000004
+    },
+    {
+      "direction": "go-to-browser",
+      "type": "text/plain",
+      "bytes": 1048576,
+      "runs": 1,
+      "host_upload_seconds": 6.243287018,
+      "local_upload_seconds": 0.079336416,
+      "host_receive_seconds": 6.429925046000004,
+      "local_receive_seconds": 0.7192908180000013,
+      "local_browser_foreground_seconds": 0.221558557999997
+    },
+    {
+      "direction": "go-to-browser",
+      "type": "application/pdf",
+      "bytes": 1048576,
+      "runs": 1,
+      "host_upload_seconds": 5.3273516260000005,
+      "local_upload_seconds": 0.089873616,
+      "host_receive_seconds": 6.246325954,
+      "local_receive_seconds": 0.7319760389999937,
+      "local_browser_foreground_seconds": 0.22106361700000707
+    },
+    {
+      "direction": "go-to-browser",
+      "type": "image/png",
+      "bytes": 1046345,
+      "runs": 1,
+      "host_upload_seconds": 5.720092587,
+      "local_upload_seconds": 0.088751667,
+      "host_receive_seconds": 5.785453382999986,
+      "local_receive_seconds": 0.6723115010000038,
+      "local_browser_foreground_seconds": 0.20042112199999973
+    },
+    {
+      "direction": "go-to-browser",
+      "type": "application/zip",
+      "bytes": 1048576,
+      "runs": 1,
+      "host_upload_seconds": 5.6450097,
+      "local_upload_seconds": 0.071063001,
+      "host_receive_seconds": 5.522179097999993,
+      "local_receive_seconds": 0.7111424800000022,
+      "local_browser_foreground_seconds": 0.19628891500000464
+    },
+    {
+      "direction": "go-to-browser",
+      "type": "application/octet-stream",
+      "bytes": 8388608,
+      "runs": 1,
+      "host_upload_seconds": 10.00173518,
+      "local_upload_seconds": 0.235240875,
+      "host_receive_seconds": 10.318088420999993,
+      "local_receive_seconds": 0.8189254480000018,
+      "local_browser_foreground_seconds": 0.3581701929999981
+    },
+    {
+      "direction": "go-to-browser",
+      "type": "application/octet-stream",
+      "bytes": 33554432,
+      "runs": 1,
+      "host_upload_seconds": 21.795766104,
+      "local_upload_seconds": 0.661675659,
+      "host_receive_seconds": 22.81969860600002,
+      "local_receive_seconds": 1.7251929659999952,
+      "local_browser_foreground_seconds": 1.1047299879999992
+    }
+  ]
+}
