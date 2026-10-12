@@ -10,6 +10,7 @@ export interface Stored {
     revision: Revision;
     pending: boolean;
     order: number;
+    origin?: string;
 }
 export interface Head {
     revision: Revision;
@@ -34,6 +35,7 @@ export function unlockRevision(master: Uint8Array, account: string, r: Revision)
 const req = <T>(r: IDBRequest<T>) => new Promise<T>((resolve, reject) => { r.onsuccess = () => resolve(r.result); r.onerror = () => reject(Error('Local klefki storage failed')); });
 const done = (tx: IDBTransaction) => new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onabort = tx.onerror = () => reject(Error('Local klefki transaction failed')); });
 export class Store {
+    onChange?: () => void;
     private constructor(readonly db: IDBDatabase, readonly account: c.Account) { }
     static async open(account: c.Account) {
         c.validateAccount(account);
@@ -45,7 +47,8 @@ export class Store {
         await store.transaction(['state'], 'readwrite', async (tx) => { const state = tx.objectStore('state'), old = await req(state.get('account')); if (old)
             c.check(old.account === account.account && old.descriptor === account.descriptor && old.password_wrapper === account.password_wrapper && old.recovery_wrapper === account.recovery_wrapper);
         else
-            state.put(account, 'account'); });
+            state.put(account, 'account');
+            const device = await req(state.get('relay-device')); if (!device) state.put(c.id(),'relay-device'); });
         return store;
     }
     close() { this.db.close(); }
@@ -85,6 +88,7 @@ export class Store {
     }
     async bind(origin: string) { await this.transaction(['state'], 'readwrite', async (tx) => { const s = tx.objectStore('state'), old = await req(s.get('origin')); c.check(old === undefined || old === origin); s.put(origin, 'origin'); }); }
     async all(): Promise<Stored[]> { return this.transaction(['revisions'], 'readonly', tx => req(tx.objectStore('revisions').getAll())); }
+    async origin(id: string): Promise<string> { const x: Stored | undefined = await this.transaction(['revisions'], 'readonly', tx => req(tx.objectStore('revisions').get(id))); return x?.origin || ''; }
     async revision(id: string): Promise<Revision> { c.validID(id); const x = await this.transaction(['revisions'], 'readonly', tx => req(tx.objectStore('revisions').get(id))); c.check(x); return x.revision; }
     async heads(master: Uint8Array): Promise<Head[]> { const all = await this.all(), parents = new Set(all.map(x => x.revision.base)), heads = all.filter(x => !parents.has(x.revision.id)); return heads.map(x => { const { metadata, key } = unlockRevision(master, this.account.account, x.revision); if (key)
         c.wipe(key); return { revision: x.revision, metadata, conflict: heads.filter(y => y.revision.object === x.revision.object).length > 1 }; }); }
@@ -99,7 +103,7 @@ export class Store {
     finally {
         c.wipe(key);
     } }
-    async commit(r: Revision, chunks: Uint8Array[], file: string | undefined, pending: boolean, sequence?: number) {
+    async commit(r: Revision, chunks: Uint8Array[], file: string | undefined, pending: boolean, sequence?: number, origin?: string) {
         validateRevision(r);
         await this.transaction(['revisions', 'chunks', 'state'], 'readwrite', async (tx) => {
             const revisions = tx.objectStore('revisions'), state = tx.objectStore('state'), blobs = tx.objectStore('chunks');
@@ -125,7 +129,8 @@ export class Store {
             if (!old) {
                 const order = (await req(state.get('order')) || 0) + 1;
                 state.put(order, 'order');
-                revisions.add({ revision: r, pending, order } satisfies Stored);
+                const source = pending ? await req(state.get('relay-device')) as string : origin;
+                revisions.add({ revision: r, pending, order, ...(source ? {origin:source} : {}) } satisfies Stored);
             }
             if (sequence !== undefined) {
                 const cursor = await req(state.get('cursor')) || 0;
@@ -133,6 +138,7 @@ export class Store {
                 state.put(sequence, 'cursor');
             }
         });
+        if (pending) this.onChange?.();
     }
     async acknowledge(id: string) { await this.transaction(['revisions'], 'readwrite', async (tx) => { const s = tx.objectStore('revisions'), x: Stored = await req(s.get(id)); c.check(x); x.pending = false; s.put(x); }); }
     async put(master: Uint8Array, m: c.Metadata, bytes?: Uint8Array, base?: Revision) {

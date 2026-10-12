@@ -144,6 +144,9 @@ func (s *Service) changed(x *session) {
 		s.pending = n
 		if s.config.Server != "" && !x.recovery {
 			s.syncState = "Pending"
+			if !s.syncInfo.Running {
+				s.syncInfo.Phase = "pending"
+			}
 		}
 	}
 	s.mu.Unlock()

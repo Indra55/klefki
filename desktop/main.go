@@ -77,7 +77,9 @@ func (a *App) event(e vd.Event) {
 		runtime.EventsEmit(a.ctx, "klefki:event", e)
 	}
 }
-func (a *App) State() vd.State { return a.service.State() }
+func (a *App) State() vd.State                      { return a.service.State() }
+func (a *App) SetSyncPanel(open bool)               { a.service.SetSyncPanel(open) }
+func (a *App) SetDeviceAlias(id, name string) error { return safe(a.service.SetDeviceAlias(id, name)) }
 func (a *App) Unlock(secret string, recovery bool) error {
 	return safe(a.service.Unlock(secret, recovery))
 }

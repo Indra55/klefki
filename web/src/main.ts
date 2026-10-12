@@ -9,6 +9,8 @@ import { Store, unlockRevision, type Head } from './store.ts';
 import * as semantic from './semantic.ts';
 import * as passkey from './passkey.ts';
 import { Remote, sync, setSyncMode, HTTPError, RelayWaiting } from './sync.ts';
+import {SyncView} from './sync-ui.ts';
+import {idleSync,addActivity,validateStatus,syncLabel,deviceName,receipt,presence,type SyncInfo,type SyncActivity,type ServerStatus} from '../../ui/sync-status.ts';
 const app = document.querySelector<HTMLDivElement>('#app')!;
 let account: c.Account | undefined, store: Store | undefined, master: Uint8Array | undefined, credential: Uint8Array | undefined, remote: Remote | undefined, controller: AbortController | undefined;
 let modelSetupController:AbortController|undefined;
@@ -18,15 +20,58 @@ const urls = new Set<string>();
 const previews = new Set<Uint8Array>();
 let waitingUpdate: ServiceWorkerRegistration | undefined, applyingUpdate = false;
 let view = 'All documents', tag = '', sort = preferences().defaultSort, settings: Section | null = null, feedback = '', syncState = 'Local only';
+let syncInfo:SyncInfo=idleSync(),syncActivity:SyncActivity[]=[],aliases:Record<string,string>={},syncDevice='',linkedDevices:string[]=[],lastSync=0;
+let syncRunning=false,syncRequested=false,registerRequested=false,syncTimer:number|undefined,monitorBusy=false,lastPresence=0,lastDeviceCheck=0;
+const syncView=new SyncView({sync:()=>void syncNow(),settings:()=>showSettings('sync'),panel:open=>{if(open){lastDeviceCheck=0;void monitorSync()}},alias:saveAlias});
+function renderSync(){
+    syncView.update({info:syncInfo,pending:pendingChanges,server:location.origin,aliases,self:syncDevice,activity:syncActivity,lastSync,devices:linkedDevices});
+    const label=document.querySelector('#settings-sync-label');if(label)label.textContent=syncLabel(syncInfo,syncDevice,aliases);
+    for(const el of document.querySelectorAll<HTMLElement>('[data-sync-device]'))el.textContent=deviceName(el.dataset.syncDevice!,aliases,syncInfo.peers?.devices,syncDevice);
+    for(const el of document.querySelectorAll<HTMLElement>('[data-sync-receipt]')){const d=syncInfo.peers?.devices.find(d=>d.device===el.dataset.syncReceipt);el.textContent=d?presence(d,Date.now(),syncInfo.lastDeviceCheck)+' · '+receipt(d,syncInfo.statusAvailable&&Date.now()-syncInfo.lastDeviceCheck<45000):'Status unknown';}
+}
+let pendingChanges=0;
+async function saveAlias(id:string,name:string){
+    c.validID(id);name=name.trim();c.check([...name].length<=64&&!/[\r\n\0]/.test(name));
+    const s=store!,g=generation,next={...aliases};if(name)next[id]=name;else delete next[id];c.check(Object.keys(next).length<=64);
+    await s.transaction(['state'],'readwrite',async tx=>{tx.objectStore('state').put(next,'device-aliases')});
+    if(g===generation){aliases=next;renderSync();}
+}
+function scheduleSync(){
+    syncRequested=true;window.clearTimeout(syncTimer);syncTimer=window.setTimeout(()=>{if(master&&document.visibilityState==='visible')void syncNow()},1000);
+}
+function syncErrorPhase(e:unknown){
+    if(e instanceof RelayWaiting)return 'waiting';
+    if(e instanceof HTTPError)return e.status===401||e.status===403?'auth':e.status===507?'full':e.status===408||e.status===504?'timeout':'error';
+    if(!navigator.onLine)return 'offline';
+    if(e instanceof DOMException&&e.name==='AbortError')return 'timeout';
+    return e instanceof TypeError?'unreachable':'error';
+}
+async function monitorSync(){
+    if(monitorBusy||!master||!remote||document.visibilityState!=='visible')return;
+    const r=remote,g=generation;monitorBusy=true;
+    try {
+        const now=Date.now();
+        if(syncDevice&&now-lastPresence>=(syncRunning?5000:15000)){
+            lastPresence=now;const p=syncInfo.progress;let phase=syncInfo.phase;if(['local','synced','pending','complete'].includes(phase))phase='idle';if(['auth','offline','unreachable','timeout','full'].includes(phase))phase='error';
+            try { await r.request('POST','/v1/sync/presence',{device:syncDevice,clientKind:matchMedia('(display-mode: standalone)').matches?'pwa':'web',phase,...(syncRunning&&p?{revision:p.revision,direction:p.direction,doneBytes:p.doneBytes,totalBytes:p.totalBytes}:{doneBytes:0,totalBytes:0})},1024,{background:true}); } catch {}
+        }
+        if(now-lastDeviceCheck>=(syncView.open?5000:30000)){
+            lastDeviceCheck=now;
+            try {const peers=validateStatus(c.strictJSON(c.decode(await r.request('GET','/v1/sync/status',undefined,32768,{background:true}))) as ServerStatus);if(g!==generation)return;syncInfo={...syncInfo,peers,statusAvailable:true,lastDeviceCheck:Date.now()};}
+            catch(e) {if(g===generation){const phase=syncErrorPhase(e);syncInfo={...syncInfo,statusAvailable:false,...(!syncRunning&&['auth','unreachable','offline','timeout'].includes(phase)?{phase}:{})};}}
+        }
+        if(g===generation)renderSync();
+    } finally {if(g===generation)monitorBusy=false;}
+}
 function download(bytes: Uint8Array, name: string, type = 'application/octet-stream') { const url = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type })); urls.add(url); const a = node('a'); a.href = url; a.download = name; a.click(); setTimeout(() => { URL.revokeObjectURL(url); urls.delete(url); }, 10000); }
 function message(text: string) {
     feedback = text;
     const status = document.querySelector('#status'); if (status) status.textContent = text;
 }
 function syncStatus(text: string) {
-    syncState = text;
-    const label = document.querySelector('[aria-label="Sync status"]');
-    if (label?.firstChild) label.firstChild.textContent = text;
+    syncState=text;
+    if(!syncRunning)syncInfo={...syncInfo,phase:text==='Synced'?'synced':text==='Local only'?'local':text.startsWith('Waiting')?'waiting':text==='Authentication required'?'auth':text==='Sync error'?'error':syncInfo.phase};
+    renderSync();
 }
 function showSettings(section: Section = 'appearance') { settings = section; void library().then(() => document.querySelector<HTMLHeadingElement>('.settings-heading h1')?.focus()); }
 function navigate(next: string) { settings = null; view = next; parent = null; tag = ''; filter = ''; void library(); }
@@ -36,15 +81,14 @@ function shell() {
     header.append(button('Klefki', () => { if (master) navigate('All documents'); }, 'brand'));
     if (master) {
         const actions = node('div', undefined, 'top-actions');
-        const syncMenu = menu(syncState, [{label: 'Sync now', run: () => void syncNow()}, {label: 'Connection settings', run: () => showSettings('sync')}]);
-        syncMenu.querySelector('summary')!.setAttribute('aria-label', 'Sync status');
+        syncView.mount(actions,root);
         const setting = iconButton('Settings', 'settings', () => showSettings(settings || 'appearance'), 'quiet navbar-settings'); setting.setAttribute('aria-pressed', String(!!settings));
         const locking = button('Lock',lock,'quiet lock'); locking.append(icon('lock',14));
-        actions.append(syncMenu, setting, locking); header.append(actions);
+        actions.append(setting, locking); header.append(actions);
     }
-    root.append(header); if (waitingUpdate?.waiting) offerUpdate(root); app.append(root); return root;
+    root.prepend(header); if (waitingUpdate?.waiting) offerUpdate(root); app.append(root); return root;
 }
-function lock() { closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
+function lock() { syncView.clear();window.clearTimeout(syncTimer);syncInfo=idleSync();syncActivity=[];aliases={};syncDevice='';linkedDevices=[];lastSync=0;syncRunning=syncRequested=registerRequested=monitorBusy=false;lastPresence=lastDeviceCheck=pendingChanges=0;closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
     c.wipe(master); if (credential)
     c.wipe(credential); master = credential = undefined; heads = []; store?.close(); store = undefined; release?.(); release = undefined; busy = false; parent = null; filter = ''; favorites = false; view = 'All documents'; tag = ''; settings = null; feedback = ''; syncState = 'Local only'; for (const url of urls)
     URL.revokeObjectURL(url); urls.clear(); for (const b of previews)
@@ -66,8 +110,7 @@ async function operation(fn: (key: Uint8Array, g: number) => Promise<void>) {
     }
     finally {
         c.wipe(key);
-        if (g === generation)
-            busy = false;
+        if (g === generation) {busy = false;syncInfo={...syncInfo,running:syncRunning};if(!syncRunning&&['complete','acknowledging'].includes(syncInfo.phase))syncInfo={...syncInfo,phase:'synced'};renderSync();if(syncRequested)scheduleSync();}
     }
 }
 async function claim(target: c.Account) {
@@ -91,15 +134,18 @@ async function enterKeys(target: c.Account, unlocked: passkey.Keys, g: number) {
         c.check(g === generation && account === target);
         opened = await Store.open(target);
         c.check(g === generation && account === target);
+        const local=await opened.relayState(),savedAliases=await opened.state<Record<string,string>>('device-aliases')||{};
+        c.check(g===generation&&account===target);
         master = unlocked.master;
         credential = unlocked.credential;
-        store = opened;
+        store = opened;syncDevice=local.device;aliases=savedAliases;
+        opened.onChange=()=>{if(g===generation){if(!syncRunning)syncInfo={...syncInfo,phase:'pending'};scheduleSync();renderSync();}};
         release = held;
         adopted = true;
         controller = new AbortController();
         localStorage.setItem('klefki-account', JSON.stringify(target));
         await refresh();
-        if (g === generation) lastActivity = Date.now();
+        if (g === generation) {lastActivity = Date.now();scheduleSync();}
     }
     catch (e) {
         if (adopted && g === generation) lock();
@@ -225,33 +271,44 @@ async function refresh() { if (!store || !master)
     return; const g = generation, next = await store.heads(master); if (g !== generation)
     return; heads = next; await library(); }
 async function connectRemote(register=false){
-    const s=store!, r=new Remote(location.origin,controller!.signal);
+    const s=store!,g=generation,r=new Remote(location.origin,controller!.signal);
     await s.bind(r.origin);
     await r.login(account!,credential!,register,await s.state('sync-mode')==='temporary-relay');
-    remote=r;
+    if(g!==generation)return;
+    r.observe=p=>{if(g!==generation)return;syncInfo={...syncInfo,progress:p,phase:p.phase,running:true};syncActivity=addActivity(syncActivity,p);renderSync();};
+    r.onContact=()=>{if(g===generation)syncInfo={...syncInfo,lastContact:Date.now()};};
+    remote=r;lastPresence=lastDeviceCheck=0;
 }
 async function syncNow(register = false) {
-    if (busy || !master) return;
-    syncStatus('Syncing');
-    await operation(async (key, g) => {
-        const s = store!;
-        if (!remote) {
-            await connectRemote(register);
-            if (g !== generation)
-                return;
-        }
-        try { await sync(s,key,remote!); }
+    if(!master)return;
+    if(busy||syncRunning){syncRequested=true;registerRequested ||= register;return;}
+    window.clearTimeout(syncTimer);syncRequested=false;register ||= registerRequested;registerRequested=false;
+    const g=generation,key=master.slice(),s=store!;busy=syncRunning=true;
+    syncState='Syncing';syncInfo={...syncInfo,phase:'connecting',running:true,progress:undefined};renderSync();
+    try {
+        if(!remote)await connectRemote(register);
+        if(g!==generation)return;
+        try {await sync(s,key,remote!);}
         catch(e){if(!(e instanceof HTTPError)||e.status!==401||await s.state('sync-mode')!=='temporary-relay')throw e;await connectRemote();await sync(s,key,remote!);}
-        if (g !== generation)
-            return;
-        syncStatus('Synced');
-        await refresh();
+        if(g!==generation)return;
+        lastSync=Date.now();syncInfo={...syncInfo,phase:'synced'};syncState='Synced';
+        message('Synced. All local changes are saved on the server.');
         if(await s.state('sync-mode')==='temporary-relay'){
             const status=await remote!.json<{queued:number}>('GET','/v1/sync/settings',undefined,1024);
-            syncStatus(status.queued ? 'Waiting for linked devices' : 'Synced');
+            syncState=status.queued?'Waiting for linked devices':'Synced';syncInfo={...syncInfo,phase:status.queued?'waiting':'synced'};
             message(status.queued?'Uploaded to the relay. Waiting for linked devices to save their copies.':'Synced. Delivered documents have been removed from the relay.');
-        }else message('Synced. All local changes are saved on the server.');
-    });
+        }
+        await refresh();
+    } catch(e) {
+        if(g!==generation)return;
+        const phase=syncErrorPhase(e);syncInfo={...syncInfo,phase};syncState=phase==='auth'?'Authentication required':phase==='waiting'?'Waiting for another device':'Sync error';
+        if(phase==='auth')remote=undefined;
+        message(e instanceof RelayWaiting?e.message:phase==='auth'?'Sign-in expired. Reconnect or register this store in Settings.':phase==='full'?'Relay storage is full. Sync the other linked devices to free space.':'Could not complete sync. Your local changes are kept.');
+        if(syncInfo.progress)syncActivity=addActivity(syncActivity,{...syncInfo.progress,phase,updatedAt:Date.now()});
+    } finally {
+        c.wipe(key);
+        if(g===generation){busy=syncRunning=false;syncInfo={...syncInfo,running:false};renderSync();lastDeviceCheck=0;void monitorSync();if(syncRequested)scheduleSync();}
+    }
 }
 function trashed(h: Head, seen = new Set<string>()): boolean { if (h.metadata.tags.includes('klefki:system:trash') && h.metadata.type === 'folder')
     return true; if (!h.metadata.parent || seen.has(h.revision.object))
@@ -263,6 +320,7 @@ async function library() {
     const prefs = semantic.preferences(account!.account);
     const mode = await s.state<string>('sync-mode') || 'persistent';
     const devices = await s.state<string[]>('relay-devices') || [], device = await s.state<string>('relay-device');
+    pendingChanges=pending;linkedDevices=devices;syncDevice=device||syncDevice;renderSync();
     const categoryByRevision = new Map<string, string>();
     if (prefs.enabled) {
         const key = master.slice();
@@ -281,7 +339,7 @@ async function library() {
     status.id = 'status'; status.setAttribute('role', 'status'); root.append(status);
     if (settings) {
         root.append(settingsPage({
-            section: settings, account: account!.account, pending, mode, devices, device,
+            section: settings, account: account!.account, pending, mode, devices, device, syncInfo,aliases,rename:saveAlias,
             changeSection: showSettings, back: () => { settings = null; void library(); },
             sync: register => void syncNow(register), exportAccount: () => download(c.accountBytes(account!), 'account.klefki'),
             setMode: mode => void operation(async (key, current) => {
@@ -404,7 +462,7 @@ async function addFiles(files: File[]) {
             try {
                 if (g !== generation) return;
                 await store!.put(key,{type:'file',name:file.name,parent:view === 'Folders' ? parent : null,tags:tag ? [tag] : [],favorite:false},bytes);
-                if (g === generation) { await refresh(); message('Saved locally. Sync to send encrypted changes.'); }
+                if (g === generation) { await refresh(); message('Saved locally. Encrypted changes will sync automatically.'); }
             } finally { c.wipe(bytes); }
         });
     }
@@ -536,8 +594,11 @@ for (const event of ['pointerdown', 'keydown'])
     document.addEventListener(event, () => { lastActivity = Date.now(); });
 setInterval(() => { if (master && Date.now() - lastActivity > preferences().idleMinutes * 60 * 1000)
     lock(); }, 1000);
-window.addEventListener('online', () => { if (master && !busy)
-    void syncNow(); });
+window.addEventListener('online',()=>{if(master)void syncNow()});
+window.addEventListener('offline',()=>{if(master){syncInfo={...syncInfo,phase:'offline',statusAvailable:false};renderSync();}});
+document.addEventListener('visibilitychange',()=>{if(!master)return;if(document.visibilityState==='visible'){lastPresence=lastDeviceCheck=0;void syncNow();void monitorSync();}else{window.clearTimeout(syncTimer);syncInfo={...syncInfo,statusAvailable:false};}});
+setInterval(()=>{if(master&&document.visibilityState==='visible')void syncNow()},60000);
+setInterval(()=>{if(master&&document.visibilityState==='visible'){renderSync();void monitorSync()}},1000);
 window.addEventListener('pagehide', lock);
 document.addEventListener('keydown', event => {
     if (!master || !(event.ctrlKey || event.metaKey)) return;

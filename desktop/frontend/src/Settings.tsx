@@ -3,6 +3,8 @@ import { ArrowLeft, ArrowUpRight, Cloud, LockKeyhole, Palette, Search } from 'lu
 import { api, errorMessage, type Preferences, type State } from './api';
 import { FingerprintIcon, type FingerprintAnimation } from './FingerprintIcon';
 import { SemanticSettings } from './Semantic';
+import {SyncDevices,syncInfo} from './SyncStatus';
+import {syncLabel} from '../../../ui/sync-status';
 
 export type SettingsSection = 'appearance' | 'privacy' | 'sync' | 'search';
 const sections = [
@@ -127,7 +129,7 @@ export function Settings({ state, section, onSectionChange, scan, onScanStart, o
 
         {section === 'sync' && <section aria-labelledby="sync-heading">
           <header className="settings-panel-heading"><h2 id="sync-heading">Sync & devices</h2><p>Keep the same encrypted library on your devices. You can still work offline.</p></header>
-          <div className="connection-status"><div><span>{state.sync}</span><p>{state.pending ? `${state.pending} ${state.pending === 1 ? 'change waiting' : 'changes waiting'} to sync` : 'No local changes waiting to sync.'}</p>{state.lastSync && <p>Last synced {new Date(state.lastSync).toLocaleString()}</p>}</div>{state.config.server && !state.recoveryOnly && <button className="secondary" disabled={state.sync === 'Syncing' || busy} onClick={() => void api().SyncNow().catch(e => setError(errorMessage(e)))}>Sync now</button>}</div>
+          <div className="connection-status"><div><span>{syncLabel(syncInfo(state),state.syncDevice||'',state.deviceAliases||{})}</span><p>{state.pending ? `${state.pending} ${state.pending === 1 ? 'change waiting' : 'changes waiting'} to sync` : 'No local changes waiting to sync.'}</p>{state.lastSync && <p>Last synced {new Date(state.lastSync).toLocaleString()}</p>}</div>{state.config.server && !state.recoveryOnly && <button className="secondary" disabled={state.sync === 'Syncing' || busy} onClick={() => void api().SyncNow().catch(e => setError(errorMessage(e)))}>Sync now</button>}</div>
           <form className="settings-connect" onSubmit={async e => {
             e.preventDefault(); setBusy(true); setError(''); setMessage('');
             try { await api().Connect(url, register); setMessage('Connected. Your documents and folders will sync automatically.'); await onRefresh(); }
@@ -156,7 +158,7 @@ export function Settings({ state, section, onSectionChange, scan, onScanStart, o
             <button className="quiet" onClick={() => void api().ExportAccount().catch(e => setError(errorMessage(e)))}>Save encrypted account file <ArrowUpRight size={15} /></button>
             <details className="settings-details"><summary>Account and local storage</summary><dl><dt>Account ID</dt><dd>{state.accountID}</dd><dt>Account file</dt><dd>{state.config.accountPath}</dd><dt>Document store</dt><dd>{state.config.storePath}</dd></dl></details>
           </section>
-          {!!state.syncDevices?.length && <section className="settings-section"><h3>Linked devices</h3><p className="muted small">Forget a device you no longer use so it stops holding deliveries in the relay. It will need a fresh local store to join again.</p>{state.syncDevices.map(id=><div className="preference-row" key={id}><span>{id===state.syncDevice?'This device':`Device ${id.slice(0,8)}`}</span>{id!==state.syncDevice&&<button className="quiet" disabled={busy||state.recoveryOnly} onClick={()=>void(async()=>{setBusy(true);setError('');try{await api().ForgetSyncDevice(id);await onRefresh();setMessage('Device removed from relay deliveries.');}catch(e){setError(errorMessage(e));}finally{setBusy(false);}})()}>Forget device</button>}</div>)}</section>}
+          {!!state.syncDevices?.length && <section className="settings-section"><h3>Linked devices</h3><p className="muted small">Nicknames stay on this device. Forget a device you no longer use so it stops holding relay deliveries.</p><SyncDevices state={state} onRefresh={onRefresh} onForget={state.recoveryOnly?undefined:id=>{setBusy(true);setError('');void api().ForgetSyncDevice(id).then(onRefresh).then(()=>setMessage('Device removed from relay deliveries.')).catch(e=>setError(errorMessage(e))).finally(()=>setBusy(false))}}/></section>}
         </section>}
 
         {section === 'search' && <section aria-labelledby="search-heading">

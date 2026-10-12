@@ -1,9 +1,10 @@
+import type {SyncInfo} from '../../../ui/sync-status';
 export type Preferences = {theme:'dark'|'light'|'system';idleMinutes:number;density?:'comfortable'|'compact';defaultSort?:'name'|'type'|'size'};
 export type FingerprintState={supported:boolean;available:boolean;enabled:boolean;reason:string};
-export type State = {config:{accountPath:string;storePath:string;server:string;preferences:Preferences};unlocked:boolean;generation:number;accountID:string;recoveryOnly:boolean;sync:string;pending:number;lastSync:string;syncMode?:'persistent'|'temporary-relay';syncDevices?:string[];syncDevice?:string;semantic?:SemanticPreferences;fingerprint?:FingerprintState};
+export type State = {config:{accountPath:string;storePath:string;server:string;preferences:Preferences};unlocked:boolean;generation:number;accountID:string;recoveryOnly:boolean;sync:string;pending:number;lastSync:string;syncMode?:'persistent'|'temporary-relay';syncDevices?:string[];syncDevice?:string;syncInfo?:SyncInfo;deviceAliases?:Record<string,string>;semantic?:SemanticPreferences;fingerprint?:FingerprintState};
 export type Item = {object:string;revision:string;name:string;type:'file'|'folder';parent:string|null;tags:string[];favorite:boolean;size:number;conflict:boolean;trashed:boolean;trashRoot:boolean;category?:string};
 export type Edit = Pick<Item,'name'|'parent'|'tags'|'favorite'>;
-export type KlefkiEvent = {generation:number;kind:string;operation?:string;name?:string;done?:number;total?:number;error?:string;durationMs?:number};
+export type KlefkiEvent = {generation:number;kind:string;operation?:string;name?:string;done?:number;total?:number;error?:string;durationMs?:number;syncInfo?:SyncInfo};
 export type PreviewInfo = {url:string;mime:string;generation:number};
 export type Field={kind:"date"|"amount";raw:string;value:string;currency?:string;evidence:string};
 export type SemanticPreferences={enabled:boolean;thresholds:{cutoff:number;margin:number}};
@@ -22,6 +23,7 @@ export interface API {
  Trash(revision:string):Promise<string>;Restore(revision:string):Promise<{revision:string;atRoot:boolean}>;
  AddFiles(parent:string|null,tags:string[]):Promise<string>;ImportDropped(paths:string[],parent:string|null,tags:string[]):Promise<string>;
  Export(revision:string,name:string):Promise<string>;ExportAccount():Promise<void>;Cancel(op:string):Promise<void>;
+ SetSyncPanel?(open:boolean):Promise<void>;SetDeviceAlias?(id:string,name:string):Promise<void>;
  Connect(address:string,register:boolean):Promise<void>;SetSyncMode(mode:string):Promise<void>;ForgetSyncDevice(id:string):Promise<void>;SyncNow():Promise<void>;Preview(revision:string):Promise<PreviewInfo>;ClosePreview():Promise<void>;
 }
 declare global {interface Window {go?:{main:{App:API}};runtime?:{EventsOn:(name:string,cb:(data:any)=>void)=>(()=>void)}}}

@@ -16,6 +16,7 @@ import (
 	"klefki/core/local"
 	"klefki/core/semantic"
 	vs "klefki/core/sync"
+	"klefki/core/syncwire"
 )
 
 var ErrLocked = errors.New("LOCKED")
@@ -36,31 +37,44 @@ type Config struct {
 	FingerprintAccounts []string                       `json:"fingerprintAccounts,omitempty"`
 	Preferences         Preferences                    `json:"preferences"`
 	Semantic            map[string]SemanticPreferences `json:"semantic,omitempty"`
+	DeviceAliases       map[string]map[string]string   `json:"deviceAliases,omitempty"`
 }
 type State struct {
-	Config       Config              `json:"config"`
-	Unlocked     bool                `json:"unlocked"`
-	Generation   uint64              `json:"generation"`
-	AccountID    string              `json:"accountID"`
-	RecoveryOnly bool                `json:"recoveryOnly"`
-	Sync         string              `json:"sync"`
-	Pending      int                 `json:"pending"`
-	LastSync     string              `json:"lastSync"`
-	Fingerprint  FingerprintState    `json:"fingerprint"`
-	Semantic     SemanticPreferences `json:"semantic"`
-	SyncMode     string              `json:"syncMode"`
-	SyncDevices  []string            `json:"syncDevices"`
-	SyncDevice   string              `json:"syncDevice"`
+	Config        Config              `json:"config"`
+	Unlocked      bool                `json:"unlocked"`
+	Generation    uint64              `json:"generation"`
+	AccountID     string              `json:"accountID"`
+	RecoveryOnly  bool                `json:"recoveryOnly"`
+	Sync          string              `json:"sync"`
+	Pending       int                 `json:"pending"`
+	LastSync      string              `json:"lastSync"`
+	Fingerprint   FingerprintState    `json:"fingerprint"`
+	Semantic      SemanticPreferences `json:"semantic"`
+	SyncMode      string              `json:"syncMode"`
+	SyncDevices   []string            `json:"syncDevices"`
+	SyncDevice    string              `json:"syncDevice"`
+	SyncInfo      SyncInfo            `json:"syncInfo"`
+	DeviceAliases map[string]string   `json:"deviceAliases"`
+}
+type SyncInfo struct {
+	Phase           string             `json:"phase"`
+	Running         bool               `json:"running"`
+	Progress        *syncwire.Progress `json:"progress,omitempty"`
+	LastContact     int64              `json:"lastContact"`
+	LastDeviceCheck int64              `json:"lastDeviceCheck"`
+	StatusAvailable bool               `json:"statusAvailable"`
+	Peers           *syncwire.Status   `json:"peers,omitempty"`
 }
 type Event struct {
-	Generation uint64  `json:"generation"`
-	Kind       string  `json:"kind"`
-	Name       string  `json:"name,omitempty"`
-	Operation  string  `json:"operation,omitempty"`
-	Done       uint64  `json:"done,omitempty"`
-	Total      uint64  `json:"total,omitempty"`
-	Error      string  `json:"error,omitempty"`
-	DurationMS float64 `json:"durationMs,omitempty"`
+	Generation uint64    `json:"generation"`
+	Kind       string    `json:"kind"`
+	Name       string    `json:"name,omitempty"`
+	Operation  string    `json:"operation,omitempty"`
+	Done       uint64    `json:"done,omitempty"`
+	Total      uint64    `json:"total,omitempty"`
+	Error      string    `json:"error,omitempty"`
+	DurationMS float64   `json:"durationMs,omitempty"`
+	SyncInfo   *SyncInfo `json:"syncInfo,omitempty"`
 }
 type session struct {
 	account            vc.Account
@@ -90,6 +104,11 @@ type Service struct {
 	stopOnce            sync.Once
 	ops                 map[string]context.CancelFunc
 	syncRunning         bool
+	syncOwner           *session
+	syncAgain           bool
+	syncPanel           bool
+	syncInfo            SyncInfo
+	monitorWake         chan struct{}
 	syncMode            string
 	syncDevices         []string
 	syncDevice          string
@@ -102,7 +121,7 @@ func New(root string, emit func(Event)) (*Service, error) {
 	if os.MkdirAll(root, 0700) != nil {
 		return nil, vc.ErrIO
 	}
-	s := &Service{configPath: filepath.Join(root, "settings.json"), emit: emit, stop: make(chan struct{}), ops: map[string]context.CancelFunc{}, syncState: "Local only"}
+	s := &Service{configPath: filepath.Join(root, "settings.json"), emit: emit, stop: make(chan struct{}), ops: map[string]context.CancelFunc{}, syncState: "Local only", syncInfo: SyncInfo{Phase: "local"}, monitorWake: make(chan struct{}, 1)}
 	s.config.Preferences = Preferences{Theme: "dark", IdleMinutes: 5, Density: "comfortable", DefaultSort: "name"}
 	if b, e := os.ReadFile(s.configPath); e == nil {
 		if json.Unmarshal(b, &s.config) != nil {
@@ -149,6 +168,7 @@ func (s *Service) State() State {
 	cfg := s.config
 	cfg.Semantic = cloneSemantic(cfg.Semantic)
 	cfg.FingerprintAccounts = slices.Clone(cfg.FingerprintAccounts)
+	cfg.DeviceAliases = nil
 	fp := s.fingerprintState
 	if a, e := local.LoadAccount(cfg.AccountPath); e == nil {
 		fp.Enabled = slices.Contains(cfg.FingerprintAccounts, accountBinding(a))
@@ -164,10 +184,15 @@ func (s *Service) State() State {
 		mode = "persistent"
 	}
 	st := State{SyncDevice: s.syncDevice, SyncDevices: slices.Clone(s.syncDevices), SyncMode: mode, Semantic: p, Config: cfg, Fingerprint: fp, Generation: s.generation, Sync: s.syncState, Pending: s.pending, LastSync: s.lastSync}
+	st.SyncInfo = s.syncInfo
+	st.DeviceAliases = map[string]string{}
 	if x := s.session; x != nil {
 		st.Unlocked = true
 		st.AccountID = x.account.ID.String()
 		st.RecoveryOnly = x.recovery
+		for id, name := range s.config.DeviceAliases[x.account.ID.String()+"@"+cfg.Server] {
+			st.DeviceAliases[id] = name
+		}
 	}
 	return st
 }
@@ -242,6 +267,8 @@ func (s *Service) Lock() {
 	x.cancel()
 	s.pending = 0
 	s.syncState = "Locked"
+	s.syncInfo = SyncInfo{Phase: "locked"}
+	s.syncPanel, s.syncAgain = false, false
 	s.mu.Unlock()
 	s.event(Event{Generation: g, Kind: "locked"})
 	// Detachment and cancellation happen before waiting for active file work.

@@ -1,6 +1,8 @@
+import {syncLabel,deviceName,receipt,presence,type SyncInfo} from '../../ui/sync-status.ts';
 import { node, button, field, iconButton, preferences, savePreferences, type Preferences } from './ui.ts';
 export type Section = 'appearance' | 'privacy' | 'sync' | 'search';
 export type SettingsActions = {
+    syncInfo:SyncInfo;aliases:Record<string,string>;rename:(id:string,name:string)=>Promise<void>;
     section: Section; account: string; pending: number; mode: string; devices: string[]; device?: string;
     changeSection: (section: Section) => void; back: () => void; sync: (register?: boolean) => void;
     exportAccount: () => void; setMode: (mode: string) => void; forget: (id: string) => void;
@@ -50,7 +52,7 @@ export function settingsPage(actions: SettingsActions) {
     if (actions.section === 'sync') {
         panelHeading('Sync & devices', 'Keep the same encrypted library on your devices. You can still work offline.');
         const state = node('div', undefined, 'connection-status'), copy = node('div');
-        copy.append(node('span', 'Browser store'), node('p', actions.pending ? actions.pending + ' changes waiting to sync.' : 'No local changes waiting to sync.'));
+        const statusLabel=node('span',syncLabel(actions.syncInfo,actions.device||'',actions.aliases));statusLabel.id='settings-sync-label';copy.append(statusLabel, node('p', actions.pending ? actions.pending + ' changes waiting to sync.' : 'No local changes waiting to sync.'));
         state.append(copy, button('Sync now', () => actions.sync(), 'secondary')); panel.append(state);
         const address = field('Server address', 'url'); address.input.value = location.origin; address.input.readOnly = true;
         panel.append(address.wrap, node('p', 'This browser connects to the server hosting Klefki. Use this address on your other devices.', 'settings-hint'), button('Register this store on server', () => actions.sync(true), 'secondary'));
@@ -71,8 +73,10 @@ export function settingsPage(actions: SettingsActions) {
         if (actions.devices.length) {
             const linked = node('section', undefined, 'settings-section'); linked.append(node('h3', 'Linked devices'), node('p', 'Forget a device you no longer use so it stops holding relay deliveries. It will need a fresh local store to join again.', 'muted small'));
             for (const id of actions.devices) {
-                const row = node('div', undefined, 'preference-row'); row.append(node('span', id === actions.device ? 'This device' : 'Device ' + id.slice(0,8)));
+                const row = node('div', undefined, 'preference-row'); const name=node('span',deviceName(id,actions.aliases,actions.syncInfo.peers?.devices,actions.device));name.dataset.syncDevice=id;row.append(name);
                 if (id !== actions.device) row.append(button('Forget device', () => actions.forget(id), 'quiet')); linked.append(row);
+                const status=node('p',undefined,'muted small');status.dataset.syncReceipt=id;const peer=actions.syncInfo.peers?.devices.find(d=>d.device===id);status.textContent=peer?presence(peer)+' · '+receipt(peer,actions.syncInfo.statusAvailable):'Status unknown';linked.append(status);
+                const form=node('form',undefined,'sync-device'),nickname=node('input'),save=node('button','Save nickname','quiet');nickname.setAttribute('aria-label','Nickname for device '+id.slice(0,8));nickname.value=actions.aliases[id]||'';nickname.placeholder=name.textContent||'';nickname.maxLength=64;save.type='submit';form.append(nickname,save);form.onsubmit=e=>{e.preventDefault();save.disabled=true;void actions.rename(id,nickname.value).catch(()=>{status.textContent='Could not save this nickname.'}).finally(()=>{save.disabled=false})};linked.append(form);
             }
             panel.append(linked);
         }

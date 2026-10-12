@@ -1,4 +1,5 @@
 import * as c from './crypto.ts';
+import { type SyncProgress, type Provenance } from '../../ui/sync-status.ts';
 import { Store, unlockRevision, type Revision } from './store.ts';
 export class HTTPError extends Error {
     constructor(readonly status: number, readonly after: number) { super('Klefki server returned ' + status); }
@@ -13,30 +14,36 @@ export class Remote {
     token = '';
     device = '';
     relayDevice = '';
+    observe?: (progress: SyncProgress) => void;
+    onContact?: () => void;
+    progress: SyncProgress = {phase:'checking',doneBytes:0,totalBytes:0,reusedBytes:0,chunk:0,chunks:0,updatedAt:0};
+    report(p: SyncProgress) { this.progress = {...p,updatedAt:Date.now()}; this.observe?.(this.progress); }
+    phase(phase: string) { this.report({...this.progress,phase,attempt:undefined,retryAt:undefined}); }
     constructor(readonly origin: string, readonly signal: AbortSignal) {
         const u = new URL(origin);
         c.check(u.origin === origin && !u.username && !u.password && (u.protocol === 'https:' || (u.protocol === 'http:' && ['127.0.0.1', '[::1]', 'localhost'].includes(u.hostname))));
     }
-    async request(method: string, path: string, body?: unknown, limit = 24 * 1024 * 1024): Promise<Uint8Array> {
+    async request(method: string, path: string, body?: unknown, limit = 24 * 1024 * 1024, options: {origin?:string; onRead?:(size:number)=>void; background?:boolean} = {}): Promise<Uint8Array> {
         for (let attempt = 0;; attempt++) {
             this.signal.throwIfAborted();
             let delay = 250 * 2 ** attempt;
             try {
-                const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 30000), abort = () => controller.abort();
+                const controller = new AbortController(), timer = setTimeout(() => controller.abort(), options.background ? 3000 : 30000), abort = () => controller.abort();
                 this.signal.addEventListener('abort', abort, { once: true });
                 try {
                     const binary = body instanceof Uint8Array;
-                    const res = await fetch(this.origin + path, { method, body: body === undefined ? undefined : binary ? new Blob([body as Uint8Array<ArrayBuffer>]) : JSON.stringify(body), headers: { ...(this.token ? { Authorization: 'Bearer ' + this.token } : {}), ...(this.relayDevice?{'X-Klefki-Device':this.relayDevice}:{}), ...(body === undefined ? {} : { 'Content-Type': binary ? 'application/octet-stream' : 'application/json' }) }, redirect: 'error', credentials: 'omit', cache: 'no-store', signal: controller.signal });
+                    const res = await fetch(this.origin + path, { method, body: body === undefined ? undefined : binary ? new Blob([body as Uint8Array<ArrayBuffer>]) : JSON.stringify(body), headers: { ...(this.token ? { Authorization: 'Bearer ' + this.token } : {}), ...(this.relayDevice?{'X-Klefki-Device':this.relayDevice}:{}), ...(options.origin?{'X-Klefki-Origin-Device':options.origin}:{}), ...(body === undefined ? {} : { 'Content-Type': binary ? 'application/octet-stream' : 'application/json' }) }, redirect: 'error', credentials: 'omit', cache: 'no-store', signal: controller.signal });
                     if (!res.ok) {
                         await res.body?.cancel();
                         const seconds = Number(res.headers.get('Retry-After'));
                         throw new HTTPError(res.status, Number.isInteger(seconds) && seconds > 0 && seconds <= 120 ? seconds * 1000 : 0);
                     }
+                    this.onContact?.();
                     const reader = res.body?.getReader();
                     if (!reader)
                         return new Uint8Array();
                     const parts: Uint8Array[] = [];
-                    let size = 0;
+                    let size = 0,lastRead=0;
                     try {
                         for (;;) {
                             const { done, value } = await reader.read();
@@ -44,8 +51,10 @@ export class Remote {
                                 break;
                             size += value.length;
                             c.check(size <= limit);
+                            if(Date.now()-lastRead>=250){options.onRead?.(size);lastRead=Date.now();}
                             parts.push(value);
                         }
+                        options.onRead?.(size);
                         return c.cat(...parts);
                     }
                     finally {
@@ -60,11 +69,14 @@ export class Remote {
             catch (e) {
                 this.signal.throwIfAborted();
                 const retry = e instanceof TypeError || (e instanceof DOMException && e.name === 'AbortError') || (e instanceof HTTPError && (e.status === 408 || e.status === 429 || e.status >= 500&&e.status!==507));
-                if (!retry || attempt === 3)
+                if (!retry || options.background || attempt === 3)
                     throw e;
                 if (e instanceof HTTPError)
                     delay = Math.max(delay, e.after);
+                const previous = this.progress;
+                this.report({...previous,phase:'retrying',attempt:attempt+2,retryAt:Date.now()+delay});
                 await new Promise<void>((resolve, reject) => { const abort = () => { clearTimeout(timer); reject(Error('Locked')); }; const timer = setTimeout(() => { this.signal.removeEventListener('abort', abort); resolve(); }, delay); this.signal.addEventListener('abort', abort, { once: true }); });
+                this.report(previous);
             }
         }
     }
@@ -93,13 +105,29 @@ export async function setSyncMode(store:Store,master:Uint8Array,remote:Remote,mo
     await sync(store,master,remote);
 }
 
+const startProgress = (phase:string,r:Revision,name:string,direction:'upload'|'download',totalBytes:number,chunks:number,source='',publisher=''): SyncProgress => ({phase,revision:r.id,name,direction,totalBytes,chunks,source,publisher,doneBytes:0,reusedBytes:0,chunk:0,updatedAt:Date.now()});
+
+async function provenance(remote: Remote,after:number) {
+    const result = new Map<string,Provenance>();
+    try {
+        const b = await remote.request('GET','/v1/sync/provenance?after='+after,undefined,8192,{background:true});
+        const page = c.strictJSON(c.decode(b)) as {changes:Provenance[]};
+        c.check(Array.isArray(page.changes)&&page.changes.length<=16);
+        for (const p of page.changes) { c.validID(p.revision);if(p.origin)c.validID(p.origin);if(p.publisher)c.validID(p.publisher);c.check(Number.isSafeInteger(p.sequence)&&p.sequence>after);result.set(p.revision,p); }
+    } catch { result.clear(); }
+    return result;
+}
+
 async function push(store:Store,master:Uint8Array,remote:Remote,r:Revision){
         remote.signal.throwIfAborted();
         const { metadata: m, key } = unlockRevision(master, store.account.account, r);
+        remote.report(startProgress('verifying',r,m.name,'upload',m.size||0,m.chunk_count||0));
+        const origin = await store.origin(r.id);
         if (key)
             try {
                 const chunks = await store.chunks(m.file_id!, m.chunk_count!), plain = c.decryptFile(key, store.account.account, m.file_id!, m.size!, chunks);
                 c.wipe(plain);
+                remote.phase('uploading');
                 const present = new Set<number>();
                 let after = -1;
                 for (;;) {
@@ -113,21 +141,26 @@ async function push(store:Store,master:Uint8Array,remote:Remote,r:Revision){
                         after = index;
                     }
                 }
-                for (let i = 0; i < chunks.length; i++)
-                    if (!present.has(i))
-                        await remote.request('PUT', `/v1/blobs/${m.file_id}/chunks/${i}`, chunks[i], 1024);
+                for (let i = 0; i < chunks.length; i++) {
+                    remote.report({...remote.progress,chunk:i+1});
+                    if (!present.has(i)) await remote.request('PUT', `/v1/blobs/${m.file_id}/chunks/${i}`, chunks[i], 1024);
+                    remote.report({...remote.progress,doneBytes:Math.min(m.size!, (i+1)*c.CHUNK),reusedBytes:remote.progress.reusedBytes+(present.has(i)?Math.min(c.CHUNK,m.size!-i*c.CHUNK):0)});
+                }
             }
             finally {
                 c.wipe(key);
             }
-        const result = await remote.json<{
+        remote.phase('committing');
+        const result = c.strictJSON(c.decode(await remote.request('PUT','/v1/sync/revisions/'+r.id,r,1024,{origin}))) as {
             sequence: number;
-        }>('PUT', '/v1/sync/revisions/' + r.id, r, 1024);
+        };
         c.check(Number.isSafeInteger(result.sequence) && result.sequence > 0);
         await store.acknowledge(r.id);
+        remote.phase('complete');
 }
 
 export async function sync(store: Store, master: Uint8Array, remote: Remote) {
+    remote.report({...remote.progress,phase:'checking',revision:undefined,name:undefined,direction:undefined,doneBytes:0,totalBytes:0,reusedBytes:0,chunk:0,chunks:0});
     await store.bind(remote.origin);
     let settings:{mode:string;epoch:string}|undefined;
     let quota:HTTPError|undefined;
@@ -159,6 +192,7 @@ export async function sync(store: Store, master: Uint8Array, remote: Remote) {
         c.check(Array.isArray(page.changes) && page.changes.length <= 16);
         if (!page.changes.length)
             break;
+        const sources = page.changes.length ? await provenance(remote,cursor) : new Map<string,Provenance>();
         for (const change of page.changes) {
             c.check(Number.isSafeInteger(change.sequence) && change.sequence > cursor);
             let r = change.revision;
@@ -168,6 +202,8 @@ export async function sync(store: Store, master: Uint8Array, remote: Remote) {
                 c.check(existing.object===r.object&&existing.base===r.base);r=existing;
             }
             const { metadata: m, key } = unlockRevision(master, store.account.account, r), chunks: Uint8Array[] = [];
+            const source = sources.get(r.id);
+            remote.report(startProgress('downloading',r,m.name,'download',m.size||0,m.chunk_count||0,source?.origin,source?.publisher));
             if (key)
                 try {
                     // Validate each bounded chunk before accumulating ciphertext. No partial import is visible.
@@ -175,11 +211,14 @@ export async function sync(store: Store, master: Uint8Array, remote: Remote) {
                     let localChunks:Uint8Array[]|undefined;
                     try { localChunks=await store.chunks(m.file_id!,m.chunk_count!); } catch { }
                     for (let i = 0; i < m.chunk_count!; i++) {
-                        const b = localChunks?.[i] || await remote.request('GET', `/v1/blobs/${m.file_id}/chunks/${i}`, undefined, c.CHUNK + 87);
+                        remote.report({...remote.progress,chunk:i+1});
+                        const base = i*c.CHUNK;
+                        const b = localChunks?.[i] || await remote.request('GET', `/v1/blobs/${m.file_id}/chunks/${i}`, undefined, c.CHUNK + 87,{onRead:n=>{if(n>87)remote.report({...remote.progress,doneBytes:base+Math.min(n-87,m.size!-base)});}});
                         const p = c.open(key, { kind: 5, account: store.account.account, object: m.file_id!, index: i, final: i === m.chunk_count! - 1 }, b);
                         total += p.length;
                         c.wipe(p);
                         chunks.push(b);
+                        remote.report({...remote.progress,doneBytes:total,reusedBytes:remote.progress.reusedBytes+(localChunks?.[i]?b.length-87:0)});
                     }
                     c.check(total === m.size);
                 }
@@ -187,10 +226,13 @@ export async function sync(store: Store, master: Uint8Array, remote: Remote) {
                     c.wipe(key);
                 }
             remote.signal.throwIfAborted();
-            await store.commit(r, chunks, m.file_id, false, change.sequence);
+            remote.phase('committing');
+            await store.commit(r, chunks, m.file_id, false, change.sequence,source?.origin);
+            remote.phase('complete');
             cursor = change.sequence;
         }
     }
+    remote.report({...remote.progress,phase:'acknowledging',revision:undefined,name:undefined,direction:undefined,totalBytes:0,doneBytes:0,reusedBytes:0,chunk:0,chunks:0});
     await remote.request('PUT', '/v1/sync/cursor', { sequence: cursor }, 1024);
     if(quota)throw quota;
 }
