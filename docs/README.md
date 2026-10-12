@@ -7,6 +7,7 @@
 | [Getting started](getting-started.md) | Web, desktop, CLI, and your first account |
 | [Desktop walkthrough](m4-acceptance.md) | Organizing, previewing, locking, and syncing documents |
 | [Web guide](m5-status.md) | PWA setup, offline use, and connecting an existing account |
+| [Sync activity](sync-status.md) | Live progress, source devices, private nicknames, connection health, and delivery receipts |
 | [Backup and restore](backup-restore.md) | Encrypted backups, recovery, exports, and integrity checks |
 | [Search and OCR](m7-status.md) | Local text extraction, prerequisites, and keyword search |
 | [Semantic search](m8-status.md) | Optional models, hybrid search, and reviewable suggestions |

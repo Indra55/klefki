@@ -53,3 +53,10 @@ implemented and locally verified on 2026-10-12. Go race/static checks, 43 web
 crypto checks, 30 desktop frontend tests, 29 PWA/passkey/relay browser cases,
 native Linux rebuild and the Render Docker build/smoke checks passed. Live Render
 deployment and provider restart acceptance remain pending.
+
+Additional sync capability: [live activity and device receipts](docs/sync-status.md)
+implemented and locally verified on 2026-10-12 across desktop and web/PWA. Full
+Go regression/static checks, focused race checks, 34 desktop frontend tests,
+43 web crypto checks, ten browser sync/relay/status cases, six desktop browser
+layout cases, and the native Linux build passed. Native-window network,
+physical installed-PWA update, and hosted deployment acceptance remain pending.

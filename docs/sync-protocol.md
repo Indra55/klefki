@@ -8,6 +8,8 @@ and SQLite schemas are transport/storage bookkeeping, not new crypto formats.
 This record describes the persistent-storage baseline. The optional
 [temporary relay extension](temporary-relay.md) adds account-wide delivery
 cleanup, stable local-store identities, queue limits and ephemeral-host recovery.
+The additive [sync status extension](sync-status.md) provides live client progress,
+device presence, durable receipt counts, and opaque revision attribution.
 Local history is retained in both modes; server payload retention depends on
 the selected mode.
 
