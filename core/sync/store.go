@@ -121,8 +121,17 @@ func openStore(path string, account vc.ID, existing bool) (*Store, error) {
 		db.Close()
 		return nil, ErrInvalid
 	}
+	store := &Store{db: db, account: account, lease: lease}
+	if _, e = store.RelayState(); e != nil {
+		return fail()
+	}
+	if _, e = db.Exec(`CREATE TABLE IF NOT EXISTS revision_sources(revision TEXT PRIMARY KEY,origin TEXT NOT NULL);
+ CREATE TRIGGER IF NOT EXISTS revision_origin AFTER INSERT ON revisions WHEN NEW.pending=1 BEGIN
+ INSERT INTO revision_sources SELECT NEW.id,device FROM relay_local WHERE id=1; END;`); e != nil {
+		return fail()
+	}
 	success = true
-	return &Store{db: db, account: account, lease: lease}, nil
+	return store, nil
 }
 func (s *Store) Close() error {
 	s.closeOnce.Do(func() { s.mu.Lock(); defer s.mu.Unlock(); s.closeErr = s.db.Close(); s.lease.Close() })
@@ -416,6 +425,9 @@ func sameRevision(a, b syncwire.Revision) bool {
 	return a.ID == b.ID && a.Object == b.Object && a.Base == b.Base && bytes.Equal(a.Metadata, b.Metadata) && bytes.Equal(a.FileKey, b.FileKey)
 }
 func (s *Store) apply(ctx context.Context, master vc.Key, c syncwire.Change, fetch func(string, uint64) ([]byte, error)) error {
+	return s.applyTracked(ctx, master, c, "", nil, fetch)
+}
+func (s *Store) applyTracked(ctx context.Context, master vc.Key, c syncwire.Change, origin string, progress func(uint64, uint64, bool), fetch func(string, uint64) ([]byte, error)) error {
 	defer vc.Wipe(master[:])
 	if c.Sequence <= 0 {
 		return ErrInvalid
@@ -466,6 +478,7 @@ func (s *Store) apply(ctx context.Context, master vc.Key, c syncwire.Change, fet
 			}
 			var b []byte
 			e = tx.QueryRow(`SELECT data FROM chunks WHERE file=? AND idx=?`, file.String(), i).Scan(&b)
+			reused := e == nil
 			if e == sql.ErrNoRows {
 				b, e = fetch(file.String(), i)
 			}
@@ -482,6 +495,9 @@ func (s *Store) apply(ctx context.Context, master vc.Key, c syncwire.Change, fet
 				return ErrInvalid
 			}
 			left -= length
+			if progress != nil {
+				progress(m.Size-left, i+1, reused)
+			}
 			if _, e = tx.Exec(`INSERT OR IGNORE INTO chunks VALUES(?,?,?)`, file.String(), i, b); e != nil {
 				return ErrStore
 			}
@@ -497,6 +513,11 @@ func (s *Store) apply(ctx context.Context, master vc.Key, c syncwire.Change, fet
 	_, e = tx.Exec(`INSERT INTO revisions(id,object,base,metadata,file_key,pending) VALUES(?,?,?,?,?,0) ON CONFLICT(id) DO UPDATE SET pending=0`, c.Revision.ID, c.Revision.Object, c.Revision.Base, c.Revision.Metadata, c.Revision.FileKey)
 	if e != nil {
 		return ErrStore
+	}
+	if origin != "" {
+		if _, e = tx.Exec(`INSERT OR IGNORE INTO revision_sources VALUES(?,?)`, c.Revision.ID, origin); e != nil {
+			return ErrStore
+		}
 	}
 	if _, e = tx.Exec(`UPDATE local_state SET cursor=? WHERE singleton=1`, c.Sequence); e != nil {
 		return ErrStore

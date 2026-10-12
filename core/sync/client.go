@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	vc "klefki/core/crypto"
@@ -26,9 +27,10 @@ type Session struct {
 	Expires int64  `json:"expires"`
 }
 type Remote struct {
-	base   string
-	client *http.Client
-	device string
+	base     string
+	client   *http.Client
+	device   string
+	deviceMu sync.RWMutex
 }
 
 func NewRemote(address string, client *http.Client, allowHTTP bool) (*Remote, error) {
@@ -82,9 +84,15 @@ func (r *Remote) request(ctx context.Context, method, path, token string, body a
 	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
-		if r.device != "" {
-			req.Header.Set("X-Klefki-Device", r.device)
+		r.deviceMu.RLock()
+		device := r.device
+		r.deviceMu.RUnlock()
+		if device != "" {
+			req.Header.Set("X-Klefki-Device", device)
 		}
+	}
+	if origin, ok := ctx.Value(originKey{}).(string); ok && origin != "" {
+		req.Header.Set("X-Klefki-Origin-Device", origin)
 	}
 	if binary {
 		req.Header.Set("Content-Type", "application/octet-stream")
@@ -96,7 +104,7 @@ func (r *Remote) request(ctx context.Context, method, path, token string, body a
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		return nil, ErrRemote
+		return nil, errors.Join(ErrRemote, e)
 	}
 	defer res.Body.Close()
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
@@ -106,9 +114,13 @@ func (r *Remote) request(ctx context.Context, method, path, token string, body a
 		}
 		return nil, &HTTPError{Status: res.StatusCode, retryAfter: after}
 	}
-	b, e := io.ReadAll(io.LimitReader(res.Body, limit+1))
+	var reader io.Reader = io.LimitReader(res.Body, limit+1)
+	if observe, ok := ctx.Value(readProgressKey{}).(func(uint64)); ok {
+		reader = &progressReader{reader: reader, report: observe}
+	}
+	b, e := io.ReadAll(reader)
 	if e != nil {
-		return nil, ErrRemote
+		return nil, errors.Join(ErrRemote, e)
 	}
 	if int64(len(b)) > limit {
 		return nil, ErrInvalid
@@ -169,11 +181,14 @@ type Retry struct {
 	Base, Max time.Duration
 }
 type Client struct {
-	Store   *Store
-	Remote  *Remote
-	Session Session
-	Master  vc.Key
-	Retry   Retry
+	Store     *Store
+	Remote    *Remote
+	Session   Session
+	Master    vc.Key
+	Retry     Retry
+	Observe   func(syncwire.Progress)
+	OnContact func()
+	progress  syncwire.Progress
 }
 
 func (c *Client) request(ctx context.Context, method, path string, body any, limit int64) ([]byte, error) {
@@ -200,9 +215,12 @@ func (c *Client) request(ctx context.Context, method, path string, body any, lim
 		}
 		b, e := c.Remote.request(ctx, method, path, c.Session.Token, body, limit)
 		if e == nil {
+			if c.OnContact != nil {
+				c.OnContact()
+			}
 			return b, nil
 		}
-		retry := e == ErrRemote
+		retry := errors.Is(e, ErrRemote)
 		wait := delay
 		if h, ok := e.(*HTTPError); ok {
 			retry = h.Status == 408 || h.Status == 429 || h.Status >= 500 && h.Status != 507
@@ -211,6 +229,10 @@ func (c *Client) request(ctx context.Context, method, path string, body any, lim
 		if !retry || attempt+1 >= attempts {
 			return nil, e
 		}
+		previous := c.progress
+		p := previous
+		p.Phase, p.Attempt, p.RetryAt = "retrying", attempt+2, time.Now().Add(wait).UnixMilli()
+		c.report(p)
 		timer := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():
@@ -218,10 +240,12 @@ func (c *Client) request(ctx context.Context, method, path string, body any, lim
 			return nil, ctx.Err()
 		case <-timer.C:
 		}
+		c.report(previous)
 		delay = min(delay*2, maxDelay)
 	}
 }
 func (c *Client) Sync(ctx context.Context) error {
+	c.report(syncwire.Progress{Phase: "checking"})
 	if c.Store == nil || c.Remote == nil {
 		return ErrInvalid
 	}
@@ -269,6 +293,10 @@ func (c *Client) Sync(ctx context.Context) error {
 		if parseJSON(b, &page) != nil || len(page.Changes) > syncwire.PageSize {
 			return ErrInvalid
 		}
+		origins := map[string]syncwire.Provenance{}
+		if len(page.Changes) > 0 {
+			origins = c.provenance(ctx, cursor)
+		}
 		for _, change := range page.Changes {
 			if change.Sequence <= cursor {
 				return ErrInvalid
@@ -288,15 +316,45 @@ func (c *Client) Sync(ctx context.Context) error {
 				}
 				change.Revision = local
 			}
-			e = c.Store.apply(ctx, c.Master, change, func(file string, index uint64) ([]byte, error) {
-				return c.request(ctx, "GET", "/v1/blobs/"+file+"/chunks/"+strconv.FormatUint(index, 10), nil, vc.ChunkSize+87)
+			m, _, key, err := c.Store.unlock(c.Master, change.Revision)
+			vc.Wipe(key[:])
+			if err != nil {
+				return err
+			}
+			origin := origins[change.Revision.ID]
+			c.report(syncwire.Progress{Phase: "downloading", Revision: change.Revision.ID, Name: m.Name, Direction: "download", Source: origin.Origin, Publisher: origin.Publisher, TotalBytes: m.Size, Chunks: m.ChunkCount})
+			e = c.Store.applyTracked(ctx, c.Master, change, origin.Origin, func(done, chunk uint64, reused bool) {
+				p := c.progress
+				if reused {
+					p.ReusedBytes += min(uint64(vc.ChunkSize), m.Size-(chunk-1)*vc.ChunkSize)
+				}
+				p.DoneBytes, p.Chunk = done, chunk
+				if chunk == m.ChunkCount {
+					p.Phase = "committing"
+				}
+				c.report(p)
+			}, func(file string, index uint64) ([]byte, error) {
+				base := index * vc.ChunkSize
+				p := c.progress
+				p.Chunk = index + 1
+				c.report(p)
+				readCtx := context.WithValue(ctx, readProgressKey{}, func(n uint64) {
+					p := c.progress
+					if n > 87 {
+						p.DoneBytes = base + min(n-87, m.Size-base)
+						c.report(p)
+					}
+				})
+				return c.request(readCtx, "GET", "/v1/blobs/"+file+"/chunks/"+strconv.FormatUint(index, 10), nil, vc.ChunkSize+87)
 			})
 			if e != nil {
 				return e
 			}
 			cursor = change.Sequence
+			c.phase("complete")
 		}
 		// Acknowledgement follows the durable local transaction, including all chunks.
+		c.report(syncwire.Progress{Phase: "acknowledging"})
 		if _, e = c.request(ctx, "PUT", "/v1/sync/cursor", syncwire.Cursor{Sequence: cursor}, 1024); e != nil {
 			return e
 		}
@@ -311,10 +369,17 @@ func (c *Client) push(ctx context.Context, rev syncwire.Revision) error {
 		return e
 	}
 	vc.Wipe(key[:])
+	c.report(syncwire.Progress{Phase: "verifying", Revision: rev.ID, Name: m.Name, Direction: "upload", TotalBytes: m.Size, Chunks: m.ChunkCount})
+	origin, err := c.Store.Origin(rev.ID)
+	if err != nil {
+		return err
+	}
+	ctx = context.WithValue(ctx, originKey{}, origin)
 	if m.Type == "file" {
 		if e = c.Store.ExportContext(ctx, c.Master, rev.ID, io.Discard); e != nil {
 			return e
 		}
+		c.phase("uploading")
 		// Keep only one inventory page in memory, and skip already accepted chunks.
 		var page []uint64
 		position := 0
@@ -346,17 +411,29 @@ func (c *Client) push(ctx context.Context, rev syncwire.Revision) error {
 			}
 			if position < len(page) && page[position] == index {
 				position++
+				p := c.progress
+				p.Chunk = index + 1
+				p.DoneBytes = min(m.Size, (index+1)*vc.ChunkSize)
+				p.ReusedBytes += min(uint64(vc.ChunkSize), m.Size-index*vc.ChunkSize)
+				c.report(p)
 				continue
 			}
 			chunk, e := c.Store.chunk(file.String(), index)
 			if e != nil {
 				return e
 			}
+			p := c.progress
+			p.Chunk = index + 1
+			c.report(p)
 			if _, e = c.request(ctx, "PUT", "/v1/blobs/"+file.String()+"/chunks/"+strconv.FormatUint(index, 10), chunk, 1024); e != nil {
 				return e
 			}
+			p = c.progress
+			p.DoneBytes = min(m.Size, (index+1)*vc.ChunkSize)
+			c.report(p)
 		}
 	}
+	c.phase("committing")
 	b, e := c.request(ctx, "PUT", "/v1/sync/revisions/"+rev.ID, rev, 1024)
 	if e != nil {
 		return e
@@ -365,5 +442,6 @@ func (c *Client) push(ctx context.Context, rev syncwire.Revision) error {
 	if parseJSON(b, &ack) != nil || ack.Sequence <= 0 {
 		return ErrInvalid
 	}
+	c.phase("complete")
 	return nil
 }

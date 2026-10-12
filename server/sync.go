@@ -89,6 +89,11 @@ func (s *Server) putRevision(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	account := who(r).account
+	origin, publisher := r.Header.Get("X-Klefki-Origin-Device"), r.Header.Get("X-Klefki-Device")
+	if origin != "" && !validID(origin) {
+		fail(w, 400)
+		return
+	}
 	if rev.ID != chi.URLParam(r, "revision") || !validRevision(rev, account) {
 		fail(w, 400)
 		return
@@ -115,6 +120,19 @@ func (s *Server) putRevision(w http.ResponseWriter, r *http.Request) {
 	if e != nil {
 		fail(w, 500)
 		return
+	}
+	if validID(publisher) {
+		var registered int
+		if e = tx.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM relay_devices WHERE account=? AND device=?`, account, publisher).Scan(&registered); e != nil {
+			fail(w, 500)
+			return
+		}
+		if registered == 1 {
+			if _, e = tx.ExecContext(r.Context(), `INSERT INTO sync_sources VALUES(?,?,?,?) ON CONFLICT(account,revision) DO UPDATE SET publisher=excluded.publisher`, account, rev.ID, origin, publisher); e != nil {
+				fail(w, 500)
+				return
+			}
+		}
 	}
 	if tx.Commit() != nil {
 		fail(w, 500)

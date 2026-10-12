@@ -203,7 +203,9 @@ func (c *Client) prepareRelay(ctx context.Context, seed bool) error {
 	if e = c.Store.saveRelay(state); e != nil {
 		return e
 	}
+	c.Remote.deviceMu.Lock()
 	c.Remote.device = local.Device
+	c.Remote.deviceMu.Unlock()
 	if !seed {
 		return nil
 	}

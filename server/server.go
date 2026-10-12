@@ -42,13 +42,15 @@ type Config struct {
 	Now           func() time.Time
 }
 type Server struct {
-	db      *sql.DB
-	blobs   BlobStore
-	config  Config
-	handler http.Handler
-	mu      sync.Mutex
-	relayMu sync.Mutex
-	buckets map[string]bucket
+	db         *sql.DB
+	blobs      BlobStore
+	config     Config
+	handler    http.Handler
+	mu         sync.Mutex
+	relayMu    sync.Mutex
+	buckets    map[string]bucket
+	presenceMu sync.Mutex
+	presences  map[string]syncwire.DeviceStatus
 }
 type bucket struct {
 	tokens float64
@@ -126,12 +128,16 @@ func Open(c Config) (*Server, error) {
 		db.Close()
 		return nil, e
 	}
+	if e = migrateStatus(db); e != nil {
+		db.Close()
+		return nil, e
+	}
 	blobs, e := NewDiskStore(filepath.Join(c.DataDir, "blobs"))
 	if e != nil {
 		db.Close()
 		return nil, e
 	}
-	s := &Server{db: db, blobs: blobs, config: c, buckets: make(map[string]bucket)}
+	s := &Server{db: db, blobs: blobs, config: c, buckets: make(map[string]bucket), presences: make(map[string]syncwire.DeviceStatus)}
 	r := chi.NewRouter()
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if s.db.PingContext(r.Context()) != nil {
@@ -143,6 +149,12 @@ func Open(c Config) (*Server, error) {
 	r.Post("/v1/signup", s.signup)
 	r.Post("/v1/login", s.login)
 	r.Get("/v1/accounts/{account}", s.account)
+	r.Group(func(r chi.Router) {
+		r.Use(s.auth)
+		r.Post("/v1/sync/presence", s.presence)
+		r.Get("/v1/sync/status", s.syncStatus)
+		r.Get("/v1/sync/provenance", s.provenance)
+	})
 	r.Group(func(r chi.Router) {
 		r.Use(s.auth)
 		r.Use(s.relayAccess)
@@ -285,6 +297,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	group := "data:"
 	if r.URL.Path == "/v1/login" || r.URL.Path == "/v1/signup" || strings.HasPrefix(r.URL.Path, "/v1/accounts/") {
 		group = "auth:"
+	}
+	if r.URL.Path == "/v1/sync/presence" || r.URL.Path == "/v1/sync/status" || r.URL.Path == "/v1/sync/provenance" {
+		group = "status:"
 	}
 	if !s.allowed(group + host) {
 		sw.Header().Set("Retry-After", "60")
