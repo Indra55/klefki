@@ -54,6 +54,11 @@ the actual rate limiter; the deployed server keeps its normal limits.
 
 ## Optional checks
 
+Repeatable relay benchmarks: `make bench-local` or
+`make bench-hosted BENCH_SERVER=https://YOUR-RELAY`.
+See [the benchmark runner](../web/benchmarks/README.md) for quick checks,
+history controls, request traces, and result files.
+
 - [Desktop builds and native acceptance](m4-status.md)
 - [Clean-container backup/restore acceptance](backup-restore.md)
 - [Local OCR prerequisites and acceptance](m7-status.md)

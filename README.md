@@ -145,6 +145,10 @@ request burst allowance; a default-limit control also received a 1 KiB file in
 0.039s. Browser UI timings include fixed automation waits.
 [Local comparison, request traces, and controlled latency results](docs/benchmarks/2026-10-13-local-relay/README.md).
 
+Repeat the benchmarks with `make bench-local` or
+`make bench-hosted BENCH_SERVER=https://YOUR-RELAY`.
+[Runner setup, quick checks, and output files](web/benchmarks/README.md).
+
 ## Security and privacy
 
 Encryption and decryption happen on the client. The server receives encrypted

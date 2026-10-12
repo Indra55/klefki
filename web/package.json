@@ -9,6 +9,8 @@
     "build": "node scripts/m8-assets.mjs && tsc --noEmit && vite build && node scripts/sw.mjs",
     "test": "node tests/crypto.test.ts",
     "test:e2e": "playwright test",
+    "benchmark": "node benchmarks/relay.mjs",
+    "benchmark:local": "node benchmarks/relay.mjs --local --latency-probe",
     "models": "node scripts/m8-assets.mjs"
   },
   "dependencies": {

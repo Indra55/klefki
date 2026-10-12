@@ -24,4 +24,5 @@ node_modules/
 /web/dist/
 /web/test-results/
 /web/playwright-report/
+/.benchmarks/
 /web/public/models/
