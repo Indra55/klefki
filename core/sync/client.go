@@ -181,14 +181,17 @@ type Retry struct {
 	Base, Max time.Duration
 }
 type Client struct {
-	Store     *Store
-	Remote    *Remote
-	Session   Session
-	Master    vc.Key
-	Retry     Retry
-	Observe   func(syncwire.Progress)
-	OnContact func()
-	progress  syncwire.Progress
+	Store      *Store
+	Remote     *Remote
+	Session    Session
+	Master     vc.Key
+	Retry      Retry
+	Observe    func(syncwire.Progress)
+	OnContact  func()
+	progress   syncwire.Progress
+	progressMu sync.Mutex
+	cooldownMu sync.Mutex
+	cooldown   time.Time
 }
 
 func (c *Client) request(ctx context.Context, method, path string, body any, limit int64) ([]byte, error) {
@@ -213,10 +216,15 @@ func (c *Client) request(ctx context.Context, method, path string, body any, lim
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
+		if e := c.waitCooldown(ctx); e != nil {
+			return nil, e
+		}
 		b, e := c.Remote.request(ctx, method, path, c.Session.Token, body, limit)
 		if e == nil {
 			if c.OnContact != nil {
+				c.progressMu.Lock()
 				c.OnContact()
+				c.progressMu.Unlock()
 			}
 			return b, nil
 		}
@@ -225,14 +233,23 @@ func (c *Client) request(ctx context.Context, method, path string, body any, lim
 		if h, ok := e.(*HTTPError); ok {
 			retry = h.Status == 408 || h.Status == 429 || h.Status >= 500 && h.Status != 507
 			wait = max(wait, h.retryAfter)
+			if h.retryAfter > 0 {
+				c.cooldownMu.Lock()
+				until := time.Now().Add(h.retryAfter)
+				if until.After(c.cooldown) {
+					c.cooldown = until
+				}
+				c.cooldownMu.Unlock()
+			}
 		}
 		if !retry || attempt+1 >= attempts {
 			return nil, e
 		}
-		previous := c.progress
-		p := previous
-		p.Phase, p.Attempt, p.RetryAt = "retrying", attempt+2, time.Now().Add(wait).UnixMilli()
-		c.report(p)
+		var previousPhase string
+		c.updateProgress(func(p *syncwire.Progress) {
+			previousPhase = p.Phase
+			p.Phase, p.Attempt, p.RetryAt = "retrying", attempt+2, time.Now().Add(wait).UnixMilli()
+		})
 		timer := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():
@@ -240,7 +257,7 @@ func (c *Client) request(ctx context.Context, method, path string, body any, lim
 			return nil, ctx.Err()
 		case <-timer.C:
 		}
-		c.report(previous)
+		c.updateProgress(func(p *syncwire.Progress) { p.Phase, p.Attempt, p.RetryAt = previousPhase, 0, 0 })
 		delay = min(delay*2, maxDelay)
 	}
 }
@@ -330,7 +347,7 @@ func (c *Client) Sync(ctx context.Context) error {
 			origin := origins[change.Revision.ID]
 			c.report(syncwire.Progress{Phase: "downloading", Revision: change.Revision.ID, Name: m.Name, Direction: "download", Source: origin.Origin, Publisher: origin.Publisher, TotalBytes: m.Size, Chunks: m.ChunkCount})
 			e = c.Store.applyTracked(ctx, c.Master, change, origin.Origin, func(done, chunk uint64, reused bool) {
-				p := c.progress
+				p := c.progressSnapshot()
 				if reused {
 					p.ReusedBytes += min(uint64(vc.ChunkSize), m.Size-(chunk-1)*vc.ChunkSize)
 				}
@@ -339,19 +356,8 @@ func (c *Client) Sync(ctx context.Context) error {
 					p.Phase = "committing"
 				}
 				c.report(p)
-			}, func(file string, index uint64) ([]byte, error) {
-				base := index * vc.ChunkSize
-				p := c.progress
-				p.Chunk = index + 1
-				c.report(p)
-				readCtx := context.WithValue(ctx, readProgressKey{}, func(n uint64) {
-					p := c.progress
-					if n > 87 {
-						p.DoneBytes = base + min(n-87, m.Size-base)
-						c.report(p)
-					}
-				})
-				return c.request(readCtx, "GET", "/v1/blobs/"+file+"/chunks/"+strconv.FormatUint(index, 10), nil, vc.ChunkSize+87)
+			}, func(fetchCtx context.Context, file string, index uint64) ([]byte, error) {
+				return c.request(fetchCtx, "GET", "/v1/blobs/"+file+"/chunks/"+strconv.FormatUint(index, 10), nil, vc.ChunkSize+87)
 			})
 			if e != nil {
 				return e
@@ -386,57 +392,55 @@ func (c *Client) push(ctx context.Context, rev syncwire.Revision) error {
 			return e
 		}
 		c.phase("uploading")
-		// Keep only one inventory page in memory, and skip already accepted chunks.
-		var page []uint64
-		position := 0
+
+		present := map[uint64]bool{}
 		after := int64(-1)
-		more := true
-		for index := uint64(0); index < m.ChunkCount; index++ {
-			if position == len(page) && more {
-				path := "/v1/blobs/" + file.String() + "/chunks"
-				if after >= 0 {
-					path += "?after=" + strconv.FormatInt(after, 10)
-				}
-				b, e := c.request(ctx, "GET", path, nil, 32768)
-				if e != nil {
-					return e
-				}
-				if parseJSON(b, &page) != nil || len(page) > 1000 {
-					return ErrInvalid
-				}
-				position = 0
-				last := after
-				for _, n := range page {
-					if n >= m.ChunkCount || int64(n) <= last {
-						return ErrInvalid
-					}
-					last = int64(n)
-				}
-				after = last
-				more = len(page) == 1000
+		for {
+			path := "/v1/blobs/" + file.String() + "/chunks"
+			if after >= 0 {
+				path += "?after=" + strconv.FormatInt(after, 10)
 			}
-			if position < len(page) && page[position] == index {
-				position++
-				p := c.progress
-				p.Chunk = index + 1
-				p.DoneBytes = min(m.Size, (index+1)*vc.ChunkSize)
-				p.ReusedBytes += min(uint64(vc.ChunkSize), m.Size-index*vc.ChunkSize)
-				c.report(p)
-				continue
-			}
-			chunk, e := c.Store.chunk(file.String(), index)
+			b, e := c.request(ctx, "GET", path, nil, 32768)
 			if e != nil {
 				return e
 			}
-			p := c.progress
-			p.Chunk = index + 1
-			c.report(p)
-			if _, e = c.request(ctx, "PUT", "/v1/blobs/"+file.String()+"/chunks/"+strconv.FormatUint(index, 10), chunk, 1024); e != nil {
-				return e
+			var page []uint64
+			if parseJSON(b, &page) != nil || len(page) > 1000 {
+				return ErrInvalid
 			}
-			p = c.progress
-			p.DoneBytes = min(m.Size, (index+1)*vc.ChunkSize)
-			c.report(p)
+			for _, index := range page {
+				if index >= m.ChunkCount || int64(index) <= after {
+					return ErrInvalid
+				}
+				present[index] = true
+				after = int64(index)
+			}
+			if len(page) < 1000 {
+				break
+			}
+		}
+		e = chunkWindows(ctx, m.ChunkCount, func(ctx context.Context, index uint64) (bool, error) {
+			if present[index] {
+				return true, nil
+			}
+			chunk, e := c.Store.chunk(file.String(), index)
+			if e != nil {
+				return false, e
+			}
+			_, e = c.request(ctx, "PUT", "/v1/blobs/"+file.String()+"/chunks/"+strconv.FormatUint(index, 10), chunk, 1024)
+			return false, e
+		}, func(index uint64, reused bool) error {
+			c.updateProgress(func(p *syncwire.Progress) {
+				p.Chunk = index + 1
+				p.DoneBytes = min(m.Size, (index+1)*vc.ChunkSize)
+				if reused {
+					p.ReusedBytes += min(uint64(vc.ChunkSize), m.Size-index*vc.ChunkSize)
+				}
+			})
+			return nil
+		})
+		if e != nil {
+			return e
 		}
 	}
 	c.phase("committing")

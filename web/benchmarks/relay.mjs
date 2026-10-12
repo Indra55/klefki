@@ -59,7 +59,25 @@ const result = {
   rows: [], checks: [], latency_probe: [], cleanup: {removed_devices: [], revoked_sessions: [], errors: []},
 };
 const persist = () => writeFileSync(join(dir, 'results.json'), JSON.stringify(result, null, 2) + '\n');
-try { result.revision = execFileSync('git', ['rev-parse', 'HEAD'], {cwd: repo, encoding: 'utf8'}).trim(); } catch {}
+try {
+  result.revision = execFileSync('git', ['rev-parse', 'HEAD'], {cwd: repo, encoding: 'utf8'}).trim();
+  const diff = execFileSync('git', ['diff', 'HEAD'], {cwd: repo});
+  result.source_diff_sha256 = createHash('sha256').update(diff).digest('hex');
+  result.working_tree = execFileSync('git', ['status', '--short'], {cwd: repo, encoding: 'utf8'}).trim();
+  writeFileSync(join(dir, 'source.patch'), diff);
+} catch {}
+const sourceFiles = [];
+function sourceManifest(path) {
+  for (const entry of readdirSync(join(repo, path), {withFileTypes: true})) {
+    const name = join(path, entry.name);
+    if (entry.isDirectory()) sourceManifest(name);
+    else if (/\.(go|ts|mjs)$/.test(name)) sourceFiles.push({path: name, sha256: createHash('sha256').update(readFileSync(join(repo, name))).digest('hex')});
+  }
+}
+for (const path of ['core', 'server', 'web/src', 'web/benchmarks', 'ui']) sourceManifest(path);
+writeFileSync(join(dir, 'source-manifest.json'), JSON.stringify(sourceFiles, null, 2)+'\n');
+result.source_manifest_sha256 = createHash('sha256').update(JSON.stringify(sourceFiles)).digest('hex');
+
 let base = options.server?.replace(/\/$/, ''), server, worker, context, page, admin;
 const devices = [], sessions = new Set(), prefix = 'relaybench-' + run + '-';
 let account, password, active = false, logs = [], pending = new Map();
@@ -95,14 +113,16 @@ async function api(method, path, body, cleanup = false) {
       headers: {...(admin ? {Authorization: 'Bearer ' + admin.token} : {}), ...(body ? {'Content-Type': 'application/json'} : {})},
       body: body ? JSON.stringify(body) : undefined,
     });
-    if (response.status === 429 && !cleanup && attempt < 3) {
+    if (response.status === 429 && attempt < 3) {
       const seconds = Number(response.headers.get('Retry-After')) || 60;
       await response.body?.cancel();
       console.log(`Setup request throttled; retrying in ${Math.min(120, seconds)} seconds.`);
+      const retrySignal = cleanup ? AbortSignal.timeout(125000) : controller.signal;
+      retrySignal.throwIfAborted();
       await new Promise((resolve, reject) => {
-        const abort = () => { clearTimeout(timer); reject(controller.signal.reason); };
-        const timer = setTimeout(() => { controller.signal.removeEventListener('abort', abort); resolve(); }, Math.min(120, seconds) * 1000);
-        controller.signal.addEventListener('abort', abort, {once: true});
+        const abort = () => { clearTimeout(timer); reject(retrySignal.reason); };
+        const timer = setTimeout(() => { retrySignal.removeEventListener('abort', abort); resolve(); }, Math.min(120, seconds) * 1000);
+        retrySignal.addEventListener('abort', abort, {once: true});
       });
       continue;
     }
@@ -332,11 +352,11 @@ try {
 }
 
 function csv(value) { return '"' + String(value).replaceAll('"', '""') + '"'; }
-const columns = ['direction', 'name', 'type', 'bytes', 'upload_seconds', 'receive_seconds', 'upload_requests', 'receive_requests', 'browser_foreground_seconds', 'integrity_ok'];
+const columns = ['direction', 'name', 'type', 'bytes', 'upload_seconds', 'receive_seconds', 'upload_requests', 'receive_requests', 'browser_foreground_seconds', 'integrity_ok', 'go_production_sync_seconds', 'go_settings_read_seconds'];
 const rows = result.rows.map(row => {
   const b = row.browser_sync, go = row.source || row.destination;
   const up = row.direction === 'browser-to-go' ? b : {...go, ...go.metrics}, down = row.direction === 'browser-to-go' ? {...go, ...go.metrics} : b;
-  return [row.direction, row.name, row.type, row.size, up.seconds, down.seconds, up.requests, down.requests, b.foreground_span_seconds, row.integrity_ok];
+  return [row.direction, row.name, row.type, row.size, up.seconds, down.seconds, up.requests, down.requests, b.foreground_span_seconds, row.integrity_ok, go.production_sync_ms/1000, go.settings_read_ms/1000];
 });
 writeFileSync(join(dir, 'transfers.csv'), [columns, ...rows].map(row => row.map(csv).join(',')).join('\n') + '\n');
 const median = numbers => { const sorted = [...numbers].sort((a, b) => a - b), n = sorted.length; return n % 2 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2; };
@@ -344,16 +364,16 @@ const report = ['# Relay benchmark', '', `Relay: ${base || 'not started'}. Mode:
   `${result.rows.filter(x => x.integrity_ok).length}/${result.rows.length} received files passed SHA-256 verification. ${history} synthetic initial folder revisions; four offline holding peers.`, '',
   '| Direction | File | Bytes | Upload sync | Receive sync |', '| --- | --- | ---: | ---: | ---: |',
   ...rows.map(x => `| ${x[0]} | ${x[1]} | ${x[3]} | ${x[4].toFixed(3)}s | ${x[5].toFixed(3)}s |`), '',
-  'Browser times include the original 200 ms wait, 100 ms polling, 150 ms settling, and UI automation. Go sync times include one final settings check. Both exclude import and polling delays. This run uses a fresh synthetic account, rather than the private starting collection in the October 2026 reports.', '',
+  'Browser times include the original 200 ms wait, 100 ms polling, 150 ms settling, and UI automation. Go harness times include one final settings check; production_sync_ms and settings_read_ms in results.json and CSV separate these durations. HTTP error traces show rate limiting separately. Both exclude import and polling delays. This run uses a fresh synthetic account, rather than the private starting collection in the October 2026 reports.', '',
   `Local request burst allowance: ${result.local_rate_burst ?? 'hosted configuration unchanged'}. Synthetic history and optional injected latency are recorded in results.json. Request traces contain methods, paths, statuses and elapsed times; no credentials or account bytes.`, '',
   `Cleanup: ${result.cleanup.removed_devices.length} benchmark devices removed; ${result.cleanup.revoked_sessions.length} sessions revoked. ${result.cleanup.errors.length} cleanup errors. The server retains the synthetic account unlock record and revision identities; it has no account-delete endpoint.`, '',];
 const idle = result.checks.filter(x => x.check.startsWith('no-edit'));
 if (idle.length) report.push(`No-edit sync medians: Go ${median(idle.map(x => x.go.seconds)).toFixed(3)}s; browser UI ${median(idle.map(x => x.browser.seconds)).toFixed(3)}s.`, '');
 if (result.latency_probe.length) {
-  report.push('| Delay per request | Median Go elapsed | Requests |', '| --- | ---: | ---: |');
+  report.push('| Delay per request | Median Go elapsed | Production sync | Requests |', '| --- | ---: | ---: | ---: |');
   for (const delay of [0, 100, 300]) {
     const samples = result.latency_probe.filter(x => x.injected_delay_ms === delay);
-    report.push(`| ${delay} ms | ${median(samples.map(x => x.seconds)).toFixed(3)}s | ${samples[0].metrics.requests} |`);
+    report.push(`| ${delay} ms | ${median(samples.map(x => x.seconds)).toFixed(3)}s | ${median(samples.map(x => x.production_sync_ms))/1000}s | ${samples[0].metrics.requests} |`);
   }
   report.push('');
 }

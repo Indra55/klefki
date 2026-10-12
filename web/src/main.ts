@@ -19,6 +19,7 @@ let generation = 0, busy = false, lastActivity = Date.now(), release: (() => voi
 const urls = new Set<string>();
 const previews = new Set<Uint8Array>();
 let waitingUpdate: ServiceWorkerRegistration | undefined, applyingUpdate = false;
+let syncModeDraft: {base:string;selected:string} | undefined;
 let view = 'All documents', tag = '', sort = preferences().defaultSort, settings: Section | null = null, feedback = '', syncState = 'Local only';
 let syncInfo:SyncInfo=idleSync(),syncActivity:SyncActivity[]=[],aliases:Record<string,string>={},syncDevice='',linkedDevices:string[]=[],lastSync=0;
 let operationQueue=Promise.resolve();
@@ -89,7 +90,7 @@ function shell() {
     }
     root.prepend(header); if (waitingUpdate?.waiting) offerUpdate(root); app.append(root); return root;
 }
-function lock() { syncView.clear();window.clearTimeout(syncTimer);syncInfo=idleSync();syncActivity=[];aliases={};syncDevice='';linkedDevices=[];lastSync=0;syncRunning=syncRequested=registerRequested=monitorBusy=false;lastPresence=lastDeviceCheck=pendingChanges=0;closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
+function lock() { syncModeDraft=undefined;syncView.clear();window.clearTimeout(syncTimer);syncInfo=idleSync();syncActivity=[];aliases={};syncDevice='';linkedDevices=[];lastSync=0;syncRunning=syncRequested=registerRequested=monitorBusy=false;lastPresence=lastDeviceCheck=pendingChanges=0;closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
     c.wipe(master); if (credential)
     c.wipe(credential); master = credential = undefined; heads = []; store?.close(); store = undefined; release?.(); release = undefined; busy = false; parent = null; filter = ''; favorites = false; view = 'All documents'; tag = ''; settings = null; feedback = ''; syncState = 'Local only'; for (const url of urls)
     URL.revokeObjectURL(url); urls.clear(); for (const b of previews)
@@ -331,6 +332,7 @@ async function library() {
     const pending = (await s.all()).filter(x => x.pending).length;
     const prefs = semantic.preferences(account!.account);
     const mode = await s.state<string>('sync-mode') || 'persistent';
+    if(syncModeDraft?.base!==mode)syncModeDraft=undefined;
     const devices = await s.state<string[]>('relay-devices') || [], device = await s.state<string>('relay-device');
     pendingChanges=pending;linkedDevices=devices;syncDevice=device||syncDevice;renderSync();
     const categoryByRevision = new Map<string, string>();
@@ -351,8 +353,8 @@ async function library() {
     status.id = 'status'; status.setAttribute('role', 'status'); root.append(status);
     if (settings) {
         root.append(settingsPage({
-            section: settings, account: account!.account, pending, mode, devices, device, syncInfo,aliases,rename:saveAlias,
-            changeSection: showSettings, back: () => { settings = null; void library(); },
+            section: settings, account: account!.account, pending, mode, selectedMode:syncModeDraft?.selected||mode, selectMode:selected=>{syncModeDraft={base:mode,selected};}, devices, device, syncInfo,aliases,rename:saveAlias,
+            changeSection: showSettings, back: () => { settings = null; syncModeDraft=undefined; void library(); },
             sync: register => void syncNow(register), exportAccount: () => download(c.accountBytes(account!), 'account.klefki'),
             setMode: mode => void operation(async (key, current) => {
                 if (!remote) await connectRemote();

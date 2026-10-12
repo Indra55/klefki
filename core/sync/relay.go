@@ -180,24 +180,50 @@ func (c *Client) prepareRelay(ctx context.Context, seed bool) error {
 	if e != nil {
 		return e
 	}
-	_, e = c.Settings(ctx)
-	if e != nil {
-		var he *HTTPError
-		if errors.As(e, &he) && he.Status == 404 && local.Mode != syncwire.TemporaryRelay {
-			return nil
-		}
-		return e
-	}
+
 	cursor, e := c.Store.Cursor()
 	if e != nil {
 		return e
 	}
-	b, e := c.request(ctx, "POST", "/v1/sync/relay/device", syncwire.RelayDevice{Device: local.Device, Known: local.Known, Sequence: cursor}, 8192)
-	if e != nil {
-		return e
+	var after int64
+	ids := []string{}
+	if seed {
+		ids, e = c.Store.relayIDs(&after, syncwire.RelayBatchSize)
+		if e != nil {
+			return e
+		}
 	}
+	device := syncwire.RelayDevice{Device: local.Device, Known: local.Known, Sequence: cursor}
+	b, e := c.request(ctx, "POST", "/v1/sync/relay/prepare", syncwire.RelayPrepare{RelayDevice: device, IDs: ids}, 16384)
+	modern := true
+	var prepared syncwire.RelayPrepared
 	var state syncwire.RelayState
-	if parseJSON(b, &state) != nil || !slices.Contains(state.Devices, local.Device) {
+	if unsupportedRelayEndpoint(e) {
+		modern = false
+		_, e = c.Settings(ctx)
+		if e != nil {
+			if unsupportedRelayEndpoint(e) && local.Mode != syncwire.TemporaryRelay {
+				return nil
+			}
+			return e
+		}
+		b, e = c.request(ctx, "POST", "/v1/sync/relay/device", device, 8192)
+		if e != nil {
+			return e
+		}
+		if parseJSON(b, &state) != nil {
+			return ErrInvalid
+		}
+	} else {
+		if e != nil {
+			return e
+		}
+		if parseJSON(b, &prepared) != nil {
+			return ErrInvalid
+		}
+		state = prepared.RelayState
+	}
+	if !slices.Contains(state.Devices, local.Device) {
 		return ErrInvalid
 	}
 	if e = c.Store.saveRelay(state); e != nil {
@@ -209,59 +235,67 @@ func (c *Client) prepareRelay(ctx context.Context, seed bool) error {
 	if !seed {
 		return nil
 	}
-	var after int64
-	for {
-		rows, e := c.Store.db.Query(`SELECT ordinal,id,object,base,metadata,file_key FROM revisions WHERE ordinal>? ORDER BY ordinal LIMIT ?`, after, syncwire.PageSize)
-		if e != nil {
-			return ErrStore
-		}
-		var revisions []syncwire.Revision
-		ids := []string{}
-		for rows.Next() {
-			var rev syncwire.Revision
-			if e = rows.Scan(&after, &rev.ID, &rev.Object, &rev.Base, &rev.Metadata, &rev.FileKey); e != nil {
-				break
-			}
-			revisions = append(revisions, rev)
-			ids = append(ids, rev.ID)
-		}
-		if e == nil {
-			e = rows.Err()
-		}
-		rows.Close()
-		if e != nil {
-			return ErrStore
-		}
-		if len(ids) == 0 {
-			break
-		}
-		b, e = c.request(ctx, "POST", "/v1/sync/relay/need", syncwire.RelayNeed{IDs: ids}, 2048)
+
+	size, path, limit := syncwire.RelayBatchSize, "/v1/sync/relay/need-batch", int64(16384)
+	if !modern {
+		size, path, limit = syncwire.PageSize, "/v1/sync/relay/need", 2048
+		after = 0
+		ids, e = c.Store.relayIDs(&after, size)
 		if e != nil {
 			return e
 		}
-		var needed syncwire.RelayNeed
-		if parseJSON(b, &needed) != nil || len(needed.IDs) > len(ids) {
-			return ErrInvalid
+	}
+	first := modern
+	for len(ids) > 0 {
+		needed := syncwire.RelayNeed{IDs: prepared.IDs}
+		if !first {
+			b, e = c.request(ctx, "POST", path, syncwire.RelayNeed{IDs: ids}, limit)
+			if unsupportedRelayEndpoint(e) && modern {
+				// A mixed-version deployment can support prepare before need-batch.
+				modern = false
+				size, path, limit = syncwire.PageSize, "/v1/sync/relay/need", 2048
+				after = 0
+				ids, e = c.Store.relayIDs(&after, size)
+				if e != nil {
+					return e
+				}
+				continue
+			}
+			if e != nil {
+				return e
+			}
+			if parseJSON(b, &needed) != nil {
+				return ErrInvalid
+			}
 		}
+		first = false
 		set := map[string]bool{}
 		for _, id := range needed.IDs {
+			if !slices.Contains(ids, id) || set[id] {
+				return ErrInvalid
+			}
 			set[id] = true
 		}
-		for _, rev := range revisions {
-			if set[rev.ID] {
+		for _, id := range ids {
+			if set[id] {
+				rev, e := c.Store.localRevision(id)
+				if e != nil {
+					return e
+				}
 				if e = c.push(ctx, rev); e != nil {
 					return e
 				}
-				if e = c.Store.uploaded(rev.ID); e != nil {
+				if e = c.Store.uploaded(id); e != nil {
 					return e
 				}
-				delete(set, rev.ID)
 			}
 		}
-		if len(set) != 0 {
-			return ErrInvalid
+		ids, e = c.Store.relayIDs(&after, size)
+		if e != nil {
+			return e
 		}
 	}
+
 	return nil
 }
 
@@ -308,4 +342,28 @@ func (s *Store) acceptExisting(change syncwire.Change) (bool, error) {
 		return false, ErrStore
 	}
 	return true, nil
+}
+
+func unsupportedRelayEndpoint(e error) bool {
+	var he *HTTPError
+	return errors.As(e, &he) && (he.Status == 404 || he.Status == 405)
+}
+func (s *Store) relayIDs(after *int64, limit int) ([]string, error) {
+	rows, e := s.db.Query(`SELECT ordinal,id FROM revisions WHERE ordinal>? ORDER BY ordinal LIMIT ?`, *after, limit)
+	if e != nil {
+		return nil, ErrStore
+	}
+	defer rows.Close()
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		if rows.Scan(after, &id) != nil {
+			return nil, ErrStore
+		}
+		ids = append(ids, id)
+	}
+	if rows.Err() != nil {
+		return nil, ErrStore
+	}
+	return ids, nil
 }

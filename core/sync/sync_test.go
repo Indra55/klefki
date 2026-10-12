@@ -308,12 +308,23 @@ func TestInterruptedSyncRestartsAndSkipsAcceptedChunks(t *testing.T) {
 	rev := add(t, a, h.master, id.String(), "", "resumed.pdf", body)
 	transport := h.web.Client().Transport
 	var firstUploads atomic.Int32
+	accepted := make(chan struct{})
 	broken := &http.Client{Transport: roundTrip(func(r *http.Request) (*http.Response, error) {
+		if r.Method == "PUT" && strings.HasSuffix(r.URL.Path, "/chunks/1") {
+			select {
+			case <-accepted:
+				return nil, io.ErrUnexpectedEOF
+			case <-r.Context().Done():
+				return nil, r.Context().Err()
+			}
+		}
 		if r.Method == "PUT" && strings.HasSuffix(r.URL.Path, "/chunks/0") {
 			firstUploads.Add(1)
-		}
-		if r.Method == "PUT" && strings.HasSuffix(r.URL.Path, "/chunks/1") {
-			return nil, io.ErrUnexpectedEOF
+			response, e := transport.RoundTrip(r)
+			if e == nil && response.StatusCode == 201 {
+				close(accepted)
+			}
+			return response, e
 		}
 		return transport.RoundTrip(r)
 	})}

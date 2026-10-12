@@ -1,10 +1,14 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"io"
+	vc "klefki/core/crypto"
+	"klefki/core/syncwire"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -87,5 +91,69 @@ func TestAccountLockRegistryReleased(t *testing.T) {
 	wg.Wait()
 	if value != 960 || len(locks.entries) != 0 {
 		t.Fatalf("value=%d retained=%d", value, len(locks.entries))
+	}
+}
+
+func TestRelayCleanupDuringDownload(t *testing.T) {
+	s, e := Open(Config{DataDir: t.TempDir(), RateBurst: 10000})
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer s.Close()
+	ts := httptest.NewTLSServer(s)
+	defer ts.Close()
+	f := newFixture(t)
+	session := enroll(t, ts.Client(), ts.URL, f)
+	first, _ := vc.RandomID()
+	second, _ := vc.RandomID()
+	file, _ := vc.RandomID()
+	revision, _ := vc.RandomID()
+	key, _ := vc.RandomKey()
+	chunk, e := vc.Seal(key, vc.Context{Kind: vc.Chunk, Account: f.account.ID, Object: file, Final: true}, []byte("download survives cleanup"), nil)
+	if e != nil {
+		t.Fatal(e)
+	}
+	account := f.account.ID.String()
+	statements := []struct {
+		query string
+		args  []any
+	}{
+		{`INSERT INTO relay_settings VALUES(?,?)`, []any{account, syncwire.TemporaryRelay}},
+		{`INSERT INTO relay_devices VALUES(?,?,1),(?,?,1)`, []any{account, first.String(), account, second.String()}},
+		{`INSERT INTO changes(sequence,account,revision,object,base,metadata) VALUES(1,?,?,?,'',X'01')`, []any{account, revision.String(), revision.String()}},
+		{`INSERT INTO relay_revisions VALUES(?,?,X'01',?)`, []any{account, revision.String(), file.String()}},
+	}
+	for _, statement := range statements {
+		if _, e := s.db.Exec(statement.query, statement.args...); e != nil {
+			t.Fatal(e)
+		}
+	}
+	if _, e := s.blobs.Put(account, file.String(), 0, chunk); e != nil {
+		t.Fatal(e)
+	}
+	r := httptest.NewRequest("GET", "https://example.test/v1/blobs/"+file.String()+"/chunks/0", nil)
+	r.Header.Set("Authorization", "Bearer "+session.Token)
+	r.Header.Set("X-Klefki-Device", first.String())
+	writer := &gatedWriter{httptest.NewRecorder(), make(chan struct{}), make(chan struct{})}
+	finished := make(chan struct{})
+	go func() { s.ServeHTTP(writer, r); close(finished) }()
+	<-writer.started
+	done := make(chan error, 1)
+	go func() { unlock := s.relayLocks.lock(account); defer unlock(); done <- s.cleanupRelay(account) }()
+	select {
+	case e := <-done:
+		if e != nil {
+			t.Error(e)
+		}
+	case <-time.After(time.Second):
+		t.Error("cleanup blocked on network response")
+	}
+	close(writer.release)
+	<-finished
+	if writer.Code != 200 || !bytes.Equal(writer.Body.Bytes(), chunk) {
+		t.Fatal("cleanup changed copied download")
+	}
+	if _, e := s.blobs.Get(account, file.String(), 0); !os.IsNotExist(e) {
+		t.Fatalf("cleanup left blob: %v", e)
 	}
 }

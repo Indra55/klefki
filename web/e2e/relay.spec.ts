@@ -33,7 +33,7 @@ test('files selected during sync are saved locally and survive reopening',async(
         await openSettings(page,'Sync & devices');
         await page.getByRole('button',{name:'Register this store on server',exact:true}).click();
         await expect(page.getByRole('status')).toContainText('Synced.');
-        await page.route('**/v1/sync/settings',async route=>{started();await paused;await route.continue();});
+        await page.route('**/v1/sync/relay/prepare',async route=>{started();await paused;await route.continue();});
         await syncNow(page);
         await syncing;
         await page.getByLabel('Add document').setInputFiles([
@@ -67,9 +67,10 @@ test('relay deletes delivered content, preserves offline edits, and bootstraps a
         await openSettings(page, 'Sync & devices');
         await page.getByRole('button',{name:'Register this store on server',exact:true}).click();
         await expect(page.getByRole('status')).toContainText('Synced.');
+        await expect(page.getByRole('button',{name:'Sync status',exact:true})).not.toHaveAttribute('data-state','running');
         await openSettings(page, 'Sync & devices');
         await page.getByLabel('Sync mode',{exact:true}).selectOption('temporary-relay');
-    await page.getByRole('button',{name:'Apply sync mode'}).click();
+        await page.getByRole('button',{name:'Apply sync mode'}).click();
         await expect(page.getByRole('status')).toContainText('Sync mode updated');
         expect((await metadataState(page,account,keys.credential)).mode).toBe('temporary-relay');
         expect((await metadataState(page,account,keys.credential)).queued).toBe(1);
@@ -98,4 +99,37 @@ test('relay deletes delivered content, preserves offline edits, and bootstraps a
         await syncNow(late);await expect(late.getByText('offline-relay.txt',{exact:true})).toBeVisible();
         expect((await metadataState(page,account,keys.credential)).queued).toBe(0);
     }finally{await second.close();await third.close();c.wipe(fixture.master);c.wipe(keys.master);c.wipe(keys.credential);}
+});
+
+test('84 retained revisions use three requests and fall back on unsupported preparation',async({page})=>{
+    await c.ready;const fixture=c.createAccount(password);
+    try {
+        await open(page,fixture.account);
+        await openSettings(page,'Sync & devices');
+        await page.getByRole('button',{name:'Register this store on server',exact:true}).click();
+        await expect(page.getByRole('status')).toContainText('Synced.');
+        await expect(page.getByRole('button',{name:'Sync status',exact:true})).not.toHaveAttribute('data-state','running');
+        const revisions=Array.from({length:84},(_,i)=>{const object=c.id();return {revision:{id:c.id(),object,base:'',metadata:c.base64(c.encryptMetadata(fixture.master,fixture.account.account,object,{type:'folder',name:'batch-'+i,parent:null,tags:[],favorite:false}))},order:i+1,pending:true};});
+        await page.evaluate(async({account,revisions})=>{
+            const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('klefki-v1-'+account);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+            await new Promise<void>((resolve,reject)=>{const tx=db.transaction(['revisions','state'],'readwrite');for(const r of revisions)tx.objectStore('revisions').put(r);tx.objectStore('state').put(84,'order');tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});db.close();
+        },{account:fixture.account.account,revisions});
+        await syncNow(page);
+        await expect(page.getByRole('button',{name:'Sync status',exact:true})).not.toHaveAttribute('data-state','running');
+        await page.keyboard.press('Escape');
+        for(const legacy of [0,404,405]){
+            const calls:string[]=[];
+            await page.route('**/v1/**',async route=>{
+                const path=new URL(route.request().url()).pathname;
+                if(['/v1/sync/relay/prepare','/v1/sync/relay/device','/v1/sync/relay/need','/v1/sync/relay/need-batch','/v1/sync/changes','/v1/sync/cursor'].includes(path)||path.includes('/chunks/'))calls.push(path);
+                if(legacy&&path==='/v1/sync/relay/prepare')await route.fulfill({status:legacy,body:''});else await route.continue();
+            });
+            const ack=page.waitForResponse(r=>r.url().includes('/v1/sync/cursor')&&r.request().method()==='PUT');
+            await syncNow(page);await ack;
+            await expect(page.getByRole('button',{name:'Sync status',exact:true})).not.toHaveAttribute('data-state','running');
+            expect(calls).toHaveLength(legacy?10:3);
+            expect(calls.some(p=>p.includes('/chunks/'))).toBe(false);
+            await page.unroute('**/v1/**');await page.keyboard.press('Escape');
+        }
+    } finally {c.wipe(fixture.master);}
 });

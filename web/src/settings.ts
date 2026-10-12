@@ -3,7 +3,7 @@ import { node, button, field, iconButton, preferences, savePreferences, type Pre
 export type Section = 'appearance' | 'privacy' | 'sync' | 'search';
 export type SettingsActions = {
     syncInfo:SyncInfo;aliases:Record<string,string>;rename:(id:string,name:string)=>Promise<void>;
-    section: Section; account: string; pending: number; mode: string; devices: string[]; device?: string;
+    section: Section; account: string; pending: number; mode: string; selectedMode: string; selectMode: (mode:string)=>void; devices: string[]; device?: string;
     changeSection: (section: Section) => void; back: () => void; sync: (register?: boolean) => void;
     exportAccount: () => void; setMode: (mode: string) => void; forget: (id: string) => void;
     addPasskey: (panel: HTMLElement) => void; addSemantic: (panel: HTMLElement) => void;
@@ -59,11 +59,11 @@ export function settingsPage(actions: SettingsActions) {
         const storage = node('section', undefined, 'settings-section'), row = node('div', undefined, 'preference-row'), info = node('div'), caption = node('label', 'Sync mode'), select = node('select');
         select.id = 'sync-mode'; caption.htmlFor = select.id;
         for (const [value,label] of [['persistent','Persistent storage'],['temporary-relay','Temporary relay']]) { const option = node('option',label); option.value = value; select.append(option); }
-        select.value = actions.mode;
+        select.value = actions.selectedMode;
         info.append(caption, node('p', 'Shared by every device linked to this account.')); row.append(info, select);
         storage.append(node('h3', 'Server storage'), row, node('p', actions.mode === 'temporary-relay' ? 'The server removes delivered documents after every linked device has saved them, with at least two devices required. Offline devices keep deliveries queued. Keep a local backup. New devices need an existing device to reconnect.' : 'Keep encrypted documents on the server so devices can download them later.', 'muted small'));
-        const apply = button('Apply sync mode', () => actions.setMode(select.value), 'secondary'); apply.disabled = true;
-        select.onchange = () => { apply.disabled = select.value === actions.mode; };
+        const apply = button('Apply sync mode', () => actions.setMode(select.value), 'secondary'); apply.disabled = select.value === actions.mode;
+        select.onchange = () => { actions.selectMode(select.value); apply.disabled = select.value === actions.mode; };
         storage.append(apply, node('p', 'Free hosts can erase queued deliveries on restart. Existing devices retain their copies and supply them again when they reconnect.', 'muted small')); panel.append(storage);
         const device = node('section', undefined, 'settings-section');
         device.append(node('h3', 'Set up another device'), node('p', 'Save your encrypted account file, open it on the other device, and use your password and the same server.', 'muted small'), iconButton('Save encrypted account file', 'download', actions.exportAccount));

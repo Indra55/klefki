@@ -425,9 +425,9 @@ func sameRevision(a, b syncwire.Revision) bool {
 	return a.ID == b.ID && a.Object == b.Object && a.Base == b.Base && bytes.Equal(a.Metadata, b.Metadata) && bytes.Equal(a.FileKey, b.FileKey)
 }
 func (s *Store) apply(ctx context.Context, master vc.Key, c syncwire.Change, fetch func(string, uint64) ([]byte, error)) error {
-	return s.applyTracked(ctx, master, c, "", nil, fetch)
+	return s.applyTracked(ctx, master, c, "", nil, func(_ context.Context, file string, index uint64) ([]byte, error) { return fetch(file, index) })
 }
-func (s *Store) applyTracked(ctx context.Context, master vc.Key, c syncwire.Change, origin string, progress func(uint64, uint64, bool), fetch func(string, uint64) ([]byte, error)) error {
+func (s *Store) applyTracked(ctx context.Context, master vc.Key, c syncwire.Change, origin string, progress func(uint64, uint64, bool), fetch func(context.Context, string, uint64) ([]byte, error)) error {
 	defer vc.Wipe(master[:])
 	if c.Sequence <= 0 {
 		return ErrInvalid
@@ -453,36 +453,43 @@ func (s *Store) applyTracked(ctx context.Context, master vc.Key, c syncwire.Chan
 		}
 		defer os.Remove(staged.Name())
 		defer staged.Close()
-		left := m.Size
-		for i := uint64(0); i < m.ChunkCount; i++ {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
+
+		type downloaded struct {
+			data   []byte
+			size   uint64
+			reused bool
+		}
+		e = chunkWindows(ctx, m.ChunkCount, func(ctx context.Context, i uint64) (downloaded, error) {
 			var b []byte
-			err := s.db.QueryRow(`SELECT data FROM chunks WHERE file=? AND idx=?`, file.String(), i).Scan(&b)
+			err := s.db.QueryRowContext(ctx, `SELECT data FROM chunks WHERE file=? AND idx=?`, file.String(), i).Scan(&b)
 			reused := err == nil
 			if err == sql.ErrNoRows {
-				b, err = fetch(file.String(), i)
+				b, err = fetch(ctx, file.String(), i)
 			}
 			if err != nil {
-				return err
+				return downloaded{}, err
 			}
 			plain, err := vc.Open(key, vc.Context{Kind: vc.Chunk, Account: s.account, Object: file, Index: i, Final: i == m.ChunkCount-1}, b, nil)
 			if err != nil {
-				return err
+				return downloaded{}, err
 			}
 			length := uint64(len(plain))
 			vc.Wipe(plain)
-			if length != min(uint64(vc.ChunkSize), left) {
-				return ErrInvalid
+			if length != min(uint64(vc.ChunkSize), m.Size-i*vc.ChunkSize) {
+				return downloaded{}, ErrInvalid
 			}
-			left -= length
-			if _, err = staged.Write(b); err != nil {
+			return downloaded{b, length, reused}, nil
+		}, func(i uint64, chunk downloaded) error {
+			if _, err := staged.Write(chunk.data); err != nil {
 				return ErrStore
 			}
 			if progress != nil {
-				progress(m.Size-left, i+1, reused)
+				progress(i*vc.ChunkSize+chunk.size, i+1, chunk.reused)
 			}
+			return nil
+		})
+		if e != nil {
+			return e
 		}
 	}
 	s.mu.Lock()

@@ -88,6 +88,15 @@ export class Store {
     }
     async bind(origin: string) { await this.transaction(['state'], 'readwrite', async (tx) => { const s = tx.objectStore('state'), old = await req(s.get('origin')); c.check(old === undefined || old === origin); s.put(origin, 'origin'); }); }
     async all(): Promise<Stored[]> { return this.transaction(['revisions'], 'readonly', tx => req(tx.objectStore('revisions').getAll())); }
+    async history(): Promise<{id:string;order:number}[]> {
+        return this.transaction(['revisions'],'readonly',tx => new Promise((resolve,reject) => {
+            const result:{id:string;order:number}[]=[];
+            const cursor=tx.objectStore('revisions').openCursor();
+            cursor.onerror=()=>reject(Error('Local klefki storage failed'));
+            cursor.onsuccess=()=>{ const row=cursor.result;if(!row){resolve(result.sort((a,b)=>a.order-b.order));return;}
+                const value=row.value as Stored;result.push({id:value.revision.id,order:value.order});row.continue(); };
+        }));
+    }
     async existing(r: Revision): Promise<Revision | undefined> {
         const x: Stored | undefined = await this.transaction(['revisions'], 'readonly', tx => req(tx.objectStore('revisions').get(r.id)));
         if (!x) return;

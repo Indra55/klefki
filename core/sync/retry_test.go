@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -46,5 +47,41 @@ func TestCancelDuringRetryAfter(t *testing.T) {
 	defer cancel()
 	if _, e = client.request(ctx, "GET", "/v1/sync/cursor", nil, 1024); e != context.DeadlineExceeded || calls != 1 {
 		t.Fatal("retry-after was ignored or uncancellable")
+	}
+}
+
+func TestRetryAfterSharedAcrossWorkers(t *testing.T) {
+	var calls atomic.Int32
+	remote, _ := NewRemote("https://example.invalid", &http.Client{Transport: testTransport(func(*http.Request) (*http.Response, error) {
+		calls.Add(1)
+		return &http.Response{StatusCode: 429, Header: http.Header{"Retry-After": []string{"1"}}, Body: io.NopCloser(strings.NewReader(""))}, nil
+	})}, false)
+	client := Client{Remote: remote}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	first := make(chan error, 1)
+	go func() { _, e := client.request(ctx, "GET", "/one", nil, 1024); first <- e }()
+	deadline := time.Now().Add(time.Second)
+	for {
+		client.cooldownMu.Lock()
+		ready := time.Now().Before(client.cooldown)
+		client.cooldownMu.Unlock()
+		if ready {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("cooldown not set")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	secondCtx, stop := context.WithTimeout(ctx, 20*time.Millisecond)
+	defer stop()
+	if _, e := client.request(secondCtx, "GET", "/two", nil, 1024); e != context.DeadlineExceeded {
+		t.Fatal(e)
+	}
+	cancel()
+	<-first
+	if calls.Load() != 1 {
+		t.Fatalf("worker ignored shared cooldown: %d", calls.Load())
 	}
 }

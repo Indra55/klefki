@@ -116,6 +116,8 @@ func (c *Client) provenance(ctx context.Context, after int64) map[string]syncwir
 }
 
 func (c *Client) report(p syncwire.Progress) {
+	c.progressMu.Lock()
+	defer c.progressMu.Unlock()
 	p.UpdatedAt = time.Now().UnixMilli()
 	c.progress = p
 	if c.Observe != nil {
@@ -124,7 +126,7 @@ func (c *Client) report(p syncwire.Progress) {
 }
 
 func (c *Client) phase(phase string) {
-	p := c.progress
+	p := c.progressSnapshot()
 	p.Phase, p.Attempt, p.RetryAt = phase, 0, 0
 	c.report(p)
 }
@@ -149,4 +151,19 @@ func (r *progressReader) Read(b []byte) (int, error) {
 func StatusUnsupported(err error) bool {
 	var he *HTTPError
 	return errors.As(err, &he) && (he.Status == 404 || he.Status == 405)
+}
+
+func (c *Client) progressSnapshot() syncwire.Progress {
+	c.progressMu.Lock()
+	defer c.progressMu.Unlock()
+	return c.progress
+}
+func (c *Client) updateProgress(update func(*syncwire.Progress)) {
+	c.progressMu.Lock()
+	defer c.progressMu.Unlock()
+	update(&c.progress)
+	c.progress.UpdatedAt = time.Now().UnixMilli()
+	if c.Observe != nil {
+		c.Observe(c.progress)
+	}
 }

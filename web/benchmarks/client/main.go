@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -28,14 +29,16 @@ type request struct {
 }
 
 type trace struct {
-	Method    string  `json:"method"`
-	Path      string  `json:"path"`
-	StartMS   float64 `json:"start_ms"`
-	ElapsedMS float64 `json:"elapsed_ms"`
-	Status    int     `json:"status"`
+	Method     string  `json:"method"`
+	Path       string  `json:"path"`
+	StartMS    float64 `json:"start_ms"`
+	ElapsedMS  float64 `json:"elapsed_ms"`
+	Status     int     `json:"status"`
+	RetryAfter string  `json:"retry_after,omitempty"`
 }
 
 type metrics struct {
+	mu            sync.Mutex
 	started       time.Time
 	Requests      int      `json:"requests"`
 	RequestBytes  int64    `json:"request_bytes"`
@@ -60,12 +63,16 @@ type body struct {
 
 func (b *body) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
+	b.metrics.mu.Lock()
 	b.metrics.ResponseBytes += int64(n)
+	b.metrics.mu.Unlock()
 	return n, err
 }
 
 func (b *body) Close() error {
 	err := b.ReadCloser.Close()
+	b.metrics.mu.Lock()
+	defer b.metrics.mu.Unlock()
 	b.trace.ElapsedMS = float64(time.Since(b.started).Microseconds()) / 1000
 	return err
 }
@@ -73,7 +80,9 @@ func (b *body) Close() error {
 func (t *transport) RoundTrip(r *http.Request) (*http.Response, error) {
 	start := time.Now()
 	x := &trace{Method: r.Method, Path: r.URL.Path, StartMS: float64(time.Since(t.metrics.started).Microseconds()) / 1000}
+	t.metrics.mu.Lock()
 	t.metrics.Trace = append(t.metrics.Trace, x)
+	t.metrics.mu.Unlock()
 	if t.delay > 0 {
 		timer := time.NewTimer(t.delay)
 		defer timer.Stop()
@@ -83,6 +92,7 @@ func (t *transport) RoundTrip(r *http.Request) (*http.Response, error) {
 		case <-timer.C:
 		}
 	}
+	t.metrics.mu.Lock()
 	t.metrics.Requests++
 	if r.ContentLength > 0 {
 		t.metrics.RequestBytes += r.ContentLength
@@ -94,9 +104,13 @@ func (t *transport) RoundTrip(r *http.Request) (*http.Response, error) {
 			t.metrics.ChunksDown++
 		}
 	}
+	t.metrics.mu.Unlock()
 	response, err := http.DefaultTransport.RoundTrip(r)
+	t.metrics.mu.Lock()
+	defer t.metrics.mu.Unlock()
 	if err == nil {
 		x.Status = response.StatusCode
+		x.RetryAfter = response.Header.Get("Retry-After")
 		response.Body = &body{response.Body, t.metrics, x, start}
 		if response.StatusCode >= 400 {
 			t.metrics.HTTPErrors = append(t.metrics.HTTPErrors, response.StatusCode)
@@ -203,13 +217,17 @@ func main() {
 					f.Close()
 				}
 			case "sync":
+				syncStart := time.Now()
 				err = client.Sync(callCtx)
+				out["production_sync_ms"] = float64(time.Since(syncStart).Microseconds()) / 1000
 				if errors.Is(err, vs.ErrRelayWaiting) {
 					out["waiting"] = true
 					err = nil
 				}
 				if err == nil {
+					settingsStart := time.Now()
 					out["settings"], err = client.Settings(callCtx)
+					out["settings_read_ms"] = float64(time.Since(settingsStart).Microseconds()) / 1000
 				}
 			case "verify":
 				matches := []map[string]any{}
