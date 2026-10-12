@@ -143,3 +143,30 @@ Passed checks:
   PWA serving, explicit HTTPS proxy behavior and UID 10001.
 
 Live Render deployment and real-provider restart acceptance remain pending.
+
+### Sync responsiveness fixes, 2026-10-12
+
+File selection during browser sync previously returned without saving anything.
+Local browser actions now run in order independently of network sync. Desktop
+sync no longer holds the main work lock, and downloads stage authenticated
+ciphertext before opening the local database transaction. Existing documents
+remain readable and editable while a network transfer waits; incomplete
+revisions and their cursors remain unpublished.
+
+Desktop edits share one debounce timer, window focus no longer starts a transfer,
+and automatic polls check for pending work, server changes, device enrollment and
+unconfirmed receipts before replaying history. Already saved identical revisions
+advance the cursor without appearing as new downloads. Browser chunk comparisons
+avoid converting entire encrypted chunks into hexadecimal strings.
+
+Validation passed: `go test -race ./...`, `go vet ./...`, 43 crypto checks,
+34 desktop UI tests, both production frontend builds and the native Linux build.
+Eleven Chromium cases covered Go/browser transfers, conflicts, interrupted
+uploads, tamper rejection, relay cleanup, late enrollment, transfer status and
+offline storage. A new case saves a text document and image while sync is stalled,
+then reopens and reads the local text offline. Go regressions cover library reads,
+exports and edits during stalled requests and downloads, plus idle polling.
+
+The installed Linux executable was updated and matched the rebuilt executable's
+checksum. Interactive native acceptance and the updated live Render/PWA build
+remain pending; these local checks do not verify the user's hosted account.

@@ -443,6 +443,48 @@ func (s *Store) applyTracked(ctx context.Context, master vc.Key, c syncwire.Chan
 		return e
 	}
 	defer vc.Wipe(key[:])
+	// Stage authenticated ciphertext before opening the local write transaction.
+	// Network delays must not hold the database connection or hide the library.
+	var staged *os.File
+	if m.Type == "file" {
+		staged, e = os.CreateTemp("", "klefki-sync-*")
+		if e != nil {
+			return ErrStore
+		}
+		defer os.Remove(staged.Name())
+		defer staged.Close()
+		left := m.Size
+		for i := uint64(0); i < m.ChunkCount; i++ {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			var b []byte
+			err := s.db.QueryRow(`SELECT data FROM chunks WHERE file=? AND idx=?`, file.String(), i).Scan(&b)
+			reused := err == nil
+			if err == sql.ErrNoRows {
+				b, err = fetch(file.String(), i)
+			}
+			if err != nil {
+				return err
+			}
+			plain, err := vc.Open(key, vc.Context{Kind: vc.Chunk, Account: s.account, Object: file, Index: i, Final: i == m.ChunkCount-1}, b, nil)
+			if err != nil {
+				return err
+			}
+			length := uint64(len(plain))
+			vc.Wipe(plain)
+			if length != min(uint64(vc.ChunkSize), left) {
+				return ErrInvalid
+			}
+			left -= length
+			if _, err = staged.Write(b); err != nil {
+				return ErrStore
+			}
+			if progress != nil {
+				progress(m.Size-left, i+1, reused)
+			}
+		}
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	tx, e := s.db.Begin()
@@ -470,37 +512,29 @@ func (s *Store) applyTracked(ctx context.Context, master vc.Key, c syncwire.Chan
 	if e != nil && e != sql.ErrNoRows {
 		return ErrStore
 	}
-	if m.Type == "file" {
+	if staged != nil {
+		if _, e = staged.Seek(0, io.SeekStart); e != nil {
+			return ErrStore
+		}
 		left := m.Size
 		for i := uint64(0); i < m.ChunkCount; i++ {
-			if e := ctx.Err(); e != nil {
-				return e
+			length := min(uint64(vc.ChunkSize), left)
+			b := make([]byte, length+87)
+			if _, e = io.ReadFull(staged, b); e != nil {
+				return ErrStore
 			}
-			var b []byte
-			e = tx.QueryRow(`SELECT data FROM chunks WHERE file=? AND idx=?`, file.String(), i).Scan(&b)
-			reused := e == nil
-			if e == sql.ErrNoRows {
-				b, e = fetch(file.String(), i)
+			var existing []byte
+			err := tx.QueryRow(`SELECT data FROM chunks WHERE file=? AND idx=?`, file.String(), i).Scan(&existing)
+			if err == nil && !bytes.Equal(existing, b) {
+				return ErrConflict
 			}
-			if e != nil {
-				return e
-			}
-			plain, e := vc.Open(key, vc.Context{Kind: vc.Chunk, Account: s.account, Object: file, Index: i, Final: i == m.ChunkCount-1}, b, nil)
-			if e != nil {
-				return e
-			}
-			length := uint64(len(plain))
-			vc.Wipe(plain)
-			if length != min(uint64(vc.ChunkSize), left) {
-				return ErrInvalid
-			}
-			left -= length
-			if progress != nil {
-				progress(m.Size-left, i+1, reused)
+			if err != nil && err != sql.ErrNoRows {
+				return ErrStore
 			}
 			if _, e = tx.Exec(`INSERT OR IGNORE INTO chunks VALUES(?,?,?)`, file.String(), i, b); e != nil {
 				return ErrStore
 			}
+			left -= length
 		}
 		var count uint64
 		if tx.QueryRow(`SELECT COUNT(*) FROM chunks WHERE file=?`, file.String()).Scan(&count) != nil {
@@ -510,6 +544,10 @@ func (s *Store) applyTracked(ctx context.Context, master vc.Key, c syncwire.Chan
 			return ErrInvalid
 		}
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	_, e = tx.Exec(`INSERT INTO revisions(id,object,base,metadata,file_key,pending) VALUES(?,?,?,?,?,0) ON CONFLICT(id) DO UPDATE SET pending=0`, c.Revision.ID, c.Revision.Object, c.Revision.Base, c.Revision.Metadata, c.Revision.FileKey)
 	if e != nil {
 		return ErrStore

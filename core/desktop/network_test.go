@@ -1,11 +1,71 @@
 package desktop
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
+	vs "klefki/core/sync"
 	"klefki/core/syncwire"
 )
+
+type stalledTransport struct{ started chan struct{} }
+
+func (r stalledTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.URL.Path == "/v1/sync/settings" {
+		close(r.started)
+	}
+	<-req.Context().Done()
+	return nil, req.Context().Err()
+}
+
+func TestLibraryAndEditsRemainAvailableDuringSync(t *testing.T) {
+	s, _ := testService(t)
+	rev := put(t, s, "available.txt", nil)
+	started := make(chan struct{})
+	r, err := vs.NewRemote("https://relay.example", &http.Client{Transport: stalledTransport{started}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	s.config.Server = "https://relay.example"
+	s.session.remote = r
+	s.session.remoteSession = vs.Session{Token: "fixture"}
+	s.mu.Unlock()
+	s.SyncNow()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("sync did not start")
+	}
+	done := make(chan error, 1)
+	go func() {
+		list, err := s.List()
+		if err == nil && (len(list.Items) != 1 || list.Items[0].Revision != rev) {
+			err = ErrInvalid
+		}
+		if err == nil {
+			_, err = s.Folder("Added during sync", nil)
+		}
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		s.mu.Lock()
+		s.session.cancel()
+		s.mu.Unlock()
+		<-done
+		t.Fatal("network sync blocked local library and edits")
+	}
+	s.Lock()
+	if s.State().Unlocked {
+		t.Fatal("sync prevented locking")
+	}
+}
 
 func TestSyncStatusDoesNotWaitForLibraryAndClearsOnLock(t *testing.T) {
 	s, _ := testService(t)

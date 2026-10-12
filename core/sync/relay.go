@@ -275,3 +275,37 @@ func (s *Store) localRevision(id string) (syncwire.Revision, error) {
 	}
 	return r, nil
 }
+
+func (s *Store) acceptExisting(change syncwire.Change) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	tx, e := s.db.Begin()
+	if e != nil {
+		return false, ErrStore
+	}
+	defer tx.Rollback()
+	old, e := readRevision(tx.QueryRow(`SELECT id,object,base,metadata,file_key FROM revisions WHERE id=?`, change.Revision.ID))
+	if e == sql.ErrNoRows {
+		return false, nil
+	}
+	if e != nil {
+		return false, ErrStore
+	}
+	if !sameRevision(old, change.Revision) {
+		return false, ErrConflict
+	}
+	result, e := tx.Exec(`UPDATE local_state SET cursor=? WHERE singleton=1 AND cursor<?`, change.Sequence, change.Sequence)
+	if e != nil {
+		return false, ErrStore
+	}
+	if n, _ := result.RowsAffected(); n != 1 {
+		return false, ErrInvalid
+	}
+	if _, e = tx.Exec(`UPDATE revisions SET pending=0 WHERE id=?`, old.ID); e != nil {
+		return false, ErrStore
+	}
+	if e = tx.Commit(); e != nil {
+		return false, ErrStore
+	}
+	return true, nil
+}

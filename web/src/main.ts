@@ -8,7 +8,7 @@ import * as c from './crypto.ts';
 import { Store, unlockRevision, type Head } from './store.ts';
 import * as semantic from './semantic.ts';
 import * as passkey from './passkey.ts';
-import { Remote, sync, setSyncMode, HTTPError, RelayWaiting } from './sync.ts';
+import { Remote, sync, needsSync, setSyncMode, HTTPError, RelayWaiting } from './sync.ts';
 import {SyncView} from './sync-ui.ts';
 import {idleSync,addActivity,validateStatus,syncLabel,deviceName,receipt,presence,type SyncInfo,type SyncActivity,type ServerStatus} from '../../ui/sync-status.ts';
 const app = document.querySelector<HTMLDivElement>('#app')!;
@@ -21,6 +21,7 @@ const previews = new Set<Uint8Array>();
 let waitingUpdate: ServiceWorkerRegistration | undefined, applyingUpdate = false;
 let view = 'All documents', tag = '', sort = preferences().defaultSort, settings: Section | null = null, feedback = '', syncState = 'Local only';
 let syncInfo:SyncInfo=idleSync(),syncActivity:SyncActivity[]=[],aliases:Record<string,string>={},syncDevice='',linkedDevices:string[]=[],lastSync=0;
+let operationQueue=Promise.resolve();
 let syncRunning=false,syncRequested=false,registerRequested=false,syncTimer:number|undefined,monitorBusy=false,lastPresence=0,lastDeviceCheck=0;
 const syncView=new SyncView({sync:()=>void syncNow(),settings:()=>showSettings('sync'),panel:open=>{if(open){lastDeviceCheck=0;void monitorSync()}},alias:saveAlias});
 function renderSync(){
@@ -57,7 +58,7 @@ async function monitorSync(){
         }
         if(now-lastDeviceCheck>=(syncView.open?5000:30000)){
             lastDeviceCheck=now;
-            try {const peers=validateStatus(c.strictJSON(c.decode(await r.request('GET','/v1/sync/status',undefined,32768,{background:true}))) as ServerStatus);if(g!==generation)return;syncInfo={...syncInfo,peers,statusAvailable:true,lastDeviceCheck:Date.now()};}
+            try {const peers=validateStatus(c.strictJSON(c.decode(await r.request('GET','/v1/sync/status',undefined,32768,{background:true}))) as ServerStatus);if(g!==generation)return;syncInfo={...syncInfo,peers,statusAvailable:true,lastDeviceCheck:Date.now()};if(!syncRunning&&syncInfo.phase==='waiting'&&peers.devices.every(peer=>peer.outstanding===0)){syncInfo={...syncInfo,phase:'synced'};syncState='Synced';}}
             catch(e) {if(g===generation){const phase=syncErrorPhase(e);syncInfo={...syncInfo,statusAvailable:false,...(!syncRunning&&['auth','unreachable','offline','timeout'].includes(phase)?{phase}:{})};}}
         }
         if(g===generation)renderSync();
@@ -94,10 +95,13 @@ function lock() { syncView.clear();window.clearTimeout(syncTimer);syncInfo=idleS
     URL.revokeObjectURL(url); urls.clear(); for (const b of previews)
     c.wipe(b); previews.clear(); locked(); }
 async function operation(fn: (key: Uint8Array, g: number) => Promise<void>) {
-    if (busy || !master)
-        return;
+    const g = generation, previous = operationQueue;
+    let finished!: () => void;
+    operationQueue = new Promise<void>(resolve => { finished = resolve; });
+    await previous;
+    if (!master || g !== generation) { finished(); return; }
     busy = true;
-    const g = generation, key = master.slice();
+    const key = master.slice();
     message('Working…');
     try {
         await fn(key, g);
@@ -110,6 +114,7 @@ async function operation(fn: (key: Uint8Array, g: number) => Promise<void>) {
     }
     finally {
         c.wipe(key);
+        finished();
         if (g === generation) {busy = false;syncInfo={...syncInfo,running:syncRunning};if(!syncRunning&&['complete','acknowledging'].includes(syncInfo.phase))syncInfo={...syncInfo,phase:'synced'};renderSync();if(syncRequested)scheduleSync();}
     }
 }
@@ -279,15 +284,22 @@ async function connectRemote(register=false){
     r.onContact=()=>{if(g===generation)syncInfo={...syncInfo,lastContact:Date.now()};};
     remote=r;lastPresence=lastDeviceCheck=0;
 }
-async function syncNow(register = false) {
+async function syncNow(register = false, background = false) {
     if(!master)return;
-    if(busy||syncRunning){syncRequested=true;registerRequested ||= register;return;}
+    if(syncRunning){if(register){syncRequested=true;registerRequested=true;}return;}
+    if(busy){if(!background){syncRequested=true;registerRequested ||= register;}return;}
     window.clearTimeout(syncTimer);syncRequested=false;register ||= registerRequested;registerRequested=false;
-    const g=generation,key=master.slice(),s=store!;busy=syncRunning=true;
-    syncState='Syncing';syncInfo={...syncInfo,phase:'connecting',running:true,progress:undefined};renderSync();
+    const g=generation,key=master.slice(),s=store!;syncRunning=true;
+    if (!background) { syncState='Syncing';syncInfo={...syncInfo,phase:'connecting',running:true,progress:undefined};renderSync(); }
     try {
         if(!remote)await connectRemote(register);
         if(g!==generation)return;
+        if (background) {
+            let needed = true;
+            try { needed = await needsSync(s,remote!); } catch { }
+            if (g !== generation || !needed) return;
+            syncState='Syncing';syncInfo={...syncInfo,phase:'connecting',running:true,progress:undefined};renderSync();
+        }
         try {await sync(s,key,remote!);}
         catch(e){if(!(e instanceof HTTPError)||e.status!==401||await s.state('sync-mode')!=='temporary-relay')throw e;await connectRemote();await sync(s,key,remote!);}
         if(g!==generation)return;
@@ -307,7 +319,7 @@ async function syncNow(register = false) {
         if(syncInfo.progress)syncActivity=addActivity(syncActivity,{...syncInfo.progress,phase,updatedAt:Date.now()});
     } finally {
         c.wipe(key);
-        if(g===generation){busy=syncRunning=false;syncInfo={...syncInfo,running:false};renderSync();lastDeviceCheck=0;void monitorSync();if(syncRequested)scheduleSync();}
+        if(g===generation){syncRunning=false;syncInfo={...syncInfo,running:false};renderSync();lastDeviceCheck=0;void monitorSync();if(syncRequested){try{const pending=(await s.all()).some(x=>x.pending);if(g===generation){if(registerRequested||pending)scheduleSync();else syncRequested=false;}}catch{}}}
     }
 }
 function trashed(h: Head, seen = new Set<string>()): boolean { if (h.metadata.tags.includes('klefki:system:trash') && h.metadata.type === 'folder')
@@ -596,8 +608,8 @@ setInterval(() => { if (master && Date.now() - lastActivity > preferences().idle
     lock(); }, 1000);
 window.addEventListener('online',()=>{if(master)void syncNow()});
 window.addEventListener('offline',()=>{if(master){syncInfo={...syncInfo,phase:'offline',statusAvailable:false};renderSync();}});
-document.addEventListener('visibilitychange',()=>{if(!master)return;if(document.visibilityState==='visible'){lastPresence=lastDeviceCheck=0;void syncNow();void monitorSync();}else{window.clearTimeout(syncTimer);syncInfo={...syncInfo,statusAvailable:false};}});
-setInterval(()=>{if(master&&document.visibilityState==='visible')void syncNow()},60000);
+document.addEventListener('visibilitychange',()=>{if(!master)return;if(document.visibilityState==='visible'){lastPresence=lastDeviceCheck=0;void syncNow(false,true);void monitorSync();}else{window.clearTimeout(syncTimer);syncInfo={...syncInfo,statusAvailable:false};}});
+setInterval(()=>{if(master&&document.visibilityState==='visible')void syncNow(false,true)},60000);
 setInterval(()=>{if(master&&document.visibilityState==='visible'){renderSync();void monitorSync()}},1000);
 window.addEventListener('pagehide', lock);
 document.addEventListener('keydown', event => {

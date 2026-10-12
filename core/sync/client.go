@@ -316,6 +316,12 @@ func (c *Client) Sync(ctx context.Context) error {
 				}
 				change.Revision = local
 			}
+			if existing, e := c.Store.acceptExisting(change); e != nil {
+				return e
+			} else if existing {
+				cursor = change.Sequence
+				continue
+			}
 			m, _, key, err := c.Store.unlock(c.Master, change.Revision)
 			vc.Wipe(key[:])
 			if err != nil {

@@ -5,11 +5,48 @@ import (
 	"database/sql"
 	"errors"
 	"io"
+	"slices"
 	"strconv"
 	"time"
 
 	"klefki/core/syncwire"
 )
+
+// NeedsSync checks durable receipts without replaying local history on idle polls.
+func (c *Client) NeedsSync(ctx context.Context) (bool, error) {
+	pending, e := c.Store.Pending()
+	if e != nil || pending > 0 {
+		return true, e
+	}
+	local, e := c.Store.RelayState()
+	if e != nil {
+		return true, e
+	}
+	cursor, e := c.Store.Cursor()
+	if e != nil {
+		return true, e
+	}
+	settings, e := c.Settings(ctx)
+	if e != nil {
+		return true, e
+	}
+	if local.Mode != settings.Mode || local.Epoch != settings.Epoch {
+		return true, nil
+	}
+	status, e := c.Remote.Status(ctx, c.Session)
+	if e != nil {
+		return true, e
+	}
+	if status.Epoch != local.Epoch || status.LatestSequence != cursor || len(status.Devices) != len(local.Known) {
+		return true, nil
+	}
+	for _, peer := range status.Devices {
+		if !slices.Contains(local.Known, peer.Device) || (peer.Device == local.Device && peer.Sequence != cursor) || (settings.Mode == syncwire.TemporaryRelay && settings.Queued == 0 && peer.Sequence < cursor) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
 
 type originKey struct{}
 type readProgressKey struct{}

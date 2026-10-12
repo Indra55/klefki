@@ -1,5 +1,5 @@
 import * as c from './crypto.ts';
-import { type SyncProgress, type Provenance } from '../../ui/sync-status.ts';
+import { validateStatus, type SyncProgress, type Provenance, type ServerStatus } from '../../ui/sync-status.ts';
 import { Store, unlockRevision, type Revision } from './store.ts';
 export class HTTPError extends Error {
     constructor(readonly status: number, readonly after: number) { super('Klefki server returned ' + status); }
@@ -107,6 +107,16 @@ export async function setSyncMode(store:Store,master:Uint8Array,remote:Remote,mo
 
 const startProgress = (phase:string,r:Revision,name:string,direction:'upload'|'download',totalBytes:number,chunks:number,source='',publisher=''): SyncProgress => ({phase,revision:r.id,name,direction,totalBytes,chunks,source,publisher,doneBytes:0,reusedBytes:0,chunk:0,updatedAt:Date.now()});
 
+export async function needsSync(store: Store, remote: Remote) {
+    if ((await store.all()).some(x => x.pending)) return true;
+    const settings = await remote.json<{mode:string;epoch:string;queued:number}>('GET','/v1/sync/settings',undefined,1024);
+    const local = await store.relayState(), cursor = await store.state<number>('cursor') || 0;
+    if (settings.epoch !== await store.state('relay-epoch') || settings.mode !== await store.state('sync-mode')) return true;
+    const status = validateStatus(await remote.json<ServerStatus>('GET','/v1/sync/status',undefined,32768));
+    return status.epoch !== settings.epoch || status.latestSequence !== cursor || status.devices.length !== local.known.length ||
+        status.devices.some(peer => !local.known.includes(peer.device) || (peer.device === local.device && peer.sequence !== cursor) || (settings.mode === 'temporary-relay' && settings.queued === 0 && peer.sequence < cursor));
+}
+
 async function provenance(remote: Remote,after:number) {
     const result = new Map<string,Provenance>();
     try {
@@ -196,10 +206,15 @@ export async function sync(store: Store, master: Uint8Array, remote: Remote) {
         for (const change of page.changes) {
             c.check(Number.isSafeInteger(change.sequence) && change.sequence > cursor);
             let r = change.revision;
+            const existing = await store.existing(r);
             if(r.metadata===''){
-                const existing=(await store.all()).find(x=>x.revision.id===r.id)?.revision;
                 if(!existing){await remote.request('PUT','/v1/sync/cursor',{sequence:cursor},1024);throw new RelayWaiting();}
                 c.check(existing.object===r.object&&existing.base===r.base);r=existing;
+            }
+            if (existing) {
+                await store.commit(r, [], undefined, false, change.sequence);
+                cursor = change.sequence;
+                continue;
             }
             const { metadata: m, key } = unlockRevision(master, store.account.account, r), chunks: Uint8Array[] = [];
             const source = sources.get(r.id);

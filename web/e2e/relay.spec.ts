@@ -21,6 +21,41 @@ async function metadataState(page:Page,account:c.Account,credential:Uint8Array){
     },{id:account.account,credential:c.base64(credential)});
 }
 
+test('files selected during sync are saved locally and survive reopening',async({page})=>{
+    await c.ready;
+    const fixture=c.createAccount(password);
+    let resume!:()=>void;
+    const paused=new Promise<void>(resolve=>{resume=resolve});
+    let started!:()=>void;
+    const syncing=new Promise<void>(resolve=>{started=resolve});
+    try {
+        await open(page,fixture.account);
+        await openSettings(page,'Sync & devices');
+        await page.getByRole('button',{name:'Register this store on server',exact:true}).click();
+        await expect(page.getByRole('status')).toContainText('Synced.');
+        await page.route('**/v1/sync/settings',async route=>{started();await paused;await route.continue();});
+        await syncNow(page);
+        await syncing;
+        await page.getByLabel('Add document').setInputFiles([
+            {name:'during-sync.txt',mimeType:'text/plain',buffer:Buffer.from('retained locally')},
+            {name:'during-sync.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jWZkAAAAASUVORK5CYII=','base64')},
+        ]);
+        await expect(page.getByText('during-sync.txt',{exact:true})).toBeVisible();
+        await expect(page.getByText('during-sync.png',{exact:true})).toBeVisible();
+        resume();
+        await page.evaluate(async()=>{await navigator.serviceWorker.ready;});
+        await expect.poll(()=>page.evaluate(()=>!!navigator.serviceWorker.controller)).toBe(true);
+        await page.context().setOffline(true);
+        await page.reload();
+        await page.getByLabel('Password',{exact:true}).fill(password);
+        await page.getByRole('button',{name:'Unlock Klefki',exact:true}).click();
+        await expect(page.getByText('during-sync.txt',{exact:true})).toBeVisible();
+        await expect(page.getByText('during-sync.png',{exact:true})).toBeVisible();
+        await page.getByRole('button',{name:'Open during-sync.txt',exact:true}).click();
+        await expect(page.locator('dialog pre')).toHaveText('retained locally');
+    } finally { resume?.();c.wipe(fixture.master); }
+});
+
 test('relay deletes delivered content, preserves offline edits, and bootstraps a late browser',async({browser,page})=>{
     await c.ready;const fixture=c.createAccount(password),account=fixture.account,keys=c.unlock(account,password);
     const second=await browser.newContext(),third=await browser.newContext();

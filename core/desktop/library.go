@@ -151,15 +151,25 @@ func (s *Service) changed(x *session) {
 	}
 	s.mu.Unlock()
 	s.event(Event{Generation: x.generation, Kind: "library"})
-	go func() {
-		select {
-		case <-timeAfterDebounce():
-			s.SyncNow()
-		case <-x.ctx.Done():
+	s.mu.Lock()
+	if s.session == x {
+		if s.syncRunning && s.syncOwner == x {
+			s.syncAgain = true
 		}
-	}()
+		if s.syncTimer != nil {
+			s.syncTimer.Stop()
+		}
+		s.syncTimer = time.AfterFunc(1500*time.Millisecond, func() {
+			s.mu.Lock()
+			current := s.session == x
+			s.mu.Unlock()
+			if current {
+				s.syncNow(true)
+			}
+		})
+	}
+	s.mu.Unlock()
 }
-func timeAfterDebounce() <-chan time.Time { return time.After(1500 * time.Millisecond) }
 func (s *Service) Edit(revision string, edit vs.Edit) (id string, e error) {
 	if !validEdit(edit) {
 		return "", ErrInvalid

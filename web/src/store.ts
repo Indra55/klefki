@@ -88,6 +88,13 @@ export class Store {
     }
     async bind(origin: string) { await this.transaction(['state'], 'readwrite', async (tx) => { const s = tx.objectStore('state'), old = await req(s.get('origin')); c.check(old === undefined || old === origin); s.put(origin, 'origin'); }); }
     async all(): Promise<Stored[]> { return this.transaction(['revisions'], 'readonly', tx => req(tx.objectStore('revisions').getAll())); }
+    async existing(r: Revision): Promise<Revision | undefined> {
+        const x: Stored | undefined = await this.transaction(['revisions'], 'readonly', tx => req(tx.objectStore('revisions').get(r.id)));
+        if (!x) return;
+        c.check(x.revision.object === r.object && x.revision.base === r.base);
+        if (r.metadata !== '') c.check(sameRevision(x.revision, r));
+        return x.revision;
+    }
     async origin(id: string): Promise<string> { const x: Stored | undefined = await this.transaction(['revisions'], 'readonly', tx => req(tx.objectStore('revisions').get(id))); return x?.origin || ''; }
     async revision(id: string): Promise<Revision> { c.validID(id); const x = await this.transaction(['revisions'], 'readonly', tx => req(tx.objectStore('revisions').get(id))); c.check(x); return x.revision; }
     async heads(master: Uint8Array): Promise<Head[]> { const all = await this.all(), parents = new Set(all.map(x => x.revision.base)), heads = all.filter(x => !parents.has(x.revision.id)); return heads.map(x => { const { metadata, key } = unlockRevision(master, this.account.account, x.revision); if (key)
@@ -122,7 +129,7 @@ export class Store {
                 c.check(file);
                 const name = file + ':' + i, existing = await req(blobs.get(name));
                 if (existing)
-                    c.check(c.hex(existing) === c.hex(chunks[i]));
+                    c.check(existing instanceof Uint8Array && existing.length === chunks[i].length && existing.every((value, index) => value === chunks[i][index]));
                 else
                     blobs.add(chunks[i], name);
             }

@@ -88,6 +88,7 @@ type session struct {
 	remoteSession      vs.Session
 	model              semantic.Embedder
 	semanticCancel     context.CancelFunc
+	network            sync.WaitGroup
 }
 type Service struct {
 	mu                  sync.Mutex
@@ -112,6 +113,7 @@ type Service struct {
 	syncMode            string
 	syncDevices         []string
 	syncDevice          string
+	syncTimer           *time.Timer
 	fingerprint         FingerprintProvider
 	fingerprintState    FingerprintState
 	fingerprintCancel   context.CancelFunc
@@ -239,7 +241,7 @@ func (s *Service) watch() {
 			}
 			ticks++
 			if ticks%60 == 0 {
-				s.SyncNow()
+				s.syncNow(true)
 			}
 		}
 	}
@@ -269,10 +271,15 @@ func (s *Service) Lock() {
 	s.syncState = "Locked"
 	s.syncInfo = SyncInfo{Phase: "locked"}
 	s.syncPanel, s.syncAgain = false, false
+	if s.syncTimer != nil {
+		s.syncTimer.Stop()
+		s.syncTimer = nil
+	}
 	s.mu.Unlock()
 	s.event(Event{Generation: g, Kind: "locked"})
 	// Detachment and cancellation happen before waiting for active file work.
 	s.work.Lock()
+	x.network.Wait()
 	if x.model != nil {
 		x.model.Close()
 		x.model = nil
