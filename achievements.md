@@ -1,6 +1,6 @@
 # Klefki achievements
 
-Implemented and evidenced as of 2026-10-10. These are project achievements,
+Implemented and evidenced as of 2026-10-13. These are project achievements,
 not claims that the techniques are new inventions.
 
 ## 1. PDF indexing: 170 seconds → 2.2 seconds
@@ -59,3 +59,23 @@ storage and reader-contact feedback. The user verified physical unlock and
 restart behavior; native desktop acceptance was also confirmed on Linux and
 Windows. Fingerprint support is Linux-specific.
 [Evidence](docs/m4-status.md).
+
+## 8. Faster sync on the same free hosted relay
+
+Hosted no-edit Go sync fell from **3.618 seconds to 1.034 seconds**, about
+**71% less time**. A 64 MiB browser upload fell from **40.585 seconds to
+18.801 seconds**, about **54% less time**; 32 MiB browser receipt fell from
+**22.820 seconds to 10.828 seconds**.
+
+Combined preparation and 256-ID history batches reduced an unchanged
+84-revision sync from **10 production requests to 3**. Four authenticated
+chunk transfers run concurrently, with sequential revision publication and
+explicit acknowledgement after durable local receipt. The compatible server
+was deployed before the updated clients.
+
+All nine received-file SHA-256 checks passed across two corrected hosted
+sweeps, alongside Go race tests, vet, 43 browser crypto checks, and 12 browser
+integration tests. Hosting, production rate limits, and encryption formats
+were unchanged. These are session measurements; hosted timings cover the
+combined update, and interrupted runs and measurement limits are retained.
+[Evidence](docs/benchmarks/2026-10-13-relay-optimization/README.md).
