@@ -1,0 +1,1396 @@
+{
+  "started": "2026-10-12T20:19:50.416Z",
+  "run": "2026-10-12T20-19-50-415Z-1afde2",
+  "mode": "hosted",
+  "quick": false,
+  "large_only": false,
+  "file": "binary-32MiB.bin",
+  "history": 0,
+  "local_rate_burst": null,
+  "browser_waits": {
+    "after_click_ms": 200,
+    "polling_ms": 100,
+    "settling_ms": 150
+  },
+  "baseline": "Fresh synthetic account with folder history and four offline holding peers",
+  "rows": [
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-2026-10-12T20-19-50-415Z-1afde2-browser-binary-32MiB-r1.bin",
+      "type": "application/octet-stream",
+      "size": 33554432,
+      "expected_sha256": "d5816c8eb0e26a3840bb9d70166798b8517ae69af4060b8113f872adf1b059f8",
+      "local_save_seconds": 3.336539567,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 11.180946913000007,
+        "requests": 20,
+        "chunks_up": 8,
+        "chunks_down": 0,
+        "foreground_span_seconds": 10.930739759999996,
+        "http_errors": [],
+        "trace": [
+          {
+            "method": "GET",
+            "path": "/v1/sync/status",
+            "start_ms": 29.111250000001746,
+            "end_ms": 276.0908500000005,
+            "status": 200
+          },
+          {
+            "method": "POST",
+            "path": "/v1/sync/relay/prepare",
+            "start_ms": 74.98007700000016,
+            "end_ms": 334.40980200000195,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks",
+            "start_ms": 500.670564,
+            "end_ms": 763.3572429999986,
+            "status": 200
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/0",
+            "start_ms": 763.2244250000003,
+            "end_ms": 4280.876629999999,
+            "status": 201
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/1",
+            "start_ms": 763.2593600000037,
+            "end_ms": 4205.166639000003,
+            "status": 201
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/2",
+            "start_ms": 763.2842380000002,
+            "end_ms": 5288.410228000001,
+            "status": 201
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/3",
+            "start_ms": 763.3444579999996,
+            "end_ms": 5130.154706000001,
+            "status": 201
+          },
+          {
+            "method": "POST",
+            "path": "/v1/sync/presence",
+            "start_ms": 934.2912150000047,
+            "end_ms": 1180.7742849999995,
+            "status": 204
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/4",
+            "start_ms": 5287.395902000004,
+            "end_ms": 9537.997809,
+            "status": 201
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/5",
+            "start_ms": 5288.146436000003,
+            "end_ms": 9377.69511,
+            "status": 201
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/6",
+            "start_ms": 5288.273148,
+            "end_ms": 8550.937060000004,
+            "status": 201
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/7",
+            "start_ms": 5288.356010000003,
+            "end_ms": 8719.202551000002,
+            "status": 201
+          },
+          {
+            "method": "POST",
+            "path": "/v1/sync/presence",
+            "start_ms": 5936.447412000001,
+            "end_ms": 6251.9820709999985,
+            "status": 204
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/sync/revisions/818352421c3c9fc150497302c84b31de",
+            "start_ms": 9537.954685000004,
+            "end_ms": 9790.651812000004,
+            "status": 201
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/changes",
+            "start_ms": 9792.949162000004,
+            "end_ms": 10042.743886000004,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/provenance",
+            "start_ms": 10042.719321000004,
+            "end_ms": 10276.140339000005,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/changes",
+            "start_ms": 10277.687634999995,
+            "end_ms": 10510.574045000001,
+            "status": 200
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/sync/cursor",
+            "start_ms": 10510.332685000001,
+            "end_ms": 10779.303281,
+            "status": 204
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/settings",
+            "start_ms": 10779.561214000001,
+            "end_ms": 11005.719836999997,
+            "status": 200
+          },
+          {
+            "method": "POST",
+            "path": "/v1/sync/presence",
+            "start_ms": 10935.170095000009,
+            "end_ms": null
+          }
+        ]
+      },
+      "destination": {
+        "injected_delay_ms": 0,
+        "metrics": {
+          "requests": 15,
+          "request_bytes": 319,
+          "response_bytes": 33556398,
+          "chunks_up": 0,
+          "chunks_down": 8,
+          "http_errors": [],
+          "trace": [
+            {
+              "method": "POST",
+              "path": "/v1/sync/relay/prepare",
+              "start_ms": 0.665,
+              "elapsed_ms": 259.343,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/changes",
+              "start_ms": 260.369,
+              "elapsed_ms": 259.272,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/provenance",
+              "start_ms": 519.828,
+              "elapsed_ms": 261.051,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/2",
+              "start_ms": 781.688,
+              "elapsed_ms": 3680.106,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/0",
+              "start_ms": 781.877,
+              "elapsed_ms": 4446.885,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/3",
+              "start_ms": 782.009,
+              "elapsed_ms": 3653.959,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/1",
+              "start_ms": 782.214,
+              "elapsed_ms": 4609.555,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/7",
+              "start_ms": 5407.318,
+              "elapsed_ms": 3533.229,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/6",
+              "start_ms": 5407.597,
+              "elapsed_ms": 3659.258,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/5",
+              "start_ms": 5407.715,
+              "elapsed_ms": 4139.867,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/blobs/d08c410a973b3d74371dc20060a893f1/chunks/4",
+              "start_ms": 5407.806,
+              "elapsed_ms": 2919.018,
+              "status": 200
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/sync/cursor",
+              "start_ms": 9639.689,
+              "elapsed_ms": 261.787,
+              "status": 204
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/changes",
+              "start_ms": 9901.599,
+              "elapsed_ms": 255.613,
+              "status": 200
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/sync/cursor",
+              "start_ms": 10157.3,
+              "elapsed_ms": 256.044,
+              "status": 204
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/settings",
+              "start_ms": 10413.368,
+              "elapsed_ms": 227.954,
+              "status": 200
+            }
+          ]
+        },
+        "production_sync_ms": 10413.335,
+        "seconds": 10.6413683,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "1cf38c7f8a604d52aa8ef320f1e0d4ac",
+          "queued": 1
+        },
+        "settings_read_ms": 228.013
+      },
+      "matches": [
+        {
+          "revision": "818352421c3c9fc150497302c84b31de",
+          "sha256": "d5816c8eb0e26a3840bb9d70166798b8517ae69af4060b8113f872adf1b059f8",
+          "size": 33554432
+        }
+      ],
+      "integrity_ok": true
+    },
+    {
+      "direction": "go-to-browser",
+      "name": "relaybench-2026-10-12T20-19-50-415Z-1afde2-go-binary-32MiB.bin",
+      "type": "application/octet-stream",
+      "size": 33554432,
+      "expected_sha256": "d5816c8eb0e26a3840bb9d70166798b8517ae69af4060b8113f872adf1b059f8",
+      "local_save": {
+        "injected_delay_ms": 0,
+        "metrics": {
+          "requests": 0,
+          "request_bytes": 0,
+          "response_bytes": 0,
+          "chunks_up": 0,
+          "chunks_down": 0,
+          "http_errors": [],
+          "trace": []
+        },
+        "revision": "19884bc2f9c6926626e8fde4244d53fa",
+        "seconds": 0.088509366
+      },
+      "source": {
+        "injected_delay_ms": 0,
+        "metrics": {
+          "requests": 17,
+          "request_bytes": 33556157,
+          "response_bytes": 1312,
+          "chunks_up": 8,
+          "chunks_down": 0,
+          "http_errors": [],
+          "trace": [
+            {
+              "method": "POST",
+              "path": "/v1/sync/relay/prepare",
+              "start_ms": 0.223,
+              "elapsed_ms": 232.72,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks",
+              "start_ms": 347.162,
+              "elapsed_ms": 258.389,
+              "status": 200
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/3",
+              "start_ms": 610.019,
+              "elapsed_ms": 3583.711,
+              "status": 201
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/2",
+              "start_ms": 614.127,
+              "elapsed_ms": 3161.995,
+              "status": 201
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/1",
+              "start_ms": 619.069,
+              "elapsed_ms": 4369.27,
+              "status": 201
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/0",
+              "start_ms": 623.858,
+              "elapsed_ms": 3289.715,
+              "status": 201
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/7",
+              "start_ms": 4998.933,
+              "elapsed_ms": 3487.841,
+              "status": 201
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/5",
+              "start_ms": 5004.291,
+              "elapsed_ms": 2993.522,
+              "status": 201
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/6",
+              "start_ms": 5012.293,
+              "elapsed_ms": 3098.682,
+              "status": 201
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/4",
+              "start_ms": 5019.817,
+              "elapsed_ms": 3750.52,
+              "status": 201
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/sync/revisions/19884bc2f9c6926626e8fde4244d53fa",
+              "start_ms": 8770.388,
+              "elapsed_ms": 267.702,
+              "status": 201
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/changes",
+              "start_ms": 9038.409,
+              "elapsed_ms": 252.536,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/provenance",
+              "start_ms": 9290.997,
+              "elapsed_ms": 278.049,
+              "status": 200
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/sync/cursor",
+              "start_ms": 9569.368,
+              "elapsed_ms": 287.239,
+              "status": 204
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/changes",
+              "start_ms": 9856.725,
+              "elapsed_ms": 230.314,
+              "status": 200
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/sync/cursor",
+              "start_ms": 10087.098,
+              "elapsed_ms": 259.426,
+              "status": 204
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/settings",
+              "start_ms": 10346.576,
+              "elapsed_ms": 305.883,
+              "status": 200
+            }
+          ]
+        },
+        "production_sync_ms": 10346.528,
+        "seconds": 10.652530513,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "1cf38c7f8a604d52aa8ef320f1e0d4ac",
+          "queued": 2
+        },
+        "settings_read_ms": 305.987
+      },
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 11.381660101999994,
+        "requests": 18,
+        "chunks_up": 0,
+        "chunks_down": 8,
+        "foreground_span_seconds": 11.03464156599999,
+        "http_errors": [
+          {
+            "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/1",
+            "status": 200,
+            "failed": "net::ERR_ABORTED"
+          },
+          {
+            "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/2",
+            "status": 200,
+            "failed": "net::ERR_ABORTED"
+          },
+          {
+            "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/5",
+            "status": 200,
+            "failed": "net::ERR_ABORTED"
+          }
+        ],
+        "trace": [
+          {
+            "method": "GET",
+            "path": "/v1/sync/status",
+            "start_ms": 27.021729999993113,
+            "end_ms": 263.25808299999335,
+            "status": 200
+          },
+          {
+            "method": "POST",
+            "path": "/v1/sync/relay/prepare",
+            "start_ms": 72.92483200000424,
+            "end_ms": 318.3641059999936,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/changes",
+            "start_ms": 319.1713549999986,
+            "end_ms": 599.1657269999996,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/provenance",
+            "start_ms": 599.1347240000032,
+            "end_ms": 885.9097020000045,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/0",
+            "start_ms": 888.4785089999932,
+            "end_ms": 4778.704855000004,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/1",
+            "start_ms": 889.0718420000048,
+            "end_ms": 4970.821681999994,
+            "status": 200,
+            "failed": "net::ERR_ABORTED"
+          },
+          {
+            "method": "GET",
+            "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/2",
+            "start_ms": 889.1405209999939,
+            "end_ms": 5749.868598999994,
+            "status": 200,
+            "failed": "net::ERR_ABORTED"
+          },
+          {
+            "method": "GET",
+            "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/3",
+            "start_ms": 889.183044999998,
+            "end_ms": 5790.606583000001,
+            "status": 200
+          },
+          {
+            "method": "POST",
+            "path": "/v1/sync/presence",
+            "start_ms": 1234.7081780000008,
+            "end_ms": 1588.7125410000008,
+            "status": 204
+          },
+          {
+            "method": "GET",
+            "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/4",
+            "start_ms": 5782.496325999993,
+            "end_ms": 8253.112133000002,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/5",
+            "start_ms": 5782.633658000006,
+            "end_ms": 10205.704102000003,
+            "status": 200,
+            "failed": "net::ERR_ABORTED"
+          },
+          {
+            "method": "GET",
+            "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/6",
+            "start_ms": 5782.746073999995,
+            "end_ms": 10254.052085000003,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/blobs/914957422c20ce6626b550d0b316f07f/chunks/7",
+            "start_ms": 5782.825201,
+            "end_ms": 10297.733238,
+            "status": 200
+          },
+          {
+            "method": "POST",
+            "path": "/v1/sync/presence",
+            "start_ms": 6234.610786999998,
+            "end_ms": 6555.219815000004,
+            "status": 204
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/changes",
+            "start_ms": 10387.286206000004,
+            "end_ms": 10633.237332000004,
+            "status": 200
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/sync/cursor",
+            "start_ms": 10633.118768,
+            "end_ms": 10871.906390999997,
+            "status": 204
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/settings",
+            "start_ms": 10872.323778000005,
+            "end_ms": 11107.566397999995,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/status",
+            "start_ms": 11216.400198000003,
+            "end_ms": null
+          }
+        ]
+      },
+      "received_count": 1,
+      "received_sha256": "d5816c8eb0e26a3840bb9d70166798b8517ae69af4060b8113f872adf1b059f8",
+      "integrity_ok": true
+    },
+    {
+      "direction": "browser-to-go",
+      "name": "relaybench-2026-10-12T20-19-50-415Z-1afde2-duplicate.zip",
+      "type": "application/zip",
+      "size": 1048576,
+      "expected_sha256": "bb4bea3cc924e38e25a2ec92228d4dad31e70965782126c92dedfb638f90e62f",
+      "local_save_seconds": 0.25830359099998895,
+      "status": "Uploaded to the relay. Waiting for linked devices to save their copies.",
+      "browser_sync": {
+        "seconds": 3.0501828539999987,
+        "requests": 12,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "foreground_span_seconds": 2.7059257720000023,
+        "http_errors": [],
+        "trace": [
+          {
+            "method": "GET",
+            "path": "/v1/sync/status",
+            "start_ms": 52.157760999994935,
+            "end_ms": 340.7323539999925,
+            "status": 200
+          },
+          {
+            "method": "POST",
+            "path": "/v1/sync/relay/prepare",
+            "start_ms": 112.50337699998636,
+            "end_ms": 357.8851549999963,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/blobs/b2052931c784752eda1dcc1fab685ba6/chunks",
+            "start_ms": 374.31323699999484,
+            "end_ms": 636.0307639999955,
+            "status": 200
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/blobs/b2052931c784752eda1dcc1fab685ba6/chunks/0",
+            "start_ms": 635.2348689999926,
+            "end_ms": 1350.8324659999926,
+            "status": 201
+          },
+          {
+            "method": "POST",
+            "path": "/v1/sync/presence",
+            "start_ms": 988.5250159999996,
+            "end_ms": 1227.5282019999868,
+            "status": 204
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/sync/revisions/f9b46807489174d0487d74faeeedcbe1",
+            "start_ms": 1350.814771999998,
+            "end_ms": 1598.854331999988,
+            "status": 201
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/changes",
+            "start_ms": 1601.3492269999988,
+            "end_ms": 1849.05180999999,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/provenance",
+            "start_ms": 1849.0082879999973,
+            "end_ms": 2103.512978999992,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/changes",
+            "start_ms": 2105.4082149999886,
+            "end_ms": 2341.4346969999897,
+            "status": 200
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/sync/cursor",
+            "start_ms": 2341.4074999999866,
+            "end_ms": 2589.2694109999866,
+            "status": 204
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/settings",
+            "start_ms": 2590.1984689999954,
+            "end_ms": 2818.4291489999887,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/status",
+            "start_ms": 2824.1067379999877,
+            "end_ms": null
+          }
+        ]
+      },
+      "destination": {
+        "injected_delay_ms": 0,
+        "metrics": {
+          "requests": 8,
+          "request_bytes": 390,
+          "response_bytes": 1049913,
+          "chunks_up": 0,
+          "chunks_down": 1,
+          "http_errors": [],
+          "trace": [
+            {
+              "method": "POST",
+              "path": "/v1/sync/relay/prepare",
+              "start_ms": 0.503,
+              "elapsed_ms": 253.234,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/changes",
+              "start_ms": 254.307,
+              "elapsed_ms": 258.974,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/provenance",
+              "start_ms": 513.427,
+              "elapsed_ms": 276.13,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/blobs/b2052931c784752eda1dcc1fab685ba6/chunks/0",
+              "start_ms": 790.049,
+              "elapsed_ms": 1734.343,
+              "status": 200
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/sync/cursor",
+              "start_ms": 2530.612,
+              "elapsed_ms": 235.882,
+              "status": 204
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/changes",
+              "start_ms": 2766.704,
+              "elapsed_ms": 255.94,
+              "status": 200
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/sync/cursor",
+              "start_ms": 3022.745,
+              "elapsed_ms": 253.099,
+              "status": 204
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/settings",
+              "start_ms": 3275.882,
+              "elapsed_ms": 225.906,
+              "status": 200
+            }
+          ]
+        },
+        "production_sync_ms": 3275.843,
+        "seconds": 3.501828287,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "1cf38c7f8a604d52aa8ef320f1e0d4ac",
+          "queued": 3
+        },
+        "settings_read_ms": 225.967
+      },
+      "matches": [
+        {
+          "revision": "f9b46807489174d0487d74faeeedcbe1",
+          "sha256": "bb4bea3cc924e38e25a2ec92228d4dad31e70965782126c92dedfb638f90e62f",
+          "size": 1048576
+        }
+      ],
+      "integrity_ok": true
+    }
+  ],
+  "checks": [
+    {
+      "check": "identical file imported twice",
+      "second_upload": {
+        "seconds": 3.066559542000003,
+        "requests": 11,
+        "chunks_up": 1,
+        "chunks_down": 0,
+        "foreground_span_seconds": 2.5568251929999968,
+        "http_errors": [],
+        "trace": [
+          {
+            "method": "GET",
+            "path": "/v1/sync/status",
+            "start_ms": 271.70496800000547,
+            "end_ms": 505.864671000003,
+            "status": 200
+          },
+          {
+            "method": "POST",
+            "path": "/v1/sync/relay/prepare",
+            "start_ms": 334.41328500000236,
+            "end_ms": 570.0283150000032,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/blobs/fe91275b85a530a907305986a24ac77c/chunks",
+            "start_ms": 584.5014070000034,
+            "end_ms": 838.3959489999979,
+            "status": 200
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/blobs/fe91275b85a530a907305986a24ac77c/chunks/0",
+            "start_ms": 838.3599030000041,
+            "end_ms": 1433.294934000005,
+            "status": 201
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/sync/revisions/b5621abb69fb8cda5463f69ccfd88eeb",
+            "start_ms": 1433.2606010000018,
+            "end_ms": 1682.4683809999988,
+            "status": 201
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/changes",
+            "start_ms": 1684.3485079999955,
+            "end_ms": 1941.6253739999956,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/provenance",
+            "start_ms": 1941.5471370000014,
+            "end_ms": 2171.8262039999972,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/changes",
+            "start_ms": 2173.0751829999936,
+            "end_ms": 2401.492624000006,
+            "status": 200
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/sync/cursor",
+            "start_ms": 2401.443478000001,
+            "end_ms": 2643.6040309999953,
+            "status": 204
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/settings",
+            "start_ms": 2643.9267839999957,
+            "end_ms": 2891.2384779999993,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/status",
+            "start_ms": 2897.623357000004,
+            "end_ms": null
+          }
+        ]
+      },
+      "matches": [
+        {
+          "revision": "f9b46807489174d0487d74faeeedcbe1",
+          "sha256": "bb4bea3cc924e38e25a2ec92228d4dad31e70965782126c92dedfb638f90e62f",
+          "size": 1048576
+        },
+        {
+          "revision": "b5621abb69fb8cda5463f69ccfd88eeb",
+          "sha256": "bb4bea3cc924e38e25a2ec92228d4dad31e70965782126c92dedfb638f90e62f",
+          "size": 1048576
+        }
+      ]
+    },
+    {
+      "check": "no-edit sync 1",
+      "browser": {
+        "seconds": 1.2480868330000086,
+        "requests": 7,
+        "chunks_up": 0,
+        "chunks_down": 0,
+        "foreground_span_seconds": 0.9759458949999971,
+        "http_errors": [],
+        "trace": [
+          {
+            "method": "GET",
+            "path": "/v1/sync/status",
+            "start_ms": 26.609519000005093,
+            "end_ms": 270.73026400001254,
+            "status": 200
+          },
+          {
+            "method": "POST",
+            "path": "/v1/sync/relay/prepare",
+            "start_ms": 75.27314600000682,
+            "end_ms": 332.90974500001175,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/changes",
+            "start_ms": 334.82144400000107,
+            "end_ms": 571.1495270000014,
+            "status": 200
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/sync/cursor",
+            "start_ms": 571.1345060000021,
+            "end_ms": 806.2012140000006,
+            "status": 204
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/settings",
+            "start_ms": 806.7453770000138,
+            "end_ms": 1051.219041000004,
+            "status": 200
+          },
+          {
+            "method": "POST",
+            "path": "/v1/sync/presence",
+            "start_ms": 836.923232000001,
+            "end_ms": 1084.0518800000136,
+            "status": 204
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/status",
+            "start_ms": 1083.9565770000045,
+            "end_ms": null
+          }
+        ]
+      },
+      "go": {
+        "injected_delay_ms": 0,
+        "metrics": {
+          "requests": 4,
+          "request_bytes": 444,
+          "response_bytes": 408,
+          "chunks_up": 0,
+          "chunks_down": 0,
+          "http_errors": [],
+          "trace": [
+            {
+              "method": "POST",
+              "path": "/v1/sync/relay/prepare",
+              "start_ms": 0.351,
+              "elapsed_ms": 255.495,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/changes",
+              "start_ms": 256.174,
+              "elapsed_ms": 249.056,
+              "status": 200
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/sync/cursor",
+              "start_ms": 505.294,
+              "elapsed_ms": 228.35,
+              "status": 204
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/settings",
+              "start_ms": 733.672,
+              "elapsed_ms": 249.578,
+              "status": 200
+            }
+          ]
+        },
+        "production_sync_ms": 733.642,
+        "seconds": 0.983288626,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "1cf38c7f8a604d52aa8ef320f1e0d4ac",
+          "queued": 4
+        },
+        "settings_read_ms": 249.634
+      }
+    },
+    {
+      "check": "no-edit sync 2",
+      "browser": {
+        "seconds": 1.2444727569999958,
+        "requests": 6,
+        "chunks_up": 0,
+        "chunks_down": 0,
+        "foreground_span_seconds": 1.0042521080000006,
+        "http_errors": [],
+        "trace": [
+          {
+            "method": "GET",
+            "path": "/v1/sync/status",
+            "start_ms": 29.131036000006134,
+            "end_ms": 272.9090129999968,
+            "status": 200
+          },
+          {
+            "method": "POST",
+            "path": "/v1/sync/relay/prepare",
+            "start_ms": 76.40025000000605,
+            "end_ms": 334.62225100000796,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/changes",
+            "start_ms": 335.7665229999984,
+            "end_ms": 589.4548460000078,
+            "status": 200
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/sync/cursor",
+            "start_ms": 589.4377130000066,
+            "end_ms": 827.4001480000006,
+            "status": 204
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/settings",
+            "start_ms": 827.5821109999961,
+            "end_ms": 1080.6523580000066,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/status",
+            "start_ms": 1085.012809000007,
+            "end_ms": null
+          }
+        ]
+      },
+      "go": {
+        "injected_delay_ms": 0,
+        "metrics": {
+          "requests": 4,
+          "request_bytes": 444,
+          "response_bytes": 408,
+          "chunks_up": 0,
+          "chunks_down": 0,
+          "http_errors": [],
+          "trace": [
+            {
+              "method": "POST",
+              "path": "/v1/sync/relay/prepare",
+              "start_ms": 0.374,
+              "elapsed_ms": 236.289,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/changes",
+              "start_ms": 237.112,
+              "elapsed_ms": 252.918,
+              "status": 200
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/sync/cursor",
+              "start_ms": 490.076,
+              "elapsed_ms": 233.871,
+              "status": 204
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/settings",
+              "start_ms": 723.974,
+              "elapsed_ms": 256.788,
+              "status": 200
+            }
+          ]
+        },
+        "production_sync_ms": 723.945,
+        "seconds": 0.980793831,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "1cf38c7f8a604d52aa8ef320f1e0d4ac",
+          "queued": 4
+        },
+        "settings_read_ms": 256.835
+      }
+    },
+    {
+      "check": "no-edit sync 3",
+      "browser": {
+        "seconds": 1.2368197139999975,
+        "requests": 6,
+        "chunks_up": 0,
+        "chunks_down": 0,
+        "foreground_span_seconds": 0.9829607000000106,
+        "http_errors": [],
+        "trace": [
+          {
+            "method": "GET",
+            "path": "/v1/sync/status",
+            "start_ms": 19.893753999989713,
+            "end_ms": 263.2933820000035,
+            "status": 200
+          },
+          {
+            "method": "POST",
+            "path": "/v1/sync/relay/prepare",
+            "start_ms": 68.1918139999907,
+            "end_ms": 329.74237799999537,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/changes",
+            "start_ms": 331.1367689999897,
+            "end_ms": 568.2325310000015,
+            "status": 200
+          },
+          {
+            "method": "PUT",
+            "path": "/v1/sync/cursor",
+            "start_ms": 568.2162269999972,
+            "end_ms": 805.5621299999912,
+            "status": 204
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/settings",
+            "start_ms": 805.7845269999962,
+            "end_ms": 1051.1525140000012,
+            "status": 200
+          },
+          {
+            "method": "GET",
+            "path": "/v1/sync/status",
+            "start_ms": 1054.343181999997,
+            "end_ms": null
+          }
+        ]
+      },
+      "go": {
+        "injected_delay_ms": 0,
+        "metrics": {
+          "requests": 4,
+          "request_bytes": 444,
+          "response_bytes": 408,
+          "chunks_up": 0,
+          "chunks_down": 0,
+          "http_errors": [],
+          "trace": [
+            {
+              "method": "POST",
+              "path": "/v1/sync/relay/prepare",
+              "start_ms": 0.364,
+              "elapsed_ms": 252.767,
+              "status": 200
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/changes",
+              "start_ms": 253.456,
+              "elapsed_ms": 258.024,
+              "status": 200
+            },
+            {
+              "method": "PUT",
+              "path": "/v1/sync/cursor",
+              "start_ms": 511.541,
+              "elapsed_ms": 237.296,
+              "status": 204
+            },
+            {
+              "method": "GET",
+              "path": "/v1/sync/settings",
+              "start_ms": 748.892,
+              "elapsed_ms": 253.721,
+              "status": 200
+            }
+          ]
+        },
+        "production_sync_ms": 748.838,
+        "seconds": 1.002639515,
+        "settings": {
+          "mode": "temporary-relay",
+          "epoch": "1cf38c7f8a604d52aa8ef320f1e0d4ac",
+          "queued": 4
+        },
+        "settings_read_ms": 253.77
+      }
+    }
+  ],
+  "latency_probe": [],
+  "cleanup": {
+    "removed_devices": [
+      "958bf06fc285821a109e43a3da9d5936",
+      "3895acf9dfdd862f04dec854cfa70e92",
+      "7f3e8e8a7fdbd3353d75b458409c8d49",
+      "5cb6485c137978f4b066f4656ee47e20",
+      "480e9381d9fb9c0d010ccba71429988a",
+      "da4425cefe73d6de6f7865f790cd3758"
+    ],
+    "revoked_sessions": [
+      "662b783967f9033f6aae513af8ee6996",
+      "fddd0fbf8ff8fdea69e7817a1fdf1feb",
+      "af72e769de846e8064f32a6363886b11"
+    ],
+    "errors": [],
+    "settings": {
+      "mode": "temporary-relay",
+      "epoch": "1cf38c7f8a604d52aa8ef320f1e0d4ac",
+      "queued": 0
+    }
+  },
+  "revision": "a72fcbd1b998122974d4769716de118265e966be",
+  "source_diff_sha256": "79f1ce99c0c13aa74c0c0919fb6200d0f196b54ee30b99321714a38a9d8ec6ce",
+  "working_tree": "M docs/temporary-relay.md\n M web/benchmarks/relay.mjs\n?? docs/benchmarks/2026-10-13-relay-optimization/",
+  "source_manifest_sha256": "4df0bcfa6a3bcd42f35d10c582c94a68a711f4475adc3e8d2e8d674ce3556a1d",
+  "base": "https://klefki.onrender.com",
+  "seed": {
+    "injected_delay_ms": 0,
+    "metrics": {
+      "requests": 4,
+      "request_bytes": 92,
+      "response_bytes": 373,
+      "chunks_up": 0,
+      "chunks_down": 0,
+      "http_errors": [],
+      "trace": [
+        {
+          "method": "POST",
+          "path": "/v1/sync/relay/prepare",
+          "start_ms": 0.455,
+          "elapsed_ms": 259.423,
+          "status": 200
+        },
+        {
+          "method": "GET",
+          "path": "/v1/sync/changes",
+          "start_ms": 260.534,
+          "elapsed_ms": 256.311,
+          "status": 200
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/sync/cursor",
+          "start_ms": 517.004,
+          "elapsed_ms": 267.546,
+          "status": 204
+        },
+        {
+          "method": "GET",
+          "path": "/v1/sync/settings",
+          "start_ms": 784.601,
+          "elapsed_ms": 247.097,
+          "status": 200
+        }
+      ]
+    },
+    "production_sync_ms": 784.558,
+    "seconds": 1.031789942,
+    "settings": {
+      "mode": "temporary-relay",
+      "epoch": "1cf38c7f8a604d52aa8ef320f1e0d4ac",
+      "queued": 0
+    },
+    "settings_read_ms": 247.213
+  },
+  "initial_relay": {
+    "mode": "temporary-relay",
+    "epoch": "1cf38c7f8a604d52aa8ef320f1e0d4ac",
+    "queued": 0
+  },
+  "fixtures": [
+    {
+      "name": "tiny.txt",
+      "mime": "text/plain",
+      "size": 1024,
+      "sha256": "0d0f4ca9e4bb3a317c2bc10c8ff01295f41e035d2c79d443e3df235ec76e2725"
+    },
+    {
+      "name": "table.csv",
+      "mime": "text/csv",
+      "size": 65536,
+      "sha256": "6a4b90c64258ac84222f73d408db6711fbd2206a1672b7bc4e06bb3be31ac35b"
+    },
+    {
+      "name": "text.txt",
+      "mime": "text/plain",
+      "size": 1048576,
+      "sha256": "591849e70f6d767c46e32f2de8e496264e6c6328ca4bc0f0ed692be254f199a7"
+    },
+    {
+      "name": "document.pdf",
+      "mime": "application/pdf",
+      "size": 1048576,
+      "sha256": "da5491646f6da113867ec6f59959e58bcb97f925a81c01c6cf9066ab059d25bd"
+    },
+    {
+      "name": "photo.png",
+      "mime": "image/png",
+      "size": 1045273,
+      "sha256": "809b0c7b591418236ddff5bb4ac3fa130b8a5c87ba44b8894e2ef0b2306a3785"
+    },
+    {
+      "name": "archive.zip",
+      "mime": "application/zip",
+      "size": 1048576,
+      "sha256": "bb4bea3cc924e38e25a2ec92228d4dad31e70965782126c92dedfb638f90e62f"
+    },
+    {
+      "name": "binary-8MiB.bin",
+      "mime": "application/octet-stream",
+      "size": 8388608,
+      "sha256": "e718c57e61723751f267d0d05fdd30b9a4cc1b5f8c865dc45e2fdc1133458f16"
+    },
+    {
+      "name": "binary-32MiB.bin",
+      "mime": "application/octet-stream",
+      "size": 33554432,
+      "sha256": "d5816c8eb0e26a3840bb9d70166798b8517ae69af4060b8113f872adf1b059f8"
+    },
+    {
+      "name": "binary-64MiB.bin",
+      "mime": "application/octet-stream",
+      "size": 67108864,
+      "sha256": "8a80f58d5a2bf64e279eaa72ef98b95b219afedd27f246ec834f58f352643425"
+    }
+  ],
+  "browser_assets": [
+    "/assets/index-CGrCuk_W.js"
+  ],
+  "summary": {
+    "file_heads": 4,
+    "injected_delay_ms": 0,
+    "metrics": {
+      "requests": 0,
+      "request_bytes": 0,
+      "response_bytes": 0,
+      "chunks_up": 0,
+      "chunks_down": 0,
+      "http_errors": [],
+      "trace": []
+    },
+    "revision_heads": 4,
+    "seconds": 0.00024609
+  },
+  "final_relay": {
+    "mode": "temporary-relay",
+    "epoch": "1cf38c7f8a604d52aa8ef320f1e0d4ac",
+    "queued": 4
+  },
+  "finished": "2026-10-12T20:21:50.202Z"
+}

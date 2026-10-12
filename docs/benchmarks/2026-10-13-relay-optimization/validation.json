@@ -1,0 +1,20 @@
+{
+  "go_race": "go test -race ./... passed",
+  "go_vet": "go vet ./... passed",
+  "web_crypto": "43/43 checks passed",
+  "browser_integration": "12/12 passed: relay, klefki, sync-status",
+  "web_production_build": "passed",
+  "desktop_production_build": "passed",
+  "native_linux_build": "make linux-build passed",
+  "actual_chunk_parallelism": "four upload and four download requests observed; SHA-256 preserved",
+  "network_locking": "slow reads and writes do not hold account locks; cleanup can finish during copied blob download",
+  "server_commit": "1521890a38e64b6c364f3e61b4603b1664e09afa",
+  "client_commit": "a72fcbd1b998122974d4769716de118265e966be",
+  "hosted_updated_measurement": "two corrected sweeps passed nine SHA-256 transfers, duplicate imports, six zero-chunk no-edit checks and cleanup; interrupted full/extra runs retained with exact limits",
+  "server_deployment": "Render success, deployment 7022759089",
+  "client_deployment": "Render success, deployment 7022823738",
+  "benchmark_completion_fix": "wait for durable cursor acknowledgement before UI idle completion",
+  "rate_limits": "production unchanged; independent 120-burst control passed five hashes and retained its 60-second backoff",
+  "measurement_limits": "local stage isolation; hosted combined implementation only; failed runs retained; no native interactive acceptance",
+  "status": "implementation deployed and verification complete; separate hosted batching-only timing and interactive native UI acceptance were not measured"
+}

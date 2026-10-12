@@ -1,0 +1,6 @@
+"direction","name","type","bytes","upload_seconds","receive_seconds","upload_requests","receive_requests","browser_foreground_seconds","integrity_ok"
+"browser-to-go","relaybench-2026-10-12T19-41-25-410Z-2b9744-browser-tiny-r1.txt","text/plain","1024","0.4382378230000013","0.007785076","11","8","0.03155641900000046","true"
+"browser-to-go","relaybench-2026-10-12T19-41-25-410Z-2b9744-browser-text-r1.txt","text/plain","1048576","0.45534006299999963","0.015950981","11","8","0.036332024999999706","true"
+"go-to-browser","relaybench-2026-10-12T19-41-25-410Z-2b9744-go-tiny.txt","text/plain","1024","0.008828803","0.44644495000000095","10","9","0.02020406500000172","true"
+"go-to-browser","relaybench-2026-10-12T19-41-25-410Z-2b9744-go-text.txt","text/plain","1048576","0.015188865","0.47205141199999706","10","9","0.0332940869999984","true"
+"browser-to-go","relaybench-2026-10-12T19-41-25-410Z-2b9744-duplicate.zip","application/zip","1048576","0.46256941200000073","0.019307651","11","8","0.043839601000003316","true"

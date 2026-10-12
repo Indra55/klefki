@@ -13,7 +13,7 @@ import {fixtures} from './fixtures.mjs';
 const web = resolve(dirname(fileURLToPath(import.meta.url)), '..'), repo = resolve(web, '..');
 const {values: options} = parseArgs({options: {
   local: {type: 'boolean'}, server: {type: 'string'}, out: {type: 'string'},
-  quick: {type: 'boolean'}, history: {type: 'string', default: '59'},
+  quick: {type: 'boolean'}, 'large-only': {type:'boolean'}, file: {type:'string'}, history: {type: 'string', default: '59'},
   'rate-burst': {type: 'string', default: '12000'}, 'skip-web-build': {type: 'boolean'},
   'latency-probe': {type: 'boolean'}, help: {type: 'boolean'},
 }});
@@ -23,6 +23,8 @@ if (options.help) {
   npm --prefix web run benchmark -- --server https://YOUR-RELAY
 
 Options:
+  --file NAME         Run one named fixture in both directions
+  --large-only        Repeat the 8, 32 and 64 MiB fixtures plus duplicate/no-edit checks
   --quick             Two sizes in both directions, duplication, and no-edit syncs
   --history N         Synthetic initial folder revisions (default: 59)
   --out DIRECTORY     Fresh output directory (default: .benchmarks/<run>)
@@ -34,6 +36,7 @@ Every run creates its own synthetic account; no personal account file is needed.
   process.exit(0);
 }
 if (!!options.local === !!options.server) throw Error('Choose --local or --server URL.');
+if(options.quick&&options['large-only'])throw Error('Choose --quick or --large-only.');
 const history = Number(options.history), rateBurst = Number(options['rate-burst']);
 if (!Number.isInteger(history) || history < 0 || history > 4096) throw Error('--history must be between 0 and 4096');
 if (!Number.isInteger(rateBurst) || rateBurst < 1) throw Error('--rate-burst must be a positive integer');
@@ -53,7 +56,7 @@ const controller = new AbortController(), sleep = ms => new Promise(r => setTime
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => controller.abort(Error('Benchmark interrupted')));
 const result = {
   started: new Date().toISOString(), run, mode: options.local ? 'local' : 'hosted',
-  quick: !!options.quick, history, local_rate_burst: options.local ? rateBurst : null,
+  quick: !!options.quick, large_only: !!options['large-only'], file:options.file, history, local_rate_burst: options.local ? rateBurst : null,
   browser_waits: {after_click_ms: 200, polling_ms: 100, settling_ms: 150},
   baseline: 'Fresh synthetic account with folder history and four offline holding peers',
   rows: [], checks: [], latency_probe: [], cleanup: {removed_devices: [], revoked_sessions: [], errors: []},
@@ -80,7 +83,7 @@ result.source_manifest_sha256 = createHash('sha256').update(JSON.stringify(sourc
 
 let base = options.server?.replace(/\/$/, ''), server, worker, context, page, admin;
 const devices = [], sessions = new Set(), prefix = 'relaybench-' + run + '-';
-let account, password, active = false, logs = [], pending = new Map();
+let account, password, active = false, browserStarted = 0, logs = [], pending = new Map();
 
 async function command(program, args, cwd = repo) {
   const child = spawn(program, args, {cwd, stdio: ['ignore', 'inherit', 'inherit'], signal: controller.signal});
@@ -141,22 +144,31 @@ async function syncUI() {
   controller.signal.throwIfAborted();
   await library();
   await page.getByRole('button', {name: 'Sync status', exact: true}).click();
-  await page.getByRole('dialog', {name: 'Sync activity'}).getByRole('button', {name: 'Sync now', exact: true}).click();
-  await sleep(200);
-  const deadline = Date.now() + 12 * 60000;
-  while (Date.now() < deadline) {
-    controller.signal.throwIfAborted();
-    if (await page.getByRole('button', {name: 'Sync status', exact: true}).getAttribute('data-state') !== 'running') {
-      await sleep(150);
+  let acknowledged = false;
+  const receipt = response => {
+    if (new URL(response.url()).pathname === '/v1/sync/cursor' && response.request().method() === 'PUT' && response.ok()) acknowledged = true;
+  };
+  page.on('response', receipt);
+  try {
+    await page.getByRole('dialog', {name: 'Sync activity'}).getByRole('button', {name: 'Sync now', exact: true}).click();
+    await sleep(200);
+    const deadline = Date.now() + 12 * 60000;
+    while (Date.now() < deadline) {
+      controller.signal.throwIfAborted();
       const status = await page.locator('#status').textContent();
       if (/Could not complete|expired|storage is full|Waiting for another/.test(status || '')) throw Error(status);
-      return status;
+      const idle = () => page.getByRole('button', {name: 'Sync status', exact: true}).getAttribute('data-state');
+      if (acknowledged && await idle() !== 'running' && status !== 'Working…') {
+        await sleep(150);
+        if (await idle() !== 'running') return await page.locator('#status').textContent();
+      }
+      await sleep(100);
     }
-    await sleep(100);
-  }
-  throw Error('Browser sync timed out');
+    throw Error('Browser sync timed out');
+  } finally { page.off('response', receipt); }
 }
-function startBrowser() { active = true; logs = []; return performance.now(); }
+
+function startBrowser() { active = true; logs = []; browserStarted = performance.now(); return browserStarted; }
 function browserStats(start) {
   active = false;
   const foreground = logs.filter(x => !['/v1/sync/status', '/v1/sync/presence'].includes(x.path) && x.start >= start && x.end !== undefined);
@@ -287,7 +299,8 @@ try {
     db.close(); return device;
   });
   devices.push(names); persist();
-  const sweep = options.quick ? files.filter(f => f.name !== 'archive.zip') : files;
+  if(options.file&&!files.some(f=>f.name===options.file))throw Error('Unknown fixture filename');
+  const sweep = options.file ? files.filter(f=>f.name===options.file) : options['large-only'] ? files.filter(f => f.size >= 8 * 1024 * 1024) : options.quick ? files.filter(f => f.name !== 'archive.zip') : files;
   for (const f of sweep) {
     const parsed = parse(f.name), runs = !options.quick && f.size <= 1024 * 1024 ? 2 : 1;
     for (let i = 1; i <= runs; i++) await transfer(f, prefix + 'browser-' + parsed.name + '-r' + i + parsed.ext, 'browser-to-go');
@@ -324,7 +337,7 @@ try {
   result.final_relay = await api('GET', '/v1/sync/settings');
   result.finished = new Date().toISOString(); persist();
 } catch (e) {
-  result.error = e.message; process.exitCode = 1;
+  result.error = e.message; if(active)result.failed_browser=browserStats(browserStarted); process.exitCode = 1;
   console.error('Benchmark failed: ' + e.message);
 } finally {
   active = false;

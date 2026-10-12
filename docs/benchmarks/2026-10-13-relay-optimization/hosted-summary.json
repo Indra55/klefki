@@ -1,0 +1,31 @@
+{
+  "server_commit": "1521890a38e64b6c364f3e61b4603b1664e09afa",
+  "client_commit": "a72fcbd1b998122974d4769716de118265e966be",
+  "browser_assets": [
+    "/assets/index-CGrCuk_W.js"
+  ],
+  "corrected_hosted_hash_matches": 9,
+  "no_edit_production_requests": 3,
+  "no_edit_chunks": 0,
+  "hosted_no_edit_harness_seconds": 1.033868761,
+  "hosted_no_edit_production_seconds": 0.785645,
+  "hosted_64MiB_browser_upload_samples_seconds": [
+    18.927,
+    18.676,
+    18.094
+  ],
+  "hosted_32MiB_browser_receive_samples_seconds": [
+    10.275,
+    11.382
+  ],
+  "hosted_32MiB_go_upload_samples_seconds": [
+    9.954,
+    10.653
+  ],
+  "limitations": [
+    "Interrupted runs retained",
+    "Local stage isolation; hosted combined implementation",
+    "Final focused repeat used zero initial history",
+    "No native interactive UI acceptance"
+  ]
+}

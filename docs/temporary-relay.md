@@ -170,3 +170,11 @@ exports and edits during stalled requests and downloads, plus idle polling.
 The installed Linux executable was updated and matched the rebuilt executable's
 checksum. Interactive native acceptance and the updated live Render/PWA build
 remain pending; these local checks do not verify the user's hosted account.
+
+## Reducing hosted request latency
+
+Updated servers accept `POST /v1/sync/relay/prepare` with `device`, `known`, `sequence` and up to 256 revision `ids`; they return the existing relay state plus missing `ids`. Further history uses `/v1/sync/relay/need-batch`, with the same 256-ID limit. Both endpoints cap bodies at 16 KiB. Existing device/need endpoints keep their prior shapes and 16-ID need limit. Updated clients fall back after unsupported-endpoint 404/405 responses.
+
+Sync checks retained revision IDs in order, loading payloads only when needed. Chunks use windows of four authenticated transfers; revision publication stays sequential, and durable cursor acknowledgement follows local commit. Account locks serialize quota, publication and cleanup while network body reads and response writes happen outside the locks.
+
+The server was deployed before clients. See [measured results and exact revisions](benchmarks/2026-10-13-relay-optimization/README.md) for hosted timings, local stage comparisons, compatibility tests and unchanged production rate-limit control.

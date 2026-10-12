@@ -1,0 +1,4 @@
+"direction","name","type","bytes","upload_seconds","receive_seconds","upload_requests","receive_requests","browser_foreground_seconds","integrity_ok","go_production_sync_seconds","go_settings_read_seconds"
+"browser-to-go","relaybench-2026-10-12T20-19-50-415Z-1afde2-browser-binary-32MiB-r1.bin","application/octet-stream","33554432","11.180946913000007","10.6413683","20","15","10.930739759999996","true","10.413335","0.228013"
+"go-to-browser","relaybench-2026-10-12T20-19-50-415Z-1afde2-go-binary-32MiB.bin","application/octet-stream","33554432","10.652530513","11.381660101999994","17","18","11.03464156599999","true","10.346528000000001","0.305987"
+"browser-to-go","relaybench-2026-10-12T20-19-50-415Z-1afde2-duplicate.zip","application/zip","1048576","3.0501828539999987","3.501828287","12","8","2.7059257720000023","true","3.275843","0.225967"
