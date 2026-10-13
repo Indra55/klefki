@@ -6,10 +6,26 @@ Desktop, browser, and PWA use the same status labels and progress rules.
 
 ## Using the status display
 
-The header status opens **Sync activity**. An active transfer also appears in
+The header's colored indicator opens **Sync activity**. Its status is available
+as a tooltip and accessible description; the full label and a color legend are
+inside the menu. An active transfer also appears in
 a compact strip above the library with its name, direction, byte and chunk
-progress, current phase, retry countdown, and a Details button. On small screens,
-the activity panel opens as a bottom sheet.
+progress, current phase, retry countdown, and a Details button. On small screens
+and installed PWAs, the activity panel is centered with safe-area margins and
+internal scrolling. Wider browser and desktop windows keep the corner panel.
+
+| Color | Meaning |
+| --- | --- |
+| Green | Up to date with server, with no known waiting changes. |
+| Amber | Local changes waiting to upload. |
+| Purple | Changes waiting to download, another device needed to supply content, or linked devices awaiting receipt. |
+| Blue | Checking, transferring, saving, or retrying. |
+| Red | Server unavailable, timeout, sign-in required, relay full, or sync error. |
+| Gray | Offline, local-only, locked, or unknown status. |
+
+Connection failures take priority over active work, then local pending changes
+and device waiting. Device-derived waiting states require fresh status. Green
+does not certify receipt by devices whose status is unavailable.
 
 **Up to date with server** means this client completed its sync pass.
 **Waiting for My phone** means the server has changes that device has not yet
@@ -24,6 +40,9 @@ They are local preferences scoped to the account and server. They are not sent
 to the server or copied automatically to other clients. Document names remain
 encrypted; transfer names and the latest 50 activity records are held only in
 the current unlocked UI session and cleared on lock.
+Recent activity shows five transfers per page with Previous/Next controls.
+Progress updates preserve the selected page; reopening the menu starts on page
+one. The active transfer strip is separate from history pagination.
 
 ## Progress, retries, and automatic sync
 
@@ -39,7 +58,14 @@ at least five seconds. Retry resets those estimates and shows the attempt and
 countdown. Ten seconds without transfer progress displays Taking longer than
 usual. Timeout, unavailable network, unreachable server, expired sign-in, relay
 capacity, and other sync errors have separate states. Pending edits survive
-failure. Sync now is available once the active pass finishes.
+failure. **Refresh sync** is available once the active pass finishes. It renews
+the server session, uploads pending edits, receives incoming changes and
+deletions, and refreshes the library and device status without locking the vault.
+The menu stays open to show progress and failures. Refresh requests arriving
+during existing work are coalesced and run afterward even without local edits.
+Local cursors, stable device identity, and nicknames are retained. Waiting for a
+source device to supply content clears only after sync can obtain that content;
+receipt polling alone cannot complete it.
 
 Clients sync on unlock, after local edits, on reconnect, on foreground return,
 and every 60 seconds while active. Local changes are debounced for one second;
@@ -79,6 +105,30 @@ an older server continues syncing and displays Device status unavailable when
 the additive endpoints are absent. To expose full device activity on a hosted
 server, deploy the updated server and web build together. Existing installed
 PWAs receive the changed assets through the existing service-worker update flow.
+
+## Indicator and refresh acceptance — 2026-10-13
+
+- [x] `go test -race ./core/desktop` and `go vet ./core/desktop` passed.
+  Focused refresh tests also passed after fixture cleanup: expired-session
+  renewal receives a second client's revision without locking or changing
+  stable identity/nicknames; queued refresh survives a failed pass with no
+  local edits; receipt polling cannot complete a source-content wait.
+- [x] All 40 desktop frontend tests passed, including indicator precedence,
+  stale receipts, refresh dispatch errors, pagination stability and clamping.
+- [x] Web Chromium sync/relay/status cases passed across the regression run and
+  focused reruns. Real transfers verify fresh login during refresh and retained
+  device identity, pending offline edits, older-server fallback, and a red
+  indicator when status requests return 503.
+- [x] Web menu layout passed at 320, 390, and 600px; five-entry pagination,
+  keyboard focus across status ticks, and reset on reopen passed.
+- [x] Seven desktop browser cases passed using an explicit fixture bridge,
+  including sync-menu layouts from 320 to 1200px and progress during refresh.
+- [x] Desktop and web/PWA production builds passed. The native ONNX-enabled
+  executable was rebuilt at `desktop/build/bin/klefki-desktop`.
+- [ ] Installing the rebuilt desktop executable, native-window acceptance,
+  hosted deployment, and physical installed-PWA/standalone tablet acceptance
+  remain separate checks. This run's Chromium media emulation did not override
+  `display-mode`, so mobile browser layout is not standalone-PWA proof.
 
 ## Acceptance evidence — 2026-10-12
 

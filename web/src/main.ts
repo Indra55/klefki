@@ -24,8 +24,8 @@ let syncModeDraft: {base:string;selected:string} | undefined;
 let view = 'All documents', tag = '', sort = preferences().defaultSort, settings: Section | null = null, feedback = '', syncState = 'Local only';
 let syncInfo:SyncInfo=idleSync(),syncActivity:SyncActivity[]=[],aliases:Record<string,string>={},syncDevice='',linkedDevices:string[]=[],lastSync=0;
 let operationQueue=Promise.resolve();
-let syncRunning=false,syncRequested=false,registerRequested=false,syncTimer:number|undefined,monitorBusy=false,lastPresence=0,lastDeviceCheck=0;
-const syncView=new SyncView({sync:()=>void syncNow(),settings:()=>showSettings('sync'),panel:open=>{if(open){lastDeviceCheck=0;void monitorSync()}},alias:saveAlias});
+let syncRunning=false,syncRequested=false,registerRequested=false,refreshRequested=false,syncTimer:number|undefined,monitorBusy=false,lastPresence=0,lastDeviceCheck=0;
+const syncView=new SyncView({refresh:()=>void syncNow(false,false,true),settings:()=>showSettings('sync'),panel:open=>{if(open){lastDeviceCheck=0;void monitorSync()}},alias:saveAlias});
 function renderSync(){
     syncView.update({info:syncInfo,pending:pendingChanges,server:location.origin,aliases,self:syncDevice,activity:syncActivity,lastSync,devices:linkedDevices});
     const label=document.querySelector('#settings-sync-label');if(label)label.textContent=syncLabel(syncInfo,syncDevice,aliases);
@@ -44,7 +44,7 @@ function scheduleSync(){
 }
 function syncErrorPhase(e:unknown){
     if(e instanceof RelayWaiting)return 'waiting';
-    if(e instanceof HTTPError)return e.status===401||e.status===403?'auth':e.status===507?'full':e.status===408||e.status===504?'timeout':'error';
+    if(e instanceof HTTPError)return e.status===401||e.status===403?'auth':e.status===507?'full':e.status===408||e.status===504?'timeout':e.status>=500?'unreachable':'error';
     if(!navigator.onLine)return 'offline';
     if(e instanceof DOMException&&e.name==='AbortError')return 'timeout';
     return e instanceof TypeError?'unreachable':'error';
@@ -60,8 +60,8 @@ async function monitorSync(){
         }
         if(now-lastDeviceCheck>=(syncView.open?5000:30000)){
             lastDeviceCheck=now;
-            try {const peers=validateStatus(c.strictJSON(c.decode(await r.request('GET','/v1/sync/status',undefined,32768,{background:true}))) as ServerStatus);if(g!==generation)return;syncInfo={...syncInfo,peers,statusAvailable:true,lastDeviceCheck:Date.now()};if(!syncRunning&&syncInfo.phase==='waiting'&&peers.devices.every(peer=>peer.outstanding===0)){syncInfo={...syncInfo,phase:'synced'};syncState='Synced';}}
-            catch(e) {if(g===generation){const phase=syncErrorPhase(e);syncInfo={...syncInfo,statusAvailable:false,...(!syncRunning&&['auth','unreachable','offline','timeout'].includes(phase)?{phase}:{})};}}
+            try {const peers=validateStatus(c.strictJSON(c.decode(await r.request('GET','/v1/sync/status',undefined,32768,{background:true}))) as ServerStatus);if(g!==generation||r!==remote)return;syncInfo={...syncInfo,peers,statusAvailable:true,lastDeviceCheck:Date.now()};if(!syncRunning&&syncInfo.phase==='waiting'&&syncInfo.waitingFor==='receipts'&&peers.devices.every(peer=>peer.outstanding===0)){syncInfo={...syncInfo,phase:'synced',waitingFor:undefined};syncState='Synced';}}
+            catch(e) {if(g===generation&&r===remote){const phase=syncErrorPhase(e);syncInfo={...syncInfo,statusAvailable:false,...(!syncRunning&&['auth','unreachable','offline','timeout'].includes(phase)?{phase}:{})};}}
         }
         if(g===generation)renderSync();
     } finally {if(g===generation)monitorBusy=false;}
@@ -91,7 +91,7 @@ function shell() {
     }
     root.prepend(header); if (waitingUpdate?.waiting) offerUpdate(root); app.append(root); return root;
 }
-function lock() { syncModeDraft=undefined;syncView.clear();window.clearTimeout(syncTimer);syncInfo=idleSync();syncActivity=[];aliases={};syncDevice='';linkedDevices=[];lastSync=0;syncRunning=syncRequested=registerRequested=monitorBusy=false;lastPresence=lastDeviceCheck=pendingChanges=0;closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
+function lock() { syncModeDraft=undefined;syncView.clear();window.clearTimeout(syncTimer);syncInfo=idleSync();syncActivity=[];aliases={};syncDevice='';linkedDevices=[];lastSync=0;syncRunning=syncRequested=registerRequested=refreshRequested=monitorBusy=false;lastPresence=lastDeviceCheck=pendingChanges=0;closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
     c.wipe(master); if (credential)
     c.wipe(credential); master = credential = undefined; heads = []; store?.close(); store = undefined; release?.(); release = undefined; busy = false; parent = null; filter = ''; favorites = false; view = 'All documents'; tag = ''; settings = null; feedback = ''; syncState = 'Local only'; for (const url of urls)
     URL.revokeObjectURL(url); urls.clear(); for (const b of previews)
@@ -284,17 +284,20 @@ async function connectRemote(register=false){
     await r.login(account!,credential!,register,await s.state('sync-mode')==='temporary-relay');
     await s.transaction(['state'],'readwrite',async tx=>{tx.objectStore('state').put(true,'sync-connected');});
     if(g!==generation)return;
-    r.observe=p=>{if(g!==generation)return;syncInfo={...syncInfo,progress:p,phase:p.phase,running:true};syncActivity=addActivity(syncActivity,p);renderSync();};
-    r.onContact=()=>{if(g===generation)syncInfo={...syncInfo,lastContact:Date.now()};};
+    r.observe=p=>{if(g!==generation||r!==remote)return;syncInfo={...syncInfo,progress:p,phase:p.phase,running:true,waitingFor:undefined};syncActivity=addActivity(syncActivity,p);renderSync();};
+    r.onContact=()=>{if(g===generation&&r===remote)syncInfo={...syncInfo,lastContact:Date.now()};};
     remote=r;lastPresence=lastDeviceCheck=0;
 }
-async function syncNow(register = false, background = false) {
+async function syncNow(register = false, background = false, reconnect = false) {
     if(!master)return;
+    refreshRequested ||= reconnect;
     if(syncRunning){if(register){syncRequested=true;registerRequested=true;}return;}
-    if(busy){if(!background){syncRequested=true;registerRequested ||= register;}return;}
+    if(busy){if(!background||refreshRequested){syncRequested=true;registerRequested ||= register;}return;}
+    reconnect=refreshRequested;refreshRequested=false;
+    if(reconnect){remote=undefined;background=false;syncInfo={...syncInfo,statusAvailable:false};}
     window.clearTimeout(syncTimer);syncRequested=false;register ||= registerRequested;registerRequested=false;
     const g=generation,key=master.slice(),s=store!;syncRunning=true;
-    if (!background) { syncState='Syncing';syncInfo={...syncInfo,phase:'connecting',running:true,progress:undefined};renderSync(); }
+    if (!background) { syncState='Syncing';syncInfo={...syncInfo,phase:'connecting',running:true,progress:undefined,waitingFor:undefined};renderSync(); }
     try {
         if(!remote)await connectRemote(register);
         if(g!==generation)return;
@@ -308,23 +311,23 @@ async function syncNow(register = false, background = false) {
         try {await sync(s,key,remote!);}
         catch(e){if(!(e instanceof HTTPError)||e.status!==401||await s.state('sync-mode')!=='temporary-relay')throw e;await connectRemote();await sync(s,key,remote!);}
         if(g!==generation)return;
-        lastSync=Date.now();syncInfo={...syncInfo,phase:'synced'};syncState='Synced';
+        lastSync=Date.now();syncInfo={...syncInfo,phase:'synced',waitingFor:undefined};syncState='Synced';
         message('Synced. All local changes are saved on the server.');
         if(await s.state('sync-mode')==='temporary-relay'){
             const status=await remote!.json<{queued:number}>('GET','/v1/sync/settings',undefined,1024);
-            syncState=status.queued?'Waiting for linked devices':'Synced';syncInfo={...syncInfo,phase:status.queued?'waiting':'synced'};
+            syncState=status.queued?'Waiting for linked devices':'Synced';syncInfo={...syncInfo,phase:status.queued?'waiting':'synced',waitingFor:status.queued?'receipts':undefined};
             message(status.queued?'Uploaded to the relay. Waiting for linked devices to save their copies.':'Synced. Delivered documents have been removed from the relay.');
         }
         await refresh();
     } catch(e) {
         if(g!==generation)return;
-        const phase=syncErrorPhase(e);syncInfo={...syncInfo,phase};syncState=phase==='auth'?'Authentication required':phase==='waiting'?'Waiting for another device':'Sync error';
+        const phase=syncErrorPhase(e);syncInfo={...syncInfo,phase,waitingFor:e instanceof RelayWaiting?'source':undefined};syncState=phase==='auth'?'Authentication required':phase==='waiting'?'Waiting for another device':'Sync error';
         if(phase==='auth')remote=undefined;
         message(e instanceof RelayWaiting?e.message:phase==='auth'?'Sign-in expired. Reconnect or register this store in Settings.':phase==='full'?'Relay storage is full. Sync the other linked devices to free space.':'Could not complete sync. Your local changes are kept.');
         if(syncInfo.progress)syncActivity=addActivity(syncActivity,{...syncInfo.progress,phase,updatedAt:Date.now()});
     } finally {
         c.wipe(key);
-        if(g===generation){syncRunning=false;syncInfo={...syncInfo,running:false};renderSync();lastDeviceCheck=0;void monitorSync();if(syncRequested){try{const pending=(await s.all()).some(x=>x.pending)||(await deletionRecords(s,true)).length>0;if(g===generation){if(registerRequested||pending)scheduleSync();else syncRequested=false;}}catch{}}}
+        if(g===generation){syncRunning=false;syncInfo={...syncInfo,running:false};renderSync();lastDeviceCheck=0;void monitorSync();if(refreshRequested)void syncNow(false,false,true);else if(syncRequested){try{const pending=(await s.all()).some(x=>x.pending)||(await deletionRecords(s,true)).length>0;if(g===generation){if(registerRequested||pending)scheduleSync();else syncRequested=false;}}catch{}}}
     }
 }
 function trashed(h: Head, seen = new Set<string>()): boolean { if (h.metadata.tags.includes('klefki:system:trash') && h.metadata.type === 'folder')

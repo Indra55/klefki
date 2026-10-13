@@ -40,9 +40,13 @@ test('automatic transfers show source, confirmed progress, private nicknames and
     const panel=b.getByRole('dialog',{name:'Sync activity'});await expect(panel.getByRole('textbox',{name:'Nickname for device '+source.slice(0,8)})).toBeVisible();
     await panel.getByRole('textbox',{name:'Nickname for device '+source.slice(0,8)}).fill('My laptop');await panel.getByRole('textbox',{name:'Nickname for device '+source.slice(0,8)}).locator('..').getByRole('button',{name:'Save',exact:true}).click();
     await expect(panel.getByText('My laptop',{exact:true})).toBeVisible();
-    await panel.getByRole('button',{name:'Sync now',exact:true}).click();await expect(b.getByRole('status')).toContainText('Synced.');
+    const recipient=await localDevice(b);
+    let logins=0;await b.route('**/v1/login',async route=>{logins++;await route.continue()});
+    await panel.getByRole('button',{name:'Refresh sync',exact:true}).click();await expect(panel.getByRole('button',{name:'Refresh sync',exact:true})).toBeEnabled();await expect(b.getByRole('status')).toContainText('Synced.');
+    expect(logins).toBe(1);
+    expect(await localDevice(b)).toBe(recipient);
     await expect(b.locator('article').filter({has:b.getByText('visible-progress.bin',{exact:true})})).toBeVisible();
-    await b.getByRole('button',{name:'Sync status',exact:true}).click();
+    await expect(panel).toBeVisible();
     await expect(panel).toContainText('from My laptop via server');await expect(panel).toContainText('Received latest changes');
     const nameOnServer=await b.evaluate(async({account,credential})=>{
       const res=await fetch('/v1/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({account,credential})});const {token}=await res.json();
@@ -55,6 +59,43 @@ test('automatic transfers show source, confirmed progress, private nicknames and
   } finally {release();await second.close().catch(()=>{});c.wipe(created.master);c.wipe(keys.master);c.wipe(keys.credential);}
 });
 
+test('compact indicator opens a centered menu with stable paginated activity',async({page})=>{
+  await c.ready;const created=c.createAccount(password);
+  try{
+    await open(page,created.account);await openSettings(page,'Sync & devices');
+    await page.getByRole('button',{name:'Register this store on server',exact:true}).click();await expect(page.getByRole('status')).toContainText('Synced.');
+    await backToLibrary(page);
+    await page.getByLabel('Add document').setInputFiles(Array.from({length:7},(_,i)=>({name:`history-${i}.txt`,mimeType:'text/plain',buffer:Buffer.from(`history ${i}`)})));
+    await expect(page.locator('article')).toHaveCount(7);
+    await expect(page.getByRole('button',{name:'Sync status',exact:true})).toHaveAttribute('data-state','synced');
+    const trigger=page.getByRole('button',{name:'Sync status',exact:true});
+    const size=await trigger.boundingBox();expect(size!.width).toBeGreaterThanOrEqual(44);expect(size!.height).toBeGreaterThanOrEqual(44);
+    await expect(trigger.locator('.sr-only')).toHaveCSS('width','1px');
+    await trigger.click();const panel=page.getByRole('dialog',{name:'Sync activity'});
+    await expect(panel.locator('.sync-history li')).toHaveCount(5);
+    await expect(panel.getByText('Page 1 of 2',{exact:true})).toBeVisible();
+    await panel.getByRole('button',{name:'Next',exact:true}).click();
+    await expect(panel.locator('.sync-history li')).toHaveCount(2);
+    await panel.getByRole('button',{name:'Previous',exact:true}).focus();await page.waitForTimeout(1200);
+    await expect(panel.getByText('Page 2 of 2',{exact:true})).toBeVisible();await expect(panel.getByRole('button',{name:'Previous',exact:true})).toBeFocused();
+    for(const width of [320,390,600]){
+      await page.setViewportSize({width,height:740});
+      const rect=(await panel.boundingBox())!;
+      expect(Math.abs(rect.x+rect.width/2-width/2)).toBeLessThanOrEqual(1);
+      expect(Math.abs(rect.y+rect.height/2-370)).toBeLessThanOrEqual(1);
+      expect(rect.x).toBeGreaterThanOrEqual(16);expect(rect.y).toBeGreaterThanOrEqual(16);
+      expect(rect.y+rect.height).toBeLessThanOrEqual(724);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+      await page.screenshot({path:`test-results/sync-menu-${width}.png`});
+    }
+    await panel.getByRole('button',{name:'Close',exact:true}).click();await trigger.click();
+    await expect(panel.getByText('Page 1 of 2',{exact:true})).toBeVisible();
+    await page.context().setOffline(true);await expect(trigger).toHaveAttribute('data-state','neutral');await expect(panel).toContainText('Network unavailable');
+    await page.route('**/v1/sync/status',route=>route.fulfill({status:503,body:'Unavailable'}));
+    await page.context().setOffline(false);await expect(trigger).toHaveAttribute('data-state','error');await expect(panel).toContainText('Server unreachable');
+  }finally{await page.context().setOffline(false);c.wipe(created.master);}
+});
+
 test('unsupported device status does not stop sync and offline work stays queued',async({page})=>{
   await c.ready;const created=c.createAccount(password);
   try{
@@ -62,7 +103,8 @@ test('unsupported device status does not stop sync and offline work stays queued
     await open(page,created.account);await openSettings(page,'Sync & devices');await page.getByRole('button',{name:'Register this store on server',exact:true}).click();await expect(page.getByRole('status')).toContainText('Synced.');
     await backToLibrary(page);await page.getByRole('button',{name:'Sync status',exact:true}).click();const panel=page.getByRole('dialog',{name:'Sync activity'});await expect(panel).toContainText('Device status unavailable');await panel.getByRole('button',{name:'Close',exact:true}).click();
     await page.context().setOffline(true);await upload(page,{name:'offline-status.txt',mimeType:'text/plain',buffer:Buffer.from('offline pending')});await expect(page.locator('article')).toContainText('offline-status.txt');
-    await expect(page.getByRole('button',{name:'Sync status',exact:true})).toHaveText(/Network unavailable|Changes waiting|Checking connection|Retrying/);
+    await expect(page.getByRole('button',{name:'Sync status',exact:true})).toHaveAttribute('data-state','neutral');
+    await expect(page.getByRole('button',{name:'Sync status',exact:true})).toHaveAttribute('title','Network unavailable');
     await page.context().setOffline(false);await expect(page.getByRole('status')).toContainText('Synced.');
   }finally{c.wipe(created.master);}
 });

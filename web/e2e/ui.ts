@@ -11,7 +11,9 @@ export async function openSettings(page: Page, section: string) {
 export async function syncNow(page: Page) {
     await backToLibrary(page);
     await page.getByRole('button', {name: 'Sync status', exact: true}).click();
-    await page.getByRole('dialog', {name: 'Sync activity'}).getByRole('button', {name: 'Sync now', exact: true}).click();
+    const panel=page.getByRole('dialog', {name: 'Sync activity'});
+    await panel.getByRole('button', {name: 'Refresh sync', exact: true}).click();
+    await panel.getByRole('button', {name: 'Close', exact: true}).click();
 }
 export async function documentAction(page: Page, name: string, action: string) {
     await backToLibrary(page);

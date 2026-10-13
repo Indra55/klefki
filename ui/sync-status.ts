@@ -12,6 +12,7 @@ export type Provenance = { sequence: number; revision: string; origin: string; p
 export type SyncInfo = {
   phase: string; running: boolean; progress?: SyncProgress; lastContact: number;
   lastDeviceCheck: number; statusAvailable: boolean; peers?: ServerStatus;
+  waitingFor?: 'source' | 'receipts';
 };
 export type SyncActivity = SyncProgress;
 export const idleSync = (): SyncInfo => ({phase: 'local', running: false, lastContact: 0, lastDeviceCheck: 0, statusAvailable: false});
@@ -40,14 +41,38 @@ export function presence(d: DeviceStatus, now = Date.now(), checked = now) {
   if (now-checked >= 45000 || !d.lastSeen || now-d.lastSeen >= 45000 || d.phase === 'unknown' || d.phase === 'locked') return 'Not recently seen';
   return d.phase === 'idle' ? 'Recently connected' : phaseLabel(d.phase);
 }
-export function waitingDevices(info: SyncInfo, self: string) {
-  if (!info.statusAvailable || Date.now()-info.lastDeviceCheck >= 45000) return [];
+export function waitingDevices(info: SyncInfo, self: string, now = Date.now()) {
+  if (!info.statusAvailable || now-info.lastDeviceCheck >= 45000) return [];
   return info.peers?.devices.filter(d => d.device !== self && d.outstanding > 0) || [];
 }
-export function syncLabel(info: SyncInfo, self: string, aliases: Record<string,string>) {
-  const waiting = waitingDevices(info,self);
+export function syncLabel(info: SyncInfo, self: string, aliases: Record<string,string>, now = Date.now()) {
+  if (info.phase === 'waiting' && info.waitingFor === 'source') return 'Waiting for another device to supply changes';
+  const waiting = waitingDevices(info,self,now);
   if (!info.running && info.phase === 'synced' && waiting.length) return `Waiting for ${waiting.length === 1 ? deviceName(waiting[0].device,aliases,info.peers?.devices,self) : `${waiting.length} devices`}`;
   return phaseLabel(info.phase);
+}
+export type SyncIndicatorState = 'synced' | 'pending' | 'waiting' | 'running' | 'error' | 'neutral';
+export const syncLegend: {state:SyncIndicatorState;label:string}[] = [
+  {state:'synced',label:'Synced'}, {state:'pending',label:'Local changes waiting'},
+  {state:'waiting',label:'Device changes waiting'}, {state:'running',label:'Syncing'},
+  {state:'error',label:'Server or sync error'}, {state:'neutral',label:'Offline / local / unknown'},
+];
+export function syncIndicator(info: SyncInfo, self: string, aliases: Record<string,string>, pending = 0, now = Date.now()): {state:SyncIndicatorState;label:string} {
+  const label=syncLabel(info,self,aliases,now);
+  if (['error','auth','unreachable','timeout','full'].includes(info.phase)) return {state:'error',label};
+  if (['offline','local','locked'].includes(info.phase)) return {state:'neutral',label};
+  if (info.running) return {state:'running',label};
+  if (pending > 0 || info.phase === 'pending') return {state:'pending',label:'Local changes waiting to upload'};
+  if (info.phase === 'waiting') return {state:'waiting',label};
+  const fresh=info.statusAvailable && now-info.lastDeviceCheck < 45000;
+  if (fresh && info.peers?.devices.some(d=>d.device===self && d.outstanding>0)) return {state:'waiting',label:'Changes waiting to download'};
+  if (info.phase === 'synced') return {state:waitingDevices(info,self,now).length?'waiting':'synced',label};
+  return {state:'neutral',label:'Sync status unknown'};
+}
+export const activityPageSize = 5;
+export function activityPage(activity: SyncActivity[], requested: number) {
+  const pages=Math.max(1,Math.ceil(activity.length/activityPageSize)),page=Math.max(0,Math.min(requested,pages-1));
+  return {page,pages,items:activity.slice(page*activityPageSize,(page+1)*activityPageSize)};
 }
 export function transferDetail(p: SyncProgress, aliases: Record<string,string>, devices: DeviceStatus[], self: string, now = Date.now()) {
   const detail = [p.name || 'Library changes'];

@@ -76,13 +76,13 @@ test('relay deletes delivered content, preserves offline edits, and bootstraps a
         expect((await metadataState(page,account,keys.credential)).queued).toBe(1);
         await open(b,account);await syncNow(b);
         await expect(b.getByRole('status')).toContainText('removed from the relay');
-        await expect(b.getByText('relay.txt',{exact:true})).toBeVisible();
+        await expect(b.getByRole('button',{name:'Open relay.txt',exact:true})).toBeVisible();
         expect((await metadataState(page,account,keys.credential)).queued).toBe(0);
         // Purged server history must not be mistaken for an empty library.
         await open(late,account);await syncNow(late);
         await expect(late.getByRole('status')).toContainText('another linked device');
         await syncNow(page);await expect(page.getByRole('status')).toContainText('Waiting for linked devices');
-        await syncNow(late);await expect(late.getByText('relay.txt',{exact:true})).toBeVisible();
+        await syncNow(late);await expect(late.getByRole('button',{name:'Open relay.txt',exact:true})).toBeVisible();
         await late.getByRole('button',{name:'Open relay.txt',exact:true}).click();
         await expect(late.locator('dialog pre')).toHaveText('private relay browser bytes');
         await late.getByRole('button',{name:'Close',exact:true}).click();
@@ -95,8 +95,8 @@ test('relay deletes delivered content, preserves offline edits, and bootstraps a
         await expect(page.getByText('offline-relay.txt',{exact:true})).toBeVisible();
         await page.context().setOffline(false);await syncNow(page);
         await expect(page.getByRole('status')).toContainText('Waiting for linked devices');
-        await syncNow(b);await expect(b.getByText('offline-relay.txt',{exact:true})).toBeVisible();
-        await syncNow(late);await expect(late.getByText('offline-relay.txt',{exact:true})).toBeVisible();
+        await syncNow(b);await expect(b.getByRole('button',{name:'Open offline-relay.txt',exact:true})).toBeVisible();
+        await syncNow(late);await expect(late.getByRole('button',{name:'Open offline-relay.txt',exact:true})).toBeVisible();
         expect((await metadataState(page,account,keys.credential)).queued).toBe(0);
     }finally{await second.close();await third.close();c.wipe(fixture.master);c.wipe(keys.master);c.wipe(keys.credential);}
 });

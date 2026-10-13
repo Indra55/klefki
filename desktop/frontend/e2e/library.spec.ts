@@ -106,3 +106,39 @@ test('reference layout, themes, search and lock with an explicit fixture bridge'
  await page.setViewportSize({width:800,height:600});await page.screenshot({path:'test-results/library-small.png',fullPage:true});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
  await page.getByRole('button',{name:'Lock',exact:true}).click();await expect(page.getByText('Unlock Klefki.')).toBeVisible();await expect(page.getByText('Passport',{exact:true})).toHaveCount(0);await page.screenshot({path:'test-results/locked.png',fullPage:true});expect(errors).toEqual([]);
 });
+
+test('sync menu keeps progress visible, paginates history and fits narrow screens with a fixture bridge',async({page})=>{
+ await page.addInitScript(()=>{
+  const app=(window as any).go.main.App,original=app.State,self='11111111111111111111111111111111';
+  app.State=async()=>{const state=await original();return {...state,config:{...state.config,server:'https://sync.test'},syncDevice:self}};
+  app.RefreshSync=async()=>{
+   const emit=(window as any).__emitKlefkiEvent;
+   emit({generation:1,kind:'sync-status',syncInfo:{phase:'connecting',running:true,lastContact:0,lastDeviceCheck:0,statusAvailable:false}});
+   setTimeout(()=>emit({generation:1,kind:'sync-status',syncInfo:{phase:'synced',running:false,lastContact:Date.now(),lastDeviceCheck:0,statusAvailable:false}}),500);
+  };
+ });
+ await page.goto('/');await expect(page.getByText('Passport',{exact:true})).toBeVisible();
+ const trigger=page.getByRole('button',{name:'Sync status',exact:true});
+ await expect(trigger).toHaveAttribute('data-state','synced');
+ await page.evaluate(()=>{
+  for(let i=0;i<12;i++)(window as any).__emitKlefkiEvent({generation:1,kind:'sync-status',syncInfo:{phase:'synced',running:false,lastContact:0,lastDeviceCheck:0,statusAvailable:false,progress:{phase:'complete',revision:String(i),name:`Transfer ${i}`,direction:'upload',doneBytes:10,totalBytes:10,reusedBytes:0,chunk:1,chunks:1,updatedAt:Date.now()}}});
+ });
+ await trigger.click();const panel=page.getByRole('dialog',{name:'Sync activity'});
+ await expect(panel.locator('.sync-history li')).toHaveCount(5);
+ await panel.getByRole('button',{name:'Next',exact:true}).click();
+ await expect(panel.getByText('Page 2 of 3',{exact:true})).toBeVisible();
+ await panel.getByRole('button',{name:'Refresh sync',exact:true}).click();
+ await expect(panel.getByRole('button',{name:'Refresh sync',exact:true})).toBeDisabled();
+ await expect(panel.getByText('Checking connection',{exact:true}).first()).toBeVisible();
+ await expect(panel.getByRole('button',{name:'Refresh sync',exact:true})).toBeEnabled();
+ await expect(panel).toBeVisible();await expect(panel.getByText('Page 2 of 3',{exact:true})).toBeVisible();
+ for(const width of [320,390,600,800,1200]){
+  await page.setViewportSize({width,height:740});const rect=(await panel.boundingBox())!;
+  expect(rect.x).toBeGreaterThanOrEqual(0);expect(rect.x+rect.width).toBeLessThanOrEqual(width);
+  expect(rect.y).toBeGreaterThanOrEqual(0);expect(rect.y+rect.height).toBeLessThanOrEqual(740);
+  if(width<=600){expect(Math.abs(rect.x+rect.width/2-width/2)).toBeLessThanOrEqual(1);expect(Math.abs(rect.y+rect.height/2-370)).toBeLessThanOrEqual(1)}
+  await page.screenshot({path:`test-results/sync-menu-${width}.png`});
+ }
+ await panel.getByRole('button',{name:'Close sync activity',exact:true}).click();await trigger.click();
+ await expect(panel.getByText('Page 1 of 3',{exact:true})).toBeVisible();
+});
