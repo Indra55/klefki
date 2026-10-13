@@ -39,8 +39,8 @@ export class Store {
     private constructor(readonly db: IDBDatabase, readonly account: c.Account) { }
     static async open(account: c.Account) {
         c.validateAccount(account);
-        const r = indexedDB.open('klefki-v1-' + account.account, 1);
-        r.onupgradeneeded = () => { const db = r.result; db.createObjectStore('state'); db.createObjectStore('revisions', { keyPath: 'revision.id' }); db.createObjectStore('chunks'); };
+        const r = indexedDB.open('klefki-v1-' + account.account, 2);
+        r.onupgradeneeded = () => { const db = r.result; if(!db.objectStoreNames.contains('state')){db.createObjectStore('state'); db.createObjectStore('revisions', { keyPath: 'revision.id' }); db.createObjectStore('chunks');} if(!db.objectStoreNames.contains('deletions'))db.createObjectStore('deletions',{keyPath:'object'}); };
         const db = await req(r);
         db.onversionchange = () => db.close();
         const store = new Store(db, account);
@@ -48,6 +48,7 @@ export class Store {
             c.check(old.account === account.account && old.descriptor === account.descriptor && old.password_wrapper === account.password_wrapper && old.recovery_wrapper === account.recovery_wrapper);
         else
             state.put(account, 'account');
+            if(await req(state.get('sync-connected'))===undefined)state.put(!!await req(state.get('origin')),'sync-connected');
             const device = await req(state.get('relay-device')); if (!device) state.put(c.id(),'relay-device'); });
         return store;
     }
@@ -121,8 +122,9 @@ export class Store {
     } }
     async commit(r: Revision, chunks: Uint8Array[], file: string | undefined, pending: boolean, sequence?: number, origin?: string) {
         validateRevision(r);
-        await this.transaction(['revisions', 'chunks', 'state'], 'readwrite', async (tx) => {
+        await this.transaction(['revisions', 'chunks', 'state','deletions'], 'readwrite', async (tx) => {
             const revisions = tx.objectStore('revisions'), state = tx.objectStore('state'), blobs = tx.objectStore('chunks');
+            if(await req(tx.objectStore('deletions').get(r.object))){c.check(!pending);if(sequence!==undefined)state.put(sequence,'cursor');return;}
             const old: Stored | undefined = await req(revisions.get(r.id));
             if (old)
                 c.check(sameRevision(old.revision, r));
@@ -158,6 +160,7 @@ export class Store {
     }
     async acknowledge(id: string) { await this.transaction(['revisions'], 'readwrite', async (tx) => { const s = tx.objectStore('revisions'), x: Stored = await req(s.get(id)); c.check(x); x.pending = false; s.put(x); }); }
     async put(master: Uint8Array, m: c.Metadata, bytes?: Uint8Array, base?: Revision) {
+        if(m.parent)c.check(!await this.transaction(['deletions'],'readonly',tx=>req(tx.objectStore('deletions').get(m.parent!))));
         const object = base?.object || c.id(), r: Revision = { id: c.id(), object, base: base?.id || '', metadata: '' }, chunks: Uint8Array[] = [];
         let file: string | undefined;
         if (m.type === 'file') {
@@ -178,7 +181,8 @@ export class Store {
         await this.commit(r, chunks, file, true);
         return r;
     }
-    async edit(master: Uint8Array, base: Revision, edit: Pick<c.Metadata, 'name' | 'parent' | 'tags' | 'favorite'>) {
+    async edit(master: Uint8Array, base: Revision, edit: Pick<c.Metadata, 'name' | 'parent' | 'tags' | 'favorite' | 'trashed_at' | 'trash_previous_parent'>) {
+        if(edit.parent)c.check(!await this.transaction(['deletions'],'readonly',tx=>req(tx.objectStore('deletions').get(edit.parent!))));
         const { metadata, key } = unlockRevision(master, this.account.account, base);
         if (key)
             c.wipe(key);

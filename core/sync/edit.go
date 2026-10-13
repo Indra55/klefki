@@ -5,10 +5,11 @@ import (
 )
 
 type Edit struct {
-	Name     string   `json:"name"`
-	Parent   *string  `json:"parent"`
-	Tags     []string `json:"tags"`
-	Favorite bool     `json:"favorite"`
+	Name     string      `json:"name"`
+	Parent   *string     `json:"parent"`
+	Tags     []string    `json:"tags"`
+	Favorite bool        `json:"favorite"`
+	Trash    *TrashState `json:"-"`
 }
 type Revision struct {
 	Head
@@ -54,6 +55,17 @@ func (s *Store) Edit(master vc.Key, base string, edit Edit) (string, error) {
 	vc.Wipe(key[:])
 	if e != nil {
 		return "", e
+	}
+	if edit.Trash != nil {
+		m.TrashedAt = edit.Trash.At
+		m.TrashPreviousParent = edit.Trash.PreviousParent
+	}
+	if edit.Parent != nil {
+		if deleted, e := deletedObject(tx, *edit.Parent); e != nil {
+			return "", e
+		} else if deleted {
+			return "", ErrConflict
+		}
 	}
 	m.Name = edit.Name
 	m.Parent = edit.Parent

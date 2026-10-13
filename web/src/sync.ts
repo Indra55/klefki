@@ -1,4 +1,5 @@
 import * as c from './crypto.ts';
+import {syncDeletions,cleanupTrash,deletionRecords,expiredTrash} from './trash.ts';
 import { validateStatus, type SyncProgress, type Provenance, type ServerStatus } from '../../ui/sync-status.ts';
 import { Store, unlockRevision, type Revision } from './store.ts';
 export class HTTPError extends Error {
@@ -53,7 +54,7 @@ export class Remote {
                 signal.addEventListener('abort', abort, { once: true });
                 try {
                     const binary = body instanceof Uint8Array;
-                    const res = await fetch(this.origin + path, { method, body: body === undefined ? undefined : binary ? new Blob([body as Uint8Array<ArrayBuffer>]) : JSON.stringify(body), headers: { ...(this.token ? { Authorization: 'Bearer ' + this.token } : {}), ...(this.relayDevice?{'X-Klefki-Device':this.relayDevice}:{}), ...(options.origin?{'X-Klefki-Origin-Device':options.origin}:{}), ...(body === undefined ? {} : { 'Content-Type': binary ? 'application/octet-stream' : 'application/json' }) }, redirect: 'error', credentials: 'omit', cache: 'no-store', signal: controller.signal });
+                    const res = await fetch(this.origin + path, { method, body: body === undefined ? undefined : binary ? new Blob([body as Uint8Array<ArrayBuffer>]) : JSON.stringify(body), headers: { 'X-Klefki-Deletion':'1', ...(this.token ? { Authorization: 'Bearer ' + this.token } : {}), ...(this.relayDevice?{'X-Klefki-Device':this.relayDevice}:{}), ...(options.origin?{'X-Klefki-Origin-Device':options.origin}:{}), ...(body === undefined ? {} : { 'Content-Type': binary ? 'application/octet-stream' : 'application/json' }) }, redirect: 'error', credentials: 'omit', cache: 'no-store', signal: controller.signal });
                     if (!res.ok) {
                         await res.body?.cancel();
                         const seconds = Number(res.headers.get('Retry-After'));
@@ -130,8 +131,9 @@ export async function setSyncMode(store:Store,master:Uint8Array,remote:Remote,mo
 const startProgress = (phase:string,r:Revision,name:string,direction:'upload'|'download',totalBytes:number,chunks:number,source='',publisher=''): SyncProgress => ({phase,revision:r.id,name,direction,totalBytes,chunks,source,publisher,doneBytes:0,reusedBytes:0,chunk:0,updatedAt:Date.now()});
 
 export async function needsSync(store: Store, remote: Remote) {
-    if ((await store.all()).some(x => x.pending)) return true;
-    const settings = await remote.json<{mode:string;epoch:string;queued:number}>('GET','/v1/sync/settings',undefined,1024);
+    if ((await store.all()).some(x => x.pending)||(await deletionRecords(store,true)).length) return true;
+    const settings = await remote.json<{mode:string;epoch:string;queued:number;deletion_sequence?:number}>('GET','/v1/sync/settings',undefined,1024);
+    if((settings.deletion_sequence||0)!==(await store.state<number>('deletion-cursor')||0))return true;
     const local = await store.relayState(), cursor = await store.state<number>('cursor') || 0;
     if (settings.epoch !== await store.state('relay-epoch') || settings.mode !== await store.state('sync-mode')) return true;
     const status = validateStatus(await remote.json<ServerStatus>('GET','/v1/sync/status',undefined,32768));
@@ -190,9 +192,13 @@ async function push(store:Store,master:Uint8Array,remote:Remote,r:Revision){
         remote.phase('complete');
 }
 
-export async function sync(store: Store, master: Uint8Array, remote: Remote) {
+export async function sync(store:Store,master:Uint8Array,remote:Remote){
+ try{await syncPass(store,master,remote);}catch(e){if(!(e instanceof HTTPError)||e.status!==410)throw e;await syncDeletions(store,master,remote);await syncPass(store,master,remote);}
+}
+async function syncPass(store: Store, master: Uint8Array, remote: Remote) {
     remote.report({...remote.progress,phase:'checking',revision:undefined,name:undefined,direction:undefined,doneBytes:0,totalBytes:0,reusedBytes:0,chunk:0,chunks:0});
     await store.bind(remote.origin);
+    await syncDeletions(store,master,remote);
     type RelayState={mode:string;epoch:string;devices:string[]};
     const unsupported=(e:unknown)=>e instanceof HTTPError&&(e.status===404||e.status===405);
     const local=await store.relayState(), history=await store.history();
@@ -240,6 +246,8 @@ export async function sync(store: Store, master: Uint8Array, remote: Remote) {
         for (const change of page.changes) {
             c.check(Number.isSafeInteger(change.sequence) && change.sequence > cursor);
             let r = change.revision;
+            const deleted=await store.transaction(['deletions'],'readonly',tx=>new Promise<boolean>((resolve,reject)=>{const q=tx.objectStore('deletions').get(r.object);q.onsuccess=()=>resolve(!!q.result);q.onerror=()=>reject(q.error);}));
+            if(deleted){await store.transaction(['state'],'readwrite',async tx=>{tx.objectStore('state').put(change.sequence,'cursor');});cursor=change.sequence;continue;}
             const existing = await store.existing(r);
             if(r.metadata===''){
                 if(!existing){await remote.request('PUT','/v1/sync/cursor',{sequence:cursor},1024);throw new RelayWaiting();}
@@ -284,4 +292,6 @@ export async function sync(store: Store, master: Uint8Array, remote: Remote) {
     remote.report({...remote.progress,phase:'acknowledging',revision:undefined,name:undefined,direction:undefined,totalBytes:0,doneBytes:0,reusedBytes:0,chunk:0,chunks:0});
     await remote.request('PUT', '/v1/sync/cursor', { sequence: cursor }, 1024);
     if(quota)throw quota;
+    await syncDeletions(store,master,remote);
+    await cleanupTrash(store,master,remote);
 }

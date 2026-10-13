@@ -100,7 +100,7 @@ func openStore(path string, account vc.ID, existing bool) (*Store, error) {
 			rows.Close()
 		}
 	}
-	_, e = db.Exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
+	_, e = db.Exec(`PRAGMA secure_delete=ON; PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
  CREATE TABLE IF NOT EXISTS local_state(singleton INTEGER PRIMARY KEY CHECK(singleton=1),version INTEGER NOT NULL,account TEXT NOT NULL,remote TEXT NOT NULL,cursor INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS revisions(ordinal INTEGER PRIMARY KEY AUTOINCREMENT,id TEXT UNIQUE NOT NULL,object TEXT NOT NULL,base TEXT NOT NULL,metadata BLOB NOT NULL,file_key BLOB,pending INTEGER NOT NULL);
  CREATE INDEX IF NOT EXISTS revision_parent ON revisions(base);
@@ -122,6 +122,9 @@ func openStore(path string, account vc.ID, existing bool) (*Store, error) {
 		return nil, ErrInvalid
 	}
 	store := &Store{db: db, account: account, lease: lease}
+	if e = store.migrateDeletions(); e != nil {
+		return fail()
+	}
 	if _, e = store.RelayState(); e != nil {
 		return fail()
 	}
@@ -139,7 +142,7 @@ func (s *Store) Close() error {
 }
 func (s *Store) Pending() (int, error) {
 	var n int
-	if s.db.QueryRow(`SELECT COUNT(*) FROM revisions WHERE pending=1`).Scan(&n) != nil {
+	if s.db.QueryRow(`SELECT (SELECT COUNT(*) FROM revisions WHERE pending=1)+(SELECT COUNT(*) FROM deletions WHERE pending=1)`).Scan(&n) != nil {
 		return 0, ErrStore
 	}
 	return n, nil
@@ -229,6 +232,18 @@ func (s *Store) PutContext(ctx context.Context, master vc.Key, object, base stri
 		return "", ErrStore
 	}
 	defer tx.Rollback()
+	if deleted, e := deletedObject(tx, object); e != nil {
+		return "", e
+	} else if deleted {
+		return "", ErrConflict
+	}
+	if m.Parent != nil {
+		if deleted, e := deletedObject(tx, *m.Parent); e != nil {
+			return "", e
+		} else if deleted {
+			return "", ErrConflict
+		}
+	}
 	if base != "" {
 		var oldObject string
 		var metadata []byte
@@ -505,6 +520,15 @@ func (s *Store) applyTracked(ctx context.Context, master vc.Key, c syncwire.Chan
 	}
 	if c.Sequence <= cursor {
 		return ErrInvalid
+	}
+	if deleted, e := deletedObject(tx, c.Revision.Object); e != nil {
+		return e
+	} else if deleted {
+		_, e = tx.Exec(`UPDATE local_state SET cursor=? WHERE singleton=1`, c.Sequence)
+		if e != nil {
+			return e
+		}
+		return tx.Commit()
 	}
 	if c.Revision.Base != "" {
 		var parent string

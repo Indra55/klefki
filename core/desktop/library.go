@@ -23,6 +23,7 @@ type Item struct {
 	Trashed   bool     `json:"trashed"`
 	TrashRoot bool     `json:"trashRoot"`
 	Category  string   `json:"category"`
+	DeleteAt  int64    `json:"deleteAt"`
 }
 type Library struct {
 	Generation uint64 `json:"generation"`
@@ -58,13 +59,19 @@ func items(heads []vs.Head) []Item {
 		}
 		return false
 	}
+	dates := vs.TrashDates(heads)
 	out := make([]Item, 0, len(heads))
 	for _, h := range heads {
 		m := h.Metadata
 		if search.IsInternal(m) {
 			continue
 		}
-		out = append(out, Item{h.Object, h.Revision, m.Name, m.Type, m.Parent, m.Tags, m.Favorite, m.Size, h.Conflict, trashed(h, map[string]bool{}), system(m), ""})
+		out = append(out, Item{h.Object, h.Revision, m.Name, m.Type, m.Parent, m.Tags, m.Favorite, m.Size, h.Conflict, trashed(h, map[string]bool{}), system(m), "", func() int64 {
+			if at := dates[h.Revision]; at > 0 {
+				return at + vs.TrashRetention.Milliseconds()
+			}
+			return 0
+		}()})
 	}
 	return out
 }
@@ -260,7 +267,7 @@ func (s *Service) Trash(revision string) (id string, e error) {
 			}
 		}
 		m := r.Metadata
-		id, e = x.store.Edit(x.master, revision, vs.Edit{Name: m.Name, Parent: &root, Tags: m.Tags, Favorite: m.Favorite})
+		id, e = x.store.Edit(x.master, revision, vs.Edit{Name: m.Name, Parent: &root, Tags: m.Tags, Favorite: m.Favorite, Trash: &vs.TrashState{At: time.Now().UnixMilli(), PreviousParent: m.Parent}})
 		if e == nil {
 			s.changed(x)
 		}
@@ -300,7 +307,9 @@ func (s *Service) Restore(revision string) (out Restored, e error) {
 		}
 		m := r.Metadata
 		var parent *string
-		if m.Parent != nil && roots[*m.Parent] && r.Base != "" {
+		if m.Parent != nil && roots[*m.Parent] && m.TrashedAt > 0 {
+			parent = m.TrashPreviousParent
+		} else if m.Parent != nil && roots[*m.Parent] && r.Base != "" {
 			previous, e := x.store.Revision(x.master, r.Base)
 			if e != nil {
 				return e
@@ -314,7 +323,7 @@ func (s *Service) Restore(revision string) (out Restored, e error) {
 		if m.Parent != nil && !roots[*m.Parent] {
 			out.AtRoot = true
 		}
-		out.Revision, e = x.store.Edit(x.master, revision, vs.Edit{Name: m.Name, Parent: parent, Tags: m.Tags, Favorite: m.Favorite})
+		out.Revision, e = x.store.Edit(x.master, revision, vs.Edit{Name: m.Name, Parent: parent, Tags: m.Tags, Favorite: m.Favorite, Trash: &vs.TrashState{}})
 		if e == nil {
 			s.changed(x)
 		}
@@ -327,4 +336,32 @@ func check(ctx context.Context) error {
 		return context.Canceled
 	}
 	return nil
+}
+
+func (s *Service) PreviewDeletion(revision string) (out vs.DeletionPreview, e error) {
+	e = s.with(func(x *session) error {
+		var err error
+		out, err = x.store.PreviewDeletion(x.master, revision)
+		return err
+	})
+	return
+}
+func (s *Service) DeletePermanently(preview vs.DeletionPreview) error {
+	return s.with(func(x *session) error {
+		if e := x.store.DeleteTrash(x.master, preview); e != nil {
+			return e
+		}
+		s.changed(x)
+		return nil
+	})
+}
+func (s *Service) cleanupTrash() {
+	_ = s.with(func(x *session) error {
+		if e := x.store.CleanupLocalTrash(x.master, time.Now()); e != nil {
+			s.event(Event{Generation: x.generation, Kind: "trash-error", Error: "OPERATION_FAILED"})
+			return e
+		}
+		s.changed(x)
+		return nil
+	})
 }

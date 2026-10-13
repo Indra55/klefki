@@ -138,3 +138,55 @@ test('web account creation, registration, metadata edit and automatic lock', asy
  await expect(page.getByRole('button',{name:'Unlock Klefki'})).toBeVisible();
  await expect(page.locator('article')).toHaveCount(0);
 });
+
+async function trashView(page:Page){await page.getByRole('button',{name:'View',exact:true}).click();await page.getByRole('menuitem',{name:'Trash',exact:true}).click();}
+test('permanent trash deletion syncs to Go and survives offline reload',async({page,context})=>{
+ await connect(page);await durable(page);
+ await documentAction(page,'note.txt','Move to Trash');await trashView(page);
+ await expect(row(page,'note.txt')).toContainText('Deletes');
+ await context.setOffline(true);
+ await documentAction(page,'note.txt','Delete permanently');
+ const confirmation=page.getByRole('dialog',{name:'Delete permanently?'});
+ await expect(confirmation).toContainText('historical versions and conflict copies');
+ await confirmation.getByRole('button',{name:'Cancel',exact:true}).click();await expect(row(page,'note.txt')).toBeVisible();
+ await documentAction(page,'note.txt','Delete permanently');await page.getByRole('dialog',{name:'Delete permanently?'}).getByRole('button',{name:'Delete permanently',exact:true}).click();
+ await expect(row(page,'note.txt')).toHaveCount(0);
+ await page.reload();await unlock(page);await trashView(page);await expect(row(page,'note.txt')).toHaveCount(0);
+ const local=await page.evaluate(async()=>{const a=JSON.parse(localStorage.getItem('klefki-account')!);const db=await new Promise<IDBDatabase>(resolve=>{const q=indexedDB.open('klefki-v1-'+a.account);q.onsuccess=()=>resolve(q.result);});const ledger=await new Promise<any[]>(resolve=>{const q=db.transaction('deletions').objectStore('deletions').getAll();q.onsuccess=()=>resolve(q.result);});db.close();return ledger;});
+ expect(local.length).toBeGreaterThan(0);expect(local.some(d=>d.pending)).toBe(true);
+ await context.setOffline(false);await syncUI(page);await expect(page.getByRole('status')).toContainText('Synced.');
+ expect(bridge('verify-deletion')).toContain('PASS verify-deletion');
+});
+test('Empty Trash ignores the search filter and preserves live documents',async({page})=>{
+ await connect(page);
+ for(const name of ['note.txt','empty.txt'])await documentAction(page,name,'Move to Trash');
+ await trashView(page);await page.getByRole('searchbox',{name:'Search names and tags'}).fill('note');
+ await page.getByRole('button',{name:'Empty Trash',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Empty Trash?'});await expect(dialog).toContainText('2 documents and folders');
+ await dialog.getByRole('button',{name:'Delete permanently',exact:true}).click();
+ await expect(page.getByRole('dialog',{name:'Empty Trash?'})).toHaveCount(0);
+ await expect(page.getByText('Nothing matches yet.',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Clear search',exact:true}).click();await expect(page.getByText('Your trash is empty.',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'View',exact:true}).click();await page.getByRole('menuitem',{name:'All documents',exact:true}).click();await expect(row(page,'desktop.bin')).toBeVisible();
+});
+test('browser applies an automatic expiry performed by Go without restoring history',async({page})=>{
+ await connect(page);expect(bridge('expire-trash')).toContain('PASS expire-trash');
+ await syncUI(page);await expect(page.getByRole('status')).toContainText('Synced.');
+ await expect(row(page,'note.txt')).toHaveCount(0);await trashView(page);await expect(row(page,'note.txt')).toHaveCount(0);
+ expect(bridge('verify-deletion')).toContain('PASS verify-deletion');
+});
+
+test('browser automatically cleans an expired encrypted trash revision after sync',async({page,context})=>{
+ await connect(page);await documentAction(page,'note.txt','Move to Trash');await trashView(page);
+ await context.setOffline(true);
+ const stored=await page.evaluate(async()=>{const account=JSON.parse(localStorage.getItem('klefki-account')!);const db=await new Promise<IDBDatabase>(resolve=>{const q=indexedDB.open('klefki-v1-'+account.account);q.onsuccess=()=>resolve(q.result);});const all=await new Promise<any[]>(resolve=>{const q=db.transaction('revisions').objectStore('revisions').getAll();q.onsuccess=()=>resolve(q.result);});db.close();return {account,all};});
+ const crypto=await import('../src/crypto.ts');await crypto.ready;const keys=crypto.unlock(stored.account,password);
+ try{
+  const parents=new Set(stored.all.map(x=>x.revision.base));const selected=stored.all.find(x=>!parents.has(x.revision.id)&&crypto.decryptMetadata(keys.master,stored.account.account,x.revision.object,crypto.unbase64(x.revision.metadata)).name==='note.txt');
+  const metadata=crypto.decryptMetadata(keys.master,stored.account.account,selected.revision.object,crypto.unbase64(selected.revision.metadata));metadata.trashed_at=Date.now()-31*86400000;
+  const revision={...selected.revision,id:crypto.id(),base:selected.revision.id,metadata:crypto.base64(crypto.encryptMetadata(keys.master,stored.account.account,selected.revision.object,metadata))};
+  await page.evaluate(async({account,revision})=>{const db=await new Promise<IDBDatabase>(resolve=>{const q=indexedDB.open('klefki-v1-'+account);q.onsuccess=()=>resolve(q.result);});await new Promise<void>((resolve,reject)=>{const tx=db.transaction(['state','revisions'],'readwrite'),state=tx.objectStore('state'),q=state.get('order');q.onsuccess=()=>{const order=(q.result||0)+1;state.put(order,'order');tx.objectStore('revisions').put({revision,pending:true,order});};tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error);});db.close();},{account:stored.account.account,revision});
+  await context.setOffline(false);await syncUI(page);await expect(page.getByRole('status')).toContainText('Synced.');await expect(row(page,'note.txt')).toHaveCount(0);
+  expect(bridge('verify-deletion')).toContain('PASS verify-deletion');
+ }finally{crypto.wipe(keys.master);crypto.wipe(keys.credential);}
+});

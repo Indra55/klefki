@@ -148,6 +148,32 @@ func main() {
 		defer store.Close()
 		client.Store = store
 		must(client.Sync(ctx))
+	case "verify-deletion":
+		must(client.Sync(ctx))
+		records, e := store.Check(master)
+		must(e)
+		for _, r := range records {
+			if r.Metadata.Name == "note.txt" {
+				panic("deleted document history retained")
+			}
+		}
+	case "expire-trash":
+		must(client.Sync(ctx))
+		heads, e := store.Heads(master)
+		must(e)
+		root, e := vc.RandomID()
+		must(e)
+		parent := root.String()
+		_, e = store.Put(master, parent, "", vc.Metadata{Type: "folder", Name: "Trash", Tags: []string{"klefki:system:trash"}}, nil)
+		must(e)
+		for _, h := range heads {
+			if h.Metadata.Name == "note.txt" {
+				_, e = store.Edit(master, h.Revision, vs.Edit{Name: h.Metadata.Name, Parent: &parent, Tags: h.Metadata.Tags, Trash: &vs.TrashState{At: time.Now().Add(-vs.TrashRetention - time.Hour).UnixMilli()}})
+				must(e)
+			}
+		}
+		// Publish the expired state through sync; automatic cleanup uses the same path.
+		must(client.Sync(ctx))
 	case "desktop-edit":
 		heads, e := store.Heads(master)
 		must(e)

@@ -18,7 +18,7 @@ Sync at least two separate local stores. Once every linked device acknowledges a
 revision, the server clears its encrypted metadata and wrapped file key, and
 removes document chunks when no undelivered revision or active upload needs them.
 The first device alone never triggers cleanup. Local copies and revision history
-remain on your devices.
+remain on your devices until [permanent deletion](trash.md).
 
 An offline device holds deliveries in the queue. **Forget device** removes an
 unused local store from that roster; it does not erase its downloaded data or

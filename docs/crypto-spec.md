@@ -151,6 +151,13 @@ and `favorite` (boolean). File metadata additionally carries `file_id` (lowercas
 above). File names, folder names, tags, and all these metadata fields remain
 inside the encrypted payload. UI path/name constraints belong to later clients.
 
+The trash extension adds optional encrypted fields `trashed_at` (nonnegative
+integer Unix milliseconds through 2^53-1; zero/absence means unset) and
+`trash_previous_parent` (null or a lowercase 32-hex object ID). Updated clients
+preserve them through metadata edits and clear them on restore. These fields
+use the existing metadata envelope and key hierarchy; no v1 byte layout changes.
+See [trash retention and deletion](trash.md) for lifecycle and compatibility.
+
 The file-key wrapper belongs to the revision selected with that metadata. Its
 expected file ID comes from decrypted metadata. Metadata and the wrapped file key
 must be stored/updated atomically as one revision in later sync work; the server

@@ -39,12 +39,12 @@ func TestRelayPreparationRequestCounts(t *testing.T) {
 					return transport.RoundTrip(r)
 				})}, false)
 				syncNow(t, c)
-				expected := 3
+				expected := 5
 				if count > 0 {
 					expected += (count - 1) / 256
 				}
 				if legacy != 0 {
-					expected = 5 + (count+15)/16
+					expected = 7 + (count+15)/16
 				}
 				if calls != expected || chunks != 0 {
 					t.Fatalf("legacy=%d requests=%d want=%d chunks=%d", legacy, calls, expected, chunks)

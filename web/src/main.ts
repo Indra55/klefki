@@ -5,6 +5,7 @@ import { node, button, field, icon, iconButton, menu, preferences } from './ui.t
 import { settingsPage, type Section } from './settings.ts';
 import { showPreview, closePreviews } from './preview.ts';
 import * as c from './crypto.ts';
+import {trashDates,retention,previewDeletion,deleteTrash,cleanupTrash,expiredTrash,deletionRecords} from './trash.ts';
 import { Store, unlockRevision, type Head } from './store.ts';
 import * as semantic from './semantic.ts';
 import * as passkey from './passkey.ts';
@@ -109,7 +110,7 @@ async function operation(fn: (key: Uint8Array, g: number) => Promise<void>) {
     }
     catch (e) {
         if (g === generation)
-            message(e instanceof RelayWaiting ? e.message : e instanceof HTTPError ? (e.status === 401 ? 'Sign-in expired. Sync again to reconnect.' : e.status===507 ? 'Relay storage is full. Your local edits are kept; sync the other linked devices to free space.' : e.status===428 ? 'This account uses temporary relay. Update this client to sync.' : 'Server request failed. Your local edits are kept.') : 'Could not complete this action. Check your connection or klefki data.');
+            message(e instanceof Error&&e.message==='DELETION_UPDATE_REQUIRED'?'Update your Klefki server and sync before permanently deleting documents.':e instanceof RelayWaiting ? e.message : e instanceof HTTPError ? (e.status === 401 ? 'Sign-in expired. Sync again to reconnect.' : e.status===507 ? 'Relay storage is full. Your local edits are kept; sync the other linked devices to free space.' : e.status===428 ? 'Update this client to sync this account.' : 'Server request failed. Your local edits are kept.') : 'Could not complete this action. Check your connection or klefki data.');
         if (e instanceof HTTPError && e.status === 401) remote = undefined;
         if (g === generation && syncState === 'Syncing') syncStatus(e instanceof RelayWaiting ? 'Waiting for another device' : e instanceof HTTPError && e.status === 401 ? 'Authentication required' : 'Sync error');
     }
@@ -150,6 +151,7 @@ async function enterKeys(target: c.Account, unlocked: passkey.Keys, g: number) {
         adopted = true;
         controller = new AbortController();
         localStorage.setItem('klefki-account', JSON.stringify(target));
+        await cleanupTrash(opened,master);
         await refresh();
         if (g === generation) {lastActivity = Date.now();scheduleSync();}
     }
@@ -275,11 +277,12 @@ function locked() {
 function recoveryDialog(code: string) { const dialog = node('dialog',undefined,'modal'); dialog.append(node('h2', 'Save your recovery code'), node('p', 'Store this separately from your private space. It is shown once and is needed if you lose your password.'), node('code', code)); dialog.append(button('Download recovery code', () => download(c.utf8(code + '\n'), 'klefki-recovery.txt', 'text/plain')), button('I have saved it', () => { dialog.close(); dialog.remove(); })); app.append(dialog); dialog.showModal(); dialog.oncancel = e => e.preventDefault(); }
 async function refresh() { if (!store || !master)
     return; const g = generation, next = await store.heads(master); if (g !== generation)
-    return; heads = next; await library(); }
+    return; if(heads.some(h=>!next.some(n=>n.revision.id===h.revision.id))){closePreviews();semantic.clearPrivate();}heads = next; await library(); }
 async function connectRemote(register=false){
     const s=store!,g=generation,r=new Remote(location.origin,controller!.signal);
     await s.bind(r.origin);
     await r.login(account!,credential!,register,await s.state('sync-mode')==='temporary-relay');
+    await s.transaction(['state'],'readwrite',async tx=>{tx.objectStore('state').put(true,'sync-connected');});
     if(g!==generation)return;
     r.observe=p=>{if(g!==generation)return;syncInfo={...syncInfo,progress:p,phase:p.phase,running:true};syncActivity=addActivity(syncActivity,p);renderSync();};
     r.onContact=()=>{if(g===generation)syncInfo={...syncInfo,lastContact:Date.now()};};
@@ -298,6 +301,7 @@ async function syncNow(register = false, background = false) {
         if (background) {
             let needed = true;
             try { needed = await needsSync(s,remote!); } catch { }
+            if(!needed&&(await expiredTrash(s,key)).length)needed=true;
             if (g !== generation || !needed) return;
             syncState='Syncing';syncInfo={...syncInfo,phase:'connecting',running:true,progress:undefined};renderSync();
         }
@@ -320,7 +324,7 @@ async function syncNow(register = false, background = false) {
         if(syncInfo.progress)syncActivity=addActivity(syncActivity,{...syncInfo.progress,phase,updatedAt:Date.now()});
     } finally {
         c.wipe(key);
-        if(g===generation){syncRunning=false;syncInfo={...syncInfo,running:false};renderSync();lastDeviceCheck=0;void monitorSync();if(syncRequested){try{const pending=(await s.all()).some(x=>x.pending);if(g===generation){if(registerRequested||pending)scheduleSync();else syncRequested=false;}}catch{}}}
+        if(g===generation){syncRunning=false;syncInfo={...syncInfo,running:false};renderSync();lastDeviceCheck=0;void monitorSync();if(syncRequested){try{const pending=(await s.all()).some(x=>x.pending)||(await deletionRecords(s,true)).length>0;if(g===generation){if(registerRequested||pending)scheduleSync();else syncRequested=false;}}catch{}}}
     }
 }
 function trashed(h: Head, seen = new Set<string>()): boolean { if (h.metadata.tags.includes('klefki:system:trash') && h.metadata.type === 'folder')
@@ -329,7 +333,7 @@ function trashed(h: Head, seen = new Set<string>()): boolean { if (h.metadata.ta
 async function library() {
     if (!store || !master) return;
     const g = generation, s = store;
-    const pending = (await s.all()).filter(x => x.pending).length;
+    const pending = (await s.all()).filter(x => x.pending).length+(await deletionRecords(s,true)).length;
     const prefs = semantic.preferences(account!.account);
     const mode = await s.state<string>('sync-mode') || 'persistent';
     if(syncModeDraft?.base!==mode)syncModeDraft=undefined;
@@ -419,7 +423,8 @@ async function library() {
     right.append(menu('View', ['All documents','Favorites','Folders','Trash'].map(label => ({label,run: () => navigate(label)}))));
     const organize = button('Organize files',() => {},'quiet'); organize.disabled = true; organize.title = 'Review file organization in the desktop app, then sync the tags here.'; if (view !== 'Trash') right.append(organize);
     const sortLabel = node('label',undefined,'sort'); sortLabel.append(sorting); right.append(sortLabel); tools.append(crumbs,right); main.append(tools,status);
-    if (view === 'Trash') main.append(node('p','Documents stay here until you restore them. Nothing is permanently deleted.','trash-note'));
+    if(view==='Trash'){const emptyTrash=button('Empty Trash',()=>confirmDeletion(''),'quiet');emptyTrash.disabled=busy||!heads.some(h=>trashed(h)&&!isTrashRoot(h));main.append(emptyTrash);}
+    if (view === 'Trash') main.append(node('p','Documents are permanently deleted after 30 days. Automatic cleanup waits for sync when connected.','trash-note'));
     const list = node('div', undefined, 'documents'), footer = node('footer', undefined, 'list-footer'); list.setAttribute('aria-label','Documents'); main.append(list,footer); root.append(main);
     let ranked: string[] = [], searchSequence = 0;
     function renderRows() {
@@ -440,6 +445,7 @@ async function library() {
             const meta = node('div', undefined, 'document-meta'), tags = h.metadata.tags.filter(t => !t.startsWith('klefki:system:'));
             meta.append(node('span',tags.join(' · ') || (h.metadata.type === 'folder' ? 'Folder' : h.metadata.name.split('.').pop()?.toUpperCase())));
             if (h.metadata.type === 'file') meta.append(node('span','·','meta-dot'), node('span',formatSize(h.metadata.size!)));
+            if(trashed(h)){const at=trashDates(heads).get(h.revision.id)||0;meta.append(node('span','·','meta-dot'),node('span',at?'Deletes '+new Date(at+retention).toLocaleDateString():'Countdown starts after sync'));}
             if (h.metadata.favorite) meta.append(icon('star',12,true)); open.append(title,meta); row.append(open);
             const actions = node('div', undefined, 'row-actions');
             if (trashed(h)) actions.append(button('Restore', () => restoreDocument(h), 'quiet'));
@@ -449,7 +455,7 @@ async function library() {
             }
             const choices: {label: string; run: () => void; danger?: boolean}[] = [];
             if (h.metadata.type === 'file') choices.push({label:'Export',run: () => exportDocument(h)});
-            if (trashed(h)) choices.push({label:'Restore',run: () => restoreDocument(h)});
+            if (trashed(h)) choices.push({label:'Restore',run: () => restoreDocument(h)},{label:'Delete permanently',run:()=>confirmDeletion(h.revision.id),danger:true});
             else {
                 choices.push({label:'Edit details & move',run: () => editDialog(h)}, {label:h.metadata.favorite ? 'Remove from favorites' : 'Add to favorites',run: () => toggleFavorite(h)});
                 if (prefs.enabled && h.metadata.type === 'file') choices.push({label:'Suggestions',run: () => void analysisDialog(h)});
@@ -458,7 +464,7 @@ async function library() {
             actions.append(menu('Actions for ' + h.metadata.name,choices,'more')); row.append(actions); list.append(row);
         }
         if (!visible.length) {
-            const empty = node('div',undefined,'empty'); empty.append(icon('search',25),node('h2',filter ? 'Nothing matches yet.' : view === 'Trash' ? 'Your trash is empty.' : view === 'Favorites' ? 'Keep the important ones close.' : tag ? 'A place for ' + tag.toLowerCase() + '.' : 'A little room for what matters.'),node('p',filter ? 'Try another name, tag, or indexed word.' : view === 'Trash' ? 'Documents you move here can always be restored.' : view === 'Favorites' ? 'Star a document to find it here.' : 'Add your first document, or drop files anywhere in this window.')); list.append(empty);
+            const empty = node('div',undefined,'empty'); empty.append(icon('search',25),node('h2',filter ? 'Nothing matches yet.' : view === 'Trash' ? 'Your trash is empty.' : view === 'Favorites' ? 'Keep the important ones close.' : tag ? 'A place for ' + tag.toLowerCase() + '.' : 'A little room for what matters.'),node('p',filter ? 'Try another name, tag, or indexed word.' : view === 'Trash' ? 'Restore documents within 30 days, or permanently delete them sooner.' : view === 'Favorites' ? 'Star a document to find it here.' : 'Add your first document, or drop files anywhere in this window.')); list.append(empty);
         }
         footer.hidden = !visible.length; footer.replaceChildren(document.createTextNode(visible.length + (visible.length === 1 ? ' item' : ' items')),node('span','Stored encrypted · available offline'));
     }
@@ -517,21 +523,31 @@ function trashDocument(h: Head) {
             const revision = await store!.put(key,{type:'folder',name:'Trash',parent:null,tags:['klefki:system:trash'],favorite:false});
             trash = {revision,metadata:{type:'folder',name:'Trash',parent:null,tags:['klefki:system:trash'],favorite:false},conflict:false};
         }
-        await store!.edit(key,h.revision,{...h.metadata,parent:trash.revision.object});
+        await store!.edit(key,h.revision,{...h.metadata,parent:trash.revision.object,trashed_at:Date.now(),trash_previous_parent:h.metadata.parent});
         if (g === generation) { await refresh(); message('Document moved to Trash.'); }
     });
 }
 function restoreDocument(h: Head) {
     void operation(async (key,g) => {
         let destination: string | null = null;
-        if (heads.some(folder => isTrashRoot(folder) && folder.revision.object === h.metadata.parent) && h.revision.base) {
+        if(h.metadata.trashed_at&&heads.some(folder=>isTrashRoot(folder)&&folder.revision.object===h.metadata.parent)){destination=h.metadata.trash_previous_parent||null;}
+        else if (heads.some(folder => isTrashRoot(folder) && folder.revision.object === h.metadata.parent) && h.revision.base) {
             const base = await store!.revision(h.revision.base), previous = unlockRevision(key,account!.account,base);
             destination = previous.metadata.parent; if (previous.key) c.wipe(previous.key);
         }
         if (!validParent(h.revision.object,destination)) destination = null;
-        await store!.edit(key,h.revision,{...h.metadata,parent:destination});
+        await store!.edit(key,h.revision,{...h.metadata,parent:destination,trashed_at:undefined,trash_previous_parent:undefined});
         if (g === generation) { await refresh(); message('Document restored.'); }
     });
+}
+function confirmDeletion(revision:string) {
+ if(!master||!store)return;
+ const g=generation,s=store,preview=previewDeletion(heads,revision);if(!preview.count)return;
+ const dialog=node('dialog',undefined,'modal'),actions=node('div',undefined,'form-actions');
+ dialog.setAttribute('aria-label',revision?'Delete permanently?':'Empty Trash?');
+ dialog.append(node('h2',revision?'Delete permanently?':'Empty Trash?'),node('p',`Permanently delete ${preview.count} ${preview.count===1?'document or folder':'documents and folders'}, including folder contents, all historical versions and conflict copies, across your linked devices. This cannot be undone. Offline devices apply deletion when they sync.`));
+ const cancel=button('Cancel',()=>dialog.close(),'quiet'),remove=button('Delete permanently',()=>{remove.disabled=cancel.disabled=true;void operation(async(key,current)=>{c.check(current===g&&store===s);await deleteTrash(s,key,preview);closePreviews();semantic.clearPrivate();dialog.close();await refresh();message('Permanently deleted. Changes sync when connected.');}).finally(()=>{remove.disabled=cancel.disabled=false;});},'primary');
+ actions.append(cancel,remove);dialog.append(actions);dialog.onclose=()=>dialog.remove();app.append(dialog);dialog.showModal();
 }
 function folderDialog() {
     const dialog = node('dialog',undefined,'modal'), input = field('Folder name'); input.input.required = true; input.input.maxLength = 255;
@@ -711,3 +727,5 @@ function addSemanticSettings(parent:HTMLElement,prefs:semantic.Preferences){
  const cutoff=field('Classification similarity cutoff','number'),margin=field('Winning category margin','number');cutoff.input.value=String(prefs.cutoff);cutoff.input.min='-1';cutoff.input.max='1';cutoff.input.step='.01';margin.input.value=String(prefs.margin);margin.input.min='0';margin.input.max='2';margin.input.step='.01';const thresholds=node('details');thresholds.append(node('summary','Classification thresholds'),cutoff.wrap,margin.wrap,button('Save thresholds',()=>{const a=Number(cutoff.input.value),b=Number(margin.input.value);if(!Number.isFinite(a)||!Number.isFinite(b)||a<-1||a>1||b<0||b>2)return;prefs.cutoff=a;prefs.margin=b;semantic.savePreferences(account!.account,prefs);feedback.textContent='Classification thresholds saved on this device.'}));section.append(node('h3','Semantic search and suggestions'),node('p','Model: BGE-small-en-v1.5.','muted'),feedback,enable.wrap,install,cancel,bundle.wrap,thresholds);parent.append(section)
 }
 async function analysisDialog(h:Head){const g=generation,key=master!.slice();try{const a=await semantic.analyze(store!,key,heads,h,semantic.preferences(account!.account));if(g!==generation)return;const dialog=node('dialog',undefined,'modal'),select=node('select');select.setAttribute('aria-label','Suggested category');for(const label of ['',...semantic.categories]){const option=node('option',label||'Uncategorized');option.value=label;select.append(option)}select.value=a.category;const title=node('p',a.confirmed?'Your confirmed category.':a.category?'Suggested category: '+a.category:'No confident category suggestion.');dialog.append(node('h2','Local suggestions'),title,select);const fields=node('div');function showFields(){fields.replaceChildren();for(const f of a.fields){const input=field(f.kind==='date'?'Date':'Amount'+(f.currency?' ('+f.currency+')':''));input.input.value=f.value||f.raw;input.input.oninput=()=>{f.value=input.input.value};fields.append(input.wrap,node('small',f.evidence))}}showFields();dialog.append(fields);if(a.conflicts.length>1){dialog.append(node('p','Competing corrections: select one, review its fields, then confirm.'));for(const r of a.conflicts)dialog.append(button('Use '+(r.correction.category||'uncategorized')+' · '+r.revision.slice(0,6),()=>{select.value=r.correction.category;a.fields=r.correction.fields;showFields()}))}dialog.append(button(a.conflicts.length?'Resolve with reviewed values':'Confirm category and fields',()=>{const category=select.value;dialog.close();dialog.remove();void operation(async(key,current)=>{await semantic.correct(store!,key,heads,h,category,a.fields,a.conflicts.map(r=>r.revision));if(current===generation)await refresh()})}),button('Close',()=>{dialog.close();dialog.remove()}));app.append(dialog);dialog.showModal()}catch(e){if(g===generation)message(semanticMessage(e instanceof Error?e.message:'SEMANTIC_UNAVAILABLE'))}finally{c.wipe(key)}}
+
+setInterval(()=>{if(master&&!busy&&!syncRunning&&document.visibilityState==='visible')void operation(async(key,g)=>{await cleanupTrash(store!,key);if(g===generation)await refresh();});},3600000);

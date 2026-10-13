@@ -10,8 +10,8 @@ This record describes the persistent-storage baseline. The optional
 cleanup, stable local-store identities, queue limits and ephemeral-host recovery.
 The additive [sync status extension](sync-status.md) provides live client progress,
 device presence, durable receipt counts, and opaque revision attribution.
-Local history is retained in both modes; server payload retention depends on
-the selected mode.
+Local history is retained in both modes until [permanent deletion](trash.md);
+server payload retention also depends on the selected mode.
 
 ## Local persistence and revisions
 

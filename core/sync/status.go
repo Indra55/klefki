@@ -30,6 +30,18 @@ func (c *Client) NeedsSync(ctx context.Context) (bool, error) {
 	if e != nil {
 		return true, e
 	}
+	var deletionCursor int64
+	if e = c.Store.db.QueryRow(`SELECT cursor FROM deletion_state WHERE id=1`).Scan(&deletionCursor); e != nil {
+		return true, e
+	}
+	if settings.DeletionSequence != deletionCursor {
+		return true, nil
+	}
+	if expired, err := c.Store.ExpiredTrash(c.Master, time.Now()); err != nil {
+		return true, err
+	} else if len(expired) > 0 {
+		return true, nil
+	}
 	if local.Mode != settings.Mode || local.Epoch != settings.Epoch {
 		return true, nil
 	}

@@ -164,6 +164,11 @@ test('account containers and recovery', () => {
     assert.throws(() => c.unlock(account, 'wrong'));
     assert.throws(() => c.parseAccount(c.cat(c.accountBytes(account), new Uint8Array([0]))));
 });
+test('encrypted trash metadata roundtrip and validation',()=>{
+ const key=new Uint8Array(32).fill(9),account='0102030405060708090a0b0c0d0e0f10',object='1112131415161718191a1b1c1d1e1f20';
+ for(const type of ['file','folder'] as const){const m:c.Metadata={type,name:'private trash name',parent:null,tags:[],favorite:false,trashed_at:1791849600000,trash_previous_parent:'2122232425262728292a2b2c2d2e2f30',...(type==='file'?{file_id:'3132333435363738393a3b3c3d3e3f40',size:0,chunk_count:1}:{})};const data=c.encryptMetadata(key,account,object,m);assert.deepEqual(c.decryptMetadata(key,account,object,data),m);assert.equal(Buffer.from(data).includes(Buffer.from('1791849600000')),false);}
+ for(const at of [-1,9007199254740992,null,1.5])assert.throws(()=>c.metadata(c.utf8(JSON.stringify({type:'folder',name:'Trash',parent:null,tags:[],favorite:false,trashed_at:at}))));
+});
 let failed = 0;
 for (const t of cases) {
     try {

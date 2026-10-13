@@ -194,11 +194,15 @@ export interface Metadata {
     file_id?: string;
     size?: number;
     chunk_count?: number;
+    trashed_at?: number;
+    trash_previous_parent?: string | null;
 }
 export function metadata(b: Uint8Array): Metadata {
     check(b.length <= MAX_METADATA);
     const m = strictJSON(decode(b)) as Metadata;
     check(m && typeof m === 'object' && !Array.isArray(m) && (m.type === 'file' || m.type === 'folder') && typeof m.name === 'string' && Array.isArray(m.tags) && m.tags.every(t => typeof t === 'string') && typeof m.favorite === 'boolean');
+    if (m.trashed_at !== undefined) check(Number.isSafeInteger(m.trashed_at) && m.trashed_at >= 0);
+    if (m.trash_previous_parent != null) validID(m.trash_previous_parent);
     if (m.parent !== null)
         validID(m.parent);
     if (m.type === 'file') {

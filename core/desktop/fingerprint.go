@@ -237,6 +237,10 @@ func (s *Service) startSession(ctx context.Context, cfg Config, a vc.Account, ma
 		st.Close()
 		return e
 	}
+	if e = st.CleanupLocalTrash(master, time.Now()); e != nil {
+		st.Close()
+		return e
+	}
 	relay, e := st.RelayState()
 	if e != nil {
 		st.Close()

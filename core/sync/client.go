@@ -82,6 +82,7 @@ func (r *Remote) request(ctx context.Context, method, path, token string, body a
 	if e != nil {
 		return nil, ErrInvalid
 	}
+	req.Header.Set("X-Klefki-Deletion", "1")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 		r.deviceMu.RLock()
@@ -268,10 +269,26 @@ func (c *Client) Sync(ctx context.Context) error {
 	}
 	c.Store.syncMu.Lock()
 	defer c.Store.syncMu.Unlock()
+
+	err := c.syncLocked(ctx)
+	var he *HTTPError
+	if errors.As(err, &he) && he.Status == 410 {
+		if e := c.syncDeletions(ctx); e != nil {
+			return e
+		}
+		return c.syncLocked(ctx)
+	}
+	return err
+}
+
+func (c *Client) syncLocked(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
 	if e := c.Store.bind(c.Remote.base); e != nil {
+		return e
+	}
+	if e := c.syncDeletions(ctx); e != nil {
 		return e
 	}
 	var seedErr error
@@ -317,6 +334,15 @@ func (c *Client) Sync(ctx context.Context) error {
 		for _, change := range page.Changes {
 			if change.Sequence <= cursor {
 				return ErrInvalid
+			}
+			if deleted, e := c.Store.Deleted(change.Revision.Object); e != nil {
+				return e
+			} else if deleted {
+				if e = c.Store.advanceDeleted(change.Sequence); e != nil {
+					return e
+				}
+				cursor = change.Sequence
+				continue
 			}
 			if len(change.Revision.Metadata) == 0 {
 				local, e := c.Store.localRevision(change.Revision.ID)
@@ -371,7 +397,62 @@ func (c *Client) Sync(ctx context.Context) error {
 			return e
 		}
 		if len(page.Changes) == 0 {
-			return seedErr
+			if seedErr != nil {
+				return seedErr
+			}
+			if e := c.syncDeletions(ctx); e != nil {
+				return e
+			}
+			if c.Store.DeletionSupported() {
+				if e := c.Store.InitializeTrash(c.Master, time.Now()); e != nil {
+					return e
+				}
+				expired, e := c.Store.ExpiredTrash(c.Master, time.Now())
+				if e != nil {
+					return e
+				}
+				for _, p := range expired {
+					heads, e := c.Store.Heads(c.Master)
+					if e != nil {
+						return e
+					}
+					targets := OrderDeletionTargets(heads, p.Targets)
+					for start := 0; start < len(targets); start += 256 {
+						batch := targets[start:min(start+256, len(targets))]
+						if _, e = c.request(ctx, "POST", "/v1/sync/deletions", syncwire.DeletionBatch{Deletions: batch}, 1024); e != nil {
+							var he *HTTPError
+							if errors.As(e, &he) && he.Status == 409 {
+								break
+							}
+							return e
+						}
+						local := make([]syncwire.Deletion, len(batch))
+						copy(local, batch)
+						for i := range local {
+							local[i].Heads = nil
+						}
+						if e = c.Store.Erase(local, false); e != nil {
+							return e
+						}
+					}
+				}
+
+				if e = c.Store.PruneDeleted(c.Master); e != nil {
+					return e
+				}
+				if len(expired) > 0 {
+					if e = c.Store.Compact(); e != nil {
+						return e
+					}
+				}
+				if pending, e := c.Store.deletionRecords(true); e != nil {
+					return e
+				} else if len(pending) > 0 || len(expired) > 0 {
+					return c.syncDeletions(ctx)
+				}
+				return nil
+			}
+			return nil
 		}
 	}
 }

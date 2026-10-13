@@ -10,6 +10,21 @@ let state:State;let events:Record<string,(e:any)=>void>;
 beforeEach(()=>{state={config:{accountPath:'account.v1',storePath:'local.db',server:'',preferences:{theme:'dark',idleMinutes:5}},unlocked:true,generation:1,accountID:'account',recoveryOnly:false,sync:'Local only',pending:0,lastSync:''};events={};vi.spyOn(document,'hasFocus').mockReturnValue(true);window.matchMedia=vi.fn().mockReturnValue({matches:true,addEventListener:vi.fn(),removeEventListener:vi.fn()});window.runtime={EventsOn:(name,cb)=>{events[name]=cb;return()=>{delete events[name]}}};window.go={main:{App:{State:vi.fn(async()=>state),List:vi.fn(async()=>({generation:state.generation,items:[item]})),Touch:vi.fn(),Lock:vi.fn(async()=>{state={...state,unlocked:false,generation:2};events['klefki:event']?.({generation:2,kind:'locked'})}),Edit:vi.fn(async()=>''),ClosePreview:vi.fn()} as any}}});
 afterEach(()=>{cleanup();vi.restoreAllMocks()});
 describe('library',()=>{
+ it('confirms Empty Trash against the whole trash and keeps cancellation reversible',async()=>{
+  const bridge=window.go!.main.App,trash={...item,trashed:true,deleteAt:Date.now()+86400000};
+  bridge.List=vi.fn(async()=>({generation:1,items:[trash]}));
+  bridge.PreviewDeletion=vi.fn(async revision=>({revision,count:2,targets:[{object:'object',folder:false,files:[],heads:['revision']}]}));
+  bridge.DeletePermanently=vi.fn(async()=>{bridge.List=vi.fn(async()=>({generation:1,items:[]}));});
+  render(<App/>);await screen.findByRole('button',{name:'View'});await userEvent.click(screen.getByRole('button',{name:'View'}));await userEvent.click(screen.getByRole('menuitem',{name:'Trash'}));
+  expect(await screen.findByText(/Deletes/)).toBeVisible();
+  await userEvent.type(screen.getByLabelText('Search your documents'),'passport');
+  await userEvent.click(screen.getByRole('button',{name:'Empty Trash'}));
+  expect(bridge.PreviewDeletion).toHaveBeenCalledWith('');
+  let dialog=await screen.findByRole('dialog',{name:'Empty Trash?'});expect(dialog).toHaveTextContent('2 documents and folders');
+  await userEvent.click(within(dialog).getByRole('button',{name:'Cancel'}));expect(bridge.DeletePermanently).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button',{name:'Empty Trash'}));dialog=await screen.findByRole('dialog',{name:'Empty Trash?'});
+  await userEvent.click(within(dialog).getByRole('button',{name:'Delete permanently'}));await waitFor(()=>expect(bridge.DeletePermanently).toHaveBeenCalledTimes(1));await waitFor(()=>expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+ });
  it('keeps folder children out of All while favorites and trash include them',()=>{
   const folder={...item,object:'family',revision:'family-rev',name:'Family',type:'folder' as const};
   const child={...item,object:'child',revision:'child-rev',parent:folder.object,favorite:true};

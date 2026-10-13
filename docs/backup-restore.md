@@ -9,7 +9,8 @@ CLI. Use its actual account and store paths; the defaults below are
 
 Sync all devices first if their newest work should be included. A backup contains
 everything in this local store, including offline pending edits, all revisions,
-conflict copies, folders, tags, favorites, and trash. It cannot include changes
+conflict copies, folders, tags, favorites, unexpired trash, and permanent-deletion
+records. Permanently deleted document content is excluded. It cannot include changes
 that have never reached this store.
 
 ```sh
@@ -65,6 +66,10 @@ previous backup until the replacement has been successfully restored and checked
    Reconnect to the same surviving server using the original password. The
    cursor, server binding, and pending queue are preserved. Recovery-code unlock
    remains local-only; it does not reset online authentication.
+
+An older backup can contain documents that were later permanently deleted.
+Reconnecting applies a surviving server deletion ledger before replaying that
+history. Independent backups remain readable offline; see [trash cleanup](trash.md).
 
 This restores local klefki state exactly, not the server's users, sessions, or
 change log. Rebuilding a lost server or moving to another server is not an M6

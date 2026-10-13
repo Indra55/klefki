@@ -180,6 +180,13 @@ func (a *App) Trash(revision string) (string, error) {
 	v, e := a.service.Trash(revision)
 	return v, safe(e)
 }
+func (a *App) PreviewDeletion(revision string) (vs.DeletionPreview, error) {
+	v, e := a.service.PreviewDeletion(revision)
+	return v, safe(e)
+}
+func (a *App) DeletePermanently(preview vs.DeletionPreview) error {
+	return safe(a.service.DeletePermanently(preview))
+}
 func (a *App) Restore(revision string) (vd.Restored, error) {
 	v, e := a.service.Restore(revision)
 	return v, safe(e)

@@ -240,6 +240,9 @@ func (s *Service) watch() {
 				s.Lock()
 			}
 			ticks++
+			if ticks%3600 == 0 {
+				s.cleanupTrash()
+			}
 			if ticks%60 == 0 {
 				s.syncNow(true)
 			}
@@ -426,6 +429,8 @@ func Code(e error) string {
 		return "IN_USE"
 	case errors.Is(e, vs.ErrConflict):
 		return "STALE"
+	case errors.Is(e, vs.ErrDeletionUnsupported):
+		return "DELETION_UPDATE_REQUIRED"
 	case errors.Is(e, vs.ErrRelayUnsupported):
 		return "RELAY_UNSUPPORTED"
 	case errors.Is(e, vs.ErrRelayWaiting):
