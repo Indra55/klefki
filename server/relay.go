@@ -69,6 +69,13 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		fail(w, 500)
 		return
 	}
+	if r.Header.Get("X-Klefki-Deletion") == "1" {
+		out.DeletionSupported = true
+		if e = s.db.QueryRow(`SELECT COALESCE(MAX(sequence),0) FROM deletions WHERE account=?`, who(r).account).Scan(&out.DeletionSequence); e != nil {
+			fail(w, 500)
+			return
+		}
+	}
 	reply(w, 200, out)
 }
 func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
@@ -161,7 +168,7 @@ func (s *Server) relayAccess(next http.Handler) http.Handler {
 			fail(w, 500)
 			return
 		}
-		control := r.URL.Path == "/v1/sync/settings" || strings.HasPrefix(r.URL.Path, "/v1/sync/relay")
+		control := r.URL.Path == "/v1/sync/settings" || strings.HasPrefix(r.URL.Path, "/v1/sync/relay") || r.URL.Path == "/v1/sync/deletions"
 		if settings.Mode == syncwire.TemporaryRelay && !control && (strings.HasPrefix(r.URL.Path, "/v1/sync/") || strings.HasPrefix(r.URL.Path, "/v1/blobs/") || strings.HasPrefix(r.URL.Path, "/v1/metadata")) {
 			var n int
 			id := r.Header.Get("X-Klefki-Device")

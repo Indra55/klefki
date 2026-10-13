@@ -128,6 +128,10 @@ func Open(c Config) (*Server, error) {
 		db.Close()
 		return nil, e
 	}
+	if e = migrateDeletions(db); e != nil {
+		db.Close()
+		return nil, e
+	}
 	if e = migrateStatus(db); e != nil {
 		db.Close()
 		return nil, e
@@ -151,6 +155,7 @@ func Open(c Config) (*Server, error) {
 	r.Get("/v1/accounts/{account}", s.account)
 	r.Group(func(r chi.Router) {
 		r.Use(s.auth)
+		r.Use(s.deletionAccess)
 		r.Post("/v1/sync/presence", s.presence)
 		r.Get("/v1/sync/status", s.syncStatus)
 		r.Get("/v1/sync/provenance", s.provenance)
@@ -158,7 +163,10 @@ func Open(c Config) (*Server, error) {
 	r.Group(func(r chi.Router) {
 		r.Use(s.auth)
 		r.Use(s.relayBuffered)
+		r.Use(s.deletionAccess)
 		r.Use(s.relayAccess)
+		r.Get("/v1/sync/deletions", s.getDeletions)
+		r.Post("/v1/sync/deletions", s.putDeletions)
 		r.Get("/v1/sync/settings", s.getSettings)
 		r.Put("/v1/sync/settings", s.putSettings)
 		r.Post("/v1/sync/relay/device", s.relayDevice)
@@ -515,6 +523,10 @@ func chunkParams(w http.ResponseWriter, r *http.Request) (string, uint64, bool) 
 	return id, n, true
 }
 func (s *Server) putChunk(w http.ResponseWriter, r *http.Request) {
+	if s.blobDeleted(who(r).account, chi.URLParam(r, "blob")) {
+		fail(w, 410)
+		return
+	}
 	id, index, ok := chunkParams(w, r)
 	if !ok {
 		return
@@ -551,6 +563,10 @@ func (s *Server) putChunk(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (s *Server) getChunk(w http.ResponseWriter, r *http.Request) {
+	if s.blobDeleted(who(r).account, chi.URLParam(r, "blob")) {
+		fail(w, 410)
+		return
+	}
 	id, index, ok := chunkParams(w, r)
 	if !ok {
 		return

@@ -77,6 +77,12 @@ func (s *Server) syncStatus(w http.ResponseWriter, r *http.Request) {
 		fail(w, 500)
 		return
 	}
+	if r.Header.Get("X-Klefki-Deletion") == "1" {
+		if err = tx.QueryRow(`SELECT COALESCE(MAX(sequence),0) FROM deletions WHERE account=?`, account).Scan(&out.DeletionSequence); err != nil {
+			fail(w, 500)
+			return
+		}
+	}
 	rows, err := tx.QueryContext(r.Context(), `SELECT d.device,d.sequence,COALESCE(i.kind,''),COALESCE(i.last_seen,0),
  (SELECT COUNT(*) FROM changes c WHERE c.account=d.account AND c.sequence>d.sequence)
  FROM relay_devices d LEFT JOIN sync_device_info i ON i.account=d.account AND i.device=d.device WHERE d.account=? ORDER BY d.device`, account)

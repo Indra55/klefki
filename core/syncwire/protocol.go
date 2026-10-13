@@ -26,9 +26,11 @@ const Persistent = "persistent"
 const TemporaryRelay = "temporary-relay"
 
 type SyncSettings struct {
-	Mode   string `json:"mode"`
-	Epoch  string `json:"epoch"`
-	Queued int    `json:"queued"`
+	Mode              string `json:"mode"`
+	Epoch             string `json:"epoch"`
+	Queued            int    `json:"queued"`
+	DeletionSupported bool   `json:"deletion_supported,omitempty"`
+	DeletionSequence  int64  `json:"deletion_sequence,omitempty"`
 }
 type RelayDevice struct {
 	Device   string   `json:"device"`
@@ -78,9 +80,10 @@ type DeviceStatus struct {
 }
 
 type Status struct {
-	Epoch          string         `json:"epoch"`
-	LatestSequence int64          `json:"latestSequence"`
-	Devices        []DeviceStatus `json:"devices"`
+	Epoch            string         `json:"epoch"`
+	LatestSequence   int64          `json:"latestSequence"`
+	DeletionSequence int64          `json:"deletionSequence,omitempty"`
+	Devices          []DeviceStatus `json:"devices"`
 }
 
 type Provenance struct {
@@ -103,4 +106,25 @@ type RelayPrepare struct {
 type RelayPrepared struct {
 	RelayState
 	IDs []string `json:"ids"`
+}
+
+// Deletion is a permanent object fence; it contains no document plaintext.
+type Deletion struct {
+	Object string   `json:"object"`
+	Folder bool     `json:"folder"`
+	Files  []string `json:"files"`
+	Heads  []string `json:"heads,omitempty"`
+}
+type DeletionBatch struct {
+	Deletions []Deletion `json:"deletions"`
+}
+type DeletionChange struct {
+	Sequence int64    `json:"sequence"`
+	Deletion Deletion `json:"deletion"`
+}
+type DeletionPage struct {
+	Epoch   string           `json:"epoch"`
+	Latest  int64            `json:"latest"`
+	Enabled bool             `json:"enabled"`
+	Changes []DeletionChange `json:"changes"`
 }

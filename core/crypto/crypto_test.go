@@ -260,3 +260,34 @@ func TestMetadataExactFieldsAndUnicode(t *testing.T) {
 		t.Fatal("valid surrogate pair rejected")
 	}
 }
+
+func TestEncryptedTrashMetadata(t *testing.T) {
+	account := id(decode("0102030405060708090a0b0c0d0e0f10"))
+	object := id(decode("1112131415161718191a1b1c1d1e1f20"))
+	parent := "2122232425262728292a2b2c2d2e2f30"
+	for _, kind := range []string{"file", "folder"} {
+		m := Metadata{Type: kind, Name: "private trash name", Tags: []string{}, TrashedAt: 1791849600000, TrashPreviousParent: &parent}
+		if kind == "file" {
+			m.FileID = "3132333435363738393a3b3c3d3e3f40"
+			m.ChunkCount = 1
+		}
+		k := key(bytes.Repeat([]byte{9}, 32))
+		data, e := EncryptMetadata(k, account, object, m)
+		if e != nil {
+			t.Fatal(e)
+		}
+		got, e := DecryptMetadata(k, account, object, data)
+		if e != nil || got.TrashedAt != m.TrashedAt || got.TrashPreviousParent == nil || *got.TrashPreviousParent != parent {
+			t.Fatalf("trash metadata roundtrip: %+v %v", got, e)
+		}
+		if bytes.Contains(data, []byte("private trash name")) || bytes.Contains(data, []byte("1791849600000")) {
+			t.Fatal("plaintext trash metadata persisted")
+		}
+	}
+	for _, value := range []string{"-1", "9007199254740992", "null", "1.5"} {
+		raw := []byte(`{"type":"folder","name":"Trash","parent":null,"tags":[],"favorite":false,"trashed_at":` + value + `}`)
+		if _, e := ParseMetadata(raw); e == nil {
+			t.Fatalf("invalid trash date accepted: %s", value)
+		}
+	}
+}

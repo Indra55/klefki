@@ -10,14 +10,16 @@ import (
 )
 
 type Metadata struct {
-	Type       string   `json:"type"`
-	Name       string   `json:"name"`
-	Parent     *string  `json:"parent"`
-	Tags       []string `json:"tags"`
-	Favorite   bool     `json:"favorite"`
-	FileID     string   `json:"file_id,omitempty"`
-	Size       uint64   `json:"size"`
-	ChunkCount uint64   `json:"chunk_count"`
+	Type                string   `json:"type"`
+	Name                string   `json:"name"`
+	Parent              *string  `json:"parent"`
+	Tags                []string `json:"tags"`
+	Favorite            bool     `json:"favorite"`
+	FileID              string   `json:"file_id,omitempty"`
+	Size                uint64   `json:"size"`
+	ChunkCount          uint64   `json:"chunk_count"`
+	TrashedAt           int64    `json:"trashed_at,omitempty"`
+	TrashPreviousParent *string  `json:"trash_previous_parent,omitempty"`
 }
 
 func ParseID(s string) (out ID, e error) {
@@ -187,6 +189,19 @@ func ParseMetadata(b []byte) (m Metadata, e error) {
 			}
 		}
 	}
+	for name, target := range map[string]any{"trashed_at": &m.TrashedAt, "trash_previous_parent": &m.TrashPreviousParent} {
+		if raw, ok := fields[name]; ok && (bytes.Equal(raw, []byte("null")) && name == "trashed_at" || json.Unmarshal(raw, target) != nil) {
+			return m, ErrInvalid
+		}
+	}
+	if m.TrashedAt < 0 || m.TrashedAt > 9007199254740991 {
+		return m, ErrInvalid
+	}
+	if m.TrashPreviousParent != nil {
+		if _, e = ParseID(*m.TrashPreviousParent); e != nil {
+			return m, e
+		}
+	}
 	// Unknown fields remain encrypted and are ignored for forward compatibility.
 	return m, nil
 }
@@ -203,12 +218,14 @@ func MarshalMetadata(m Metadata) ([]byte, error) {
 	var e error
 	if m.Type == "folder" {
 		b, e = json.Marshal(struct {
-			Type     string   `json:"type"`
-			Name     string   `json:"name"`
-			Parent   *string  `json:"parent"`
-			Tags     []string `json:"tags"`
-			Favorite bool     `json:"favorite"`
-		}{m.Type, m.Name, m.Parent, m.Tags, m.Favorite})
+			Type                string   `json:"type"`
+			Name                string   `json:"name"`
+			Parent              *string  `json:"parent"`
+			Tags                []string `json:"tags"`
+			Favorite            bool     `json:"favorite"`
+			TrashedAt           int64    `json:"trashed_at,omitempty"`
+			TrashPreviousParent *string  `json:"trash_previous_parent,omitempty"`
+		}{m.Type, m.Name, m.Parent, m.Tags, m.Favorite, m.TrashedAt, m.TrashPreviousParent})
 	} else {
 		b, e = json.Marshal(m)
 	}

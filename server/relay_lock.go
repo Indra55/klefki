@@ -75,7 +75,7 @@ func (s *Server) relayBuffered(next http.Handler) http.Handler {
 			if strings.HasPrefix(r.URL.Path, "/v1/blobs/") {
 				limit = vc.ChunkSize + 87
 			}
-			if strings.HasPrefix(r.URL.Path, "/v1/metadata/") || strings.HasPrefix(r.URL.Path, "/v1/sync/revisions/") {
+			if strings.HasPrefix(r.URL.Path, "/v1/metadata/") || strings.HasPrefix(r.URL.Path, "/v1/sync/revisions/") || r.URL.Path == "/v1/sync/deletions" {
 				limit = 1500000
 			}
 			b, ok := readBody(w, r, limit)

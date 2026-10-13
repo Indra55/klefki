@@ -98,6 +98,20 @@ func (s *Server) putRevision(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400)
 		return
 	}
+	if s.objectDeleted(account, rev.Object) {
+		if file := revisionFile(rev); file != "" {
+			if _, e := s.db.Exec(`INSERT OR IGNORE INTO deletion_gc VALUES(?,?)`, account, file); e != nil {
+				fail(w, 500)
+				return
+			}
+			if e := s.cleanupDeletions(account); e != nil {
+				fail(w, 500)
+				return
+			}
+		}
+		fail(w, 410)
+		return
+	}
 	if e := s.relayRevisionSpace(account, rev); e != nil {
 		if errors.Is(e, errRelayFull) {
 			fail(w, 507)
