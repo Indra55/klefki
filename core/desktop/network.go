@@ -58,8 +58,10 @@ func (s *Service) Connect(address string, register bool) error {
 		return e
 	})
 }
-func (s *Service) SyncNow() { s.syncNow(false) }
-func (s *Service) syncNow(background bool) {
+func (s *Service) SyncNow()                { s.syncNow(false) }
+func (s *Service) RefreshSync()            { s.runSync(false, true) }
+func (s *Service) syncNow(background bool) { s.runSync(background, false) }
+func (s *Service) runSync(background, reconnect bool) {
 	s.mu.Lock()
 	if s.session == nil || s.session.recovery || s.config.Server == "" {
 		s.mu.Unlock()
@@ -67,8 +69,16 @@ func (s *Service) syncNow(background bool) {
 	}
 	x := s.session
 	if s.syncRunning && s.syncOwner == x {
+		s.syncRefresh = s.syncRefresh || reconnect
 		s.mu.Unlock()
 		return
+	}
+	reconnect = reconnect || s.syncRefresh
+	s.syncRefresh = false
+	if reconnect {
+		background = false
+		x.remoteSession = vs.Session{}
+		s.syncInfo.StatusAvailable = false
 	}
 	address := s.config.Server
 	if s.syncTimer != nil {
@@ -81,6 +91,7 @@ func (s *Service) syncNow(background bool) {
 	if !background {
 		s.syncState = "Syncing"
 		s.syncInfo.Phase, s.syncInfo.Running, s.syncInfo.Progress = "connecting", true, nil
+		s.syncInfo.WaitingFor = ""
 	}
 	s.mu.Unlock()
 	if !background {
@@ -103,16 +114,22 @@ func (s *Service) syncNow(background bool) {
 				if err != nil {
 					return err
 				}
+				remote = r
+			}
+			if session.Token == "" {
 				local, err := x.store.RelayState()
 				if err != nil {
 					return err
 				}
-				session, err = r.LoginAccount(x.ctx, account, credential, local.Mode == syncwire.TemporaryRelay)
+				session, err = remote.LoginAccount(x.ctx, account, credential, local.Mode == syncwire.TemporaryRelay)
 				if err != nil {
 					return err
 				}
-				remote = r
 				s.mu.Lock()
+				if s.session != x {
+					s.mu.Unlock()
+					return ErrLocked
+				}
 				x.remote, x.remoteSession = remote, session
 				s.mu.Unlock()
 			}
@@ -166,17 +183,28 @@ func (s *Service) syncNow(background bool) {
 		}
 		if idle {
 			again := s.syncAgain || n > 0
+			refresh := s.syncRefresh
 			s.syncAgain = false
 			s.mu.Unlock()
-			if again {
+			if refresh {
+				s.RefreshSync()
+			} else if again {
 				s.SyncNow()
 			}
 			return
 		}
 		again := s.syncAgain
+		refresh := s.syncRefresh
 		s.syncAgain = false
 		s.syncInfo.Running = false
 		s.syncInfo.Phase, s.syncState = syncFailure(e)
+		s.syncInfo.WaitingFor = ""
+		if errors.Is(e, vs.ErrRelayWaiting) {
+			s.syncInfo.WaitingFor = "source"
+		} else if e != nil && e.Error() == "RELAY_QUEUED" {
+			s.syncInfo.WaitingFor = "receipts"
+		}
+		s.syncStatusRequested = true
 		if e != nil && s.syncInfo.Phase != "waiting" && s.syncInfo.Progress != nil {
 			p := *s.syncInfo.Progress
 			p.Phase, p.UpdatedAt = s.syncInfo.Phase, time.Now().UnixMilli()
@@ -186,7 +214,6 @@ func (s *Service) syncNow(background bool) {
 			s.lastSync = time.Now().Format(time.RFC3339)
 		}
 		if s.syncInfo.Phase == "auth" {
-			x.remote = nil
 			x.remoteSession = vs.Session{}
 		}
 		if pendingErr == nil {
@@ -203,7 +230,9 @@ func (s *Service) syncNow(background bool) {
 		case s.monitorWake <- struct{}{}:
 		default:
 		}
-		if again && (e == nil || waiting) && n > 0 {
+		if refresh {
+			s.RefreshSync()
+		} else if again && (e == nil || waiting) && n > 0 {
 			s.SyncNow()
 		}
 	}()
@@ -226,6 +255,9 @@ func syncFailure(err error) (string, string) {
 			return "full", "Relay storage full"
 		case 408, 504:
 			return "timeout", "Connection timed out"
+		}
+		if he.Status >= 500 {
+			return "unreachable", "Server unavailable"
 		}
 	case errors.As(err, &ne):
 		if ne.Timeout() {
@@ -265,6 +297,7 @@ func (s *Service) observeSync(x *session, p syncwire.Progress) {
 func (s *Service) SetSyncPanel(open bool) {
 	s.mu.Lock()
 	s.syncPanel = open
+	s.syncStatusRequested = open
 	s.mu.Unlock()
 	select {
 	case s.monitorWake <- struct{}{}:
@@ -314,6 +347,8 @@ func (s *Service) monitorSync(x *session) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	var lastPresence, lastStatus time.Time
+	var lastRemote *vs.Remote
+	var lastToken string
 	for {
 		select {
 		case <-x.ctx.Done():
@@ -328,9 +363,17 @@ func (s *Service) monitorSync(x *session) {
 		}
 		remote, session, device := x.remote, x.remoteSession, s.syncDevice
 		info, panel := s.syncInfo, s.syncPanel
+		refreshStatus := s.syncStatusRequested
+		s.syncStatusRequested = false
 		s.mu.Unlock()
-		if remote == nil || device == "" {
+		if remote == nil || session.Token == "" || device == "" {
 			continue
+		}
+		if remote != lastRemote || session.Token != lastToken {
+			lastRemote, lastToken = remote, session.Token
+			lastPresence, lastStatus = time.Time{}, time.Time{}
+		} else if refreshStatus {
+			lastStatus = time.Time{}
 		}
 		now := time.Now()
 		heartbeatInterval := 15 * time.Second
@@ -355,7 +398,7 @@ func (s *Service) monitorSync(x *session) {
 			lastPresence = now
 			if err == nil {
 				s.mu.Lock()
-				if s.session == x {
+				if s.session == x && x.remote == remote && x.remoteSession.Token == session.Token {
 					s.syncInfo.LastContact = time.Now().UnixMilli()
 				}
 				s.mu.Unlock()
@@ -375,18 +418,23 @@ func (s *Service) monitorSync(x *session) {
 				s.mu.Unlock()
 				return
 			}
+			if x.remote != remote || x.remoteSession.Token != session.Token {
+				s.mu.Unlock()
+				continue
+			}
 			s.syncInfo.StatusAvailable = err == nil
 			if err == nil {
 				s.syncInfo.Peers = &peers
 				s.syncInfo.LastDeviceCheck = time.Now().UnixMilli()
 				s.syncInfo.LastContact = s.syncInfo.LastDeviceCheck
-				if !s.syncInfo.Running && s.syncInfo.Phase == "waiting" {
+				if !s.syncInfo.Running && s.syncInfo.Phase == "waiting" && s.syncInfo.WaitingFor == "receipts" {
 					waiting := false
 					for _, peer := range peers.Devices {
 						waiting = waiting || peer.Outstanding > 0
 					}
 					if !waiting {
 						s.syncInfo.Phase, s.syncState = "synced", "Synced"
+						s.syncInfo.WaitingFor = ""
 					}
 				}
 			}

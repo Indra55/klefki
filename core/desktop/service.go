@@ -64,6 +64,7 @@ type SyncInfo struct {
 	LastDeviceCheck int64              `json:"lastDeviceCheck"`
 	StatusAvailable bool               `json:"statusAvailable"`
 	Peers           *syncwire.Status   `json:"peers,omitempty"`
+	WaitingFor      string             `json:"waitingFor,omitempty"`
 }
 type Event struct {
 	Generation uint64    `json:"generation"`
@@ -107,6 +108,8 @@ type Service struct {
 	syncRunning         bool
 	syncOwner           *session
 	syncAgain           bool
+	syncRefresh         bool
+	syncStatusRequested bool
 	syncPanel           bool
 	syncInfo            SyncInfo
 	monitorWake         chan struct{}
@@ -274,6 +277,7 @@ func (s *Service) Lock() {
 	s.syncState = "Locked"
 	s.syncInfo = SyncInfo{Phase: "locked"}
 	s.syncPanel, s.syncAgain = false, false
+	s.syncRefresh, s.syncStatusRequested = false, false
 	if s.syncTimer != nil {
 		s.syncTimer.Stop()
 		s.syncTimer = nil

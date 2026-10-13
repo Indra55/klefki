@@ -232,6 +232,7 @@ func (a *App) Connect(address string, register bool) error {
 	return safe(a.service.Connect(address, register))
 }
 func (a *App) SyncNow()                         { a.service.SyncNow() }
+func (a *App) RefreshSync()                     { a.service.RefreshSync() }
 func (a *App) SetSyncMode(mode string) error    { return safe(a.service.SetSyncMode(mode)) }
 func (a *App) ForgetSyncDevice(id string) error { return safe(a.service.ForgetSyncDevice(id)) }
 

@@ -26,7 +26,7 @@ export interface API {
  AddFiles(parent:string|null,tags:string[]):Promise<string>;ImportDropped(paths:string[],parent:string|null,tags:string[]):Promise<string>;
  Export(revision:string,name:string):Promise<string>;ExportAccount():Promise<void>;Cancel(op:string):Promise<void>;
  SetSyncPanel?(open:boolean):Promise<void>;SetDeviceAlias?(id:string,name:string):Promise<void>;
- Connect(address:string,register:boolean):Promise<void>;SetSyncMode(mode:string):Promise<void>;ForgetSyncDevice(id:string):Promise<void>;SyncNow():Promise<void>;Preview(revision:string):Promise<PreviewInfo>;ClosePreview():Promise<void>;
+ Connect(address:string,register:boolean):Promise<void>;SetSyncMode(mode:string):Promise<void>;ForgetSyncDevice(id:string):Promise<void>;SyncNow():Promise<void>;RefreshSync():Promise<void>;Preview(revision:string):Promise<PreviewInfo>;ClosePreview():Promise<void>;
 }
 declare global {interface Window {go?:{main:{App:API}};runtime?:{EventsOn:(name:string,cb:(data:any)=>void)=>(()=>void)}}}
 export function api():API {if(!window.go?.main.App)throw new Error('DESKTOP_REQUIRED');return window.go.main.App}
