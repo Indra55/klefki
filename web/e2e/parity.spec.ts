@@ -39,22 +39,52 @@ test('desktop categories, custom tags, folder navigation, favorites and trash re
     await page.getByLabel('Tags, separated by commas').fill('Identity, Personal');
     await page.getByLabel('Favorite',{exact:true}).check();
     await page.getByRole('button',{name:'Save changes',exact:true}).click();
-    await page.getByRole('button',{name:'Klefki',exact:true}).click();
+    const crumbs = page.getByRole('navigation',{name:'Folder breadcrumb'});
+    await crumbs.getByRole('button',{name:'All',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Open identity.txt',exact:true})).toHaveCount(0);
+    await expect(page.getByRole('button',{name:'Open Family',exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'Open Family',exact:true}).click();
+    await expect(crumbs.getByText('Family',{exact:true})).toHaveAttribute('aria-current','page');
     await expect(page.getByRole('button',{name:'Open identity.txt',exact:true})).toBeVisible();
     await categories.getByRole('button',{name:'Personal',exact:true}).click();
     await expect(page.locator('article')).toHaveCount(1);
     await documentAction(page,'identity.txt','Move to Trash');
     await expect(page.locator('article')).toHaveCount(0);
-    await page.getByRole('button',{name:'All documents',exact:true}).click();
+    await page.getByRole('button',{name:'View',exact:true}).click();
     await page.getByRole('menuitem',{name:'Trash',exact:true}).click();
     await expect(page.getByRole('button',{name:'Open identity.txt',exact:true})).toBeVisible();
     await page.getByRole('button',{name:'Restore',exact:true}).click();
-    await page.getByRole('button',{name:'Trash',exact:true}).click();
+    await page.getByRole('button',{name:'View',exact:true}).click();
     await page.getByRole('menuitem',{name:'Favorites',exact:true}).click();
     await expect(page.locator('article')).toHaveCount(1);
     await documentAction(page,'identity.txt','Edit details & move');
     await expect(page.getByLabel('Folder',{exact:true}).locator('option:checked')).toHaveText('Family');
     await page.getByRole('button',{name:'Cancel',exact:true}).click();
+});
+test('nested folders show direct children and breadcrumbs return to All at mobile width', async ({page}) => {
+    await page.setViewportSize({width:390,height:844});
+    await create(page);
+    await upload(page,{name:'loose.txt',mimeType:'text/plain',buffer:Buffer.from('root document')});
+    for (const name of ['Family','Hitanshu']) {
+        await page.getByRole('button',{name:'New folder',exact:true}).click();
+        await page.getByLabel('Folder name').fill(name);
+        await page.getByRole('button',{name:'Create folder',exact:true}).click();
+        await page.getByRole('button',{name:'Open '+name,exact:true}).click();
+    }
+    await upload(page,{name:'inside.txt',mimeType:'text/plain',buffer:Buffer.from('nested document')});
+    await expect(page.getByRole('button',{name:'Open loose.txt',exact:true})).toHaveCount(0);
+    const crumbs = page.getByRole('navigation',{name:'Folder breadcrumb'});
+    await expect(crumbs.getByText('Hitanshu',{exact:true})).toHaveAttribute('aria-current','page');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({path:'/tmp/klefki-folder-breadcrumb.png'});
+    await crumbs.getByRole('button',{name:'Family',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Open Hitanshu',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Open inside.txt',exact:true})).toHaveCount(0);
+    await crumbs.getByRole('button',{name:'All',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Open Family',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Open loose.txt',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Open Hitanshu',exact:true})).toHaveCount(0);
+    await expect(page.getByRole('button',{name:'Open inside.txt',exact:true})).toHaveCount(0);
 });
 test('dedicated settings persist appearance, spacing, sort and idle lock across offline PWA reload', async ({page,context}) => {
     await page.setViewportSize({width:900,height:920});

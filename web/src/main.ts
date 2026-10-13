@@ -394,16 +394,29 @@ async function library() {
     upload.onchange = () => { void addFiles(Array.from(upload.files || [])); upload.value = ''; };
     actions.append(iconButton('New folder', 'folderPlus', folderDialog), iconButton('Add files', 'plus', () => upload.click(), 'add-files'), upload);
     categoryLine.append(categories); if (view !== 'Trash') categoryLine.append(actions); main.append(categoryLine);
-    const tools = node('div', undefined, 'library-tools'), crumbs = node('div', undefined, 'breadcrumbs');
-    crumbs.append(menu(view, ['All documents','Favorites','Folders','Trash'].map(label => ({label,run: () => navigate(label)}))));
+    const tools = node('div', undefined, 'library-tools'), crumbs = node('nav', undefined, 'breadcrumbs');
+    crumbs.setAttribute('aria-label','Folder breadcrumb');
+    const all = button('All', () => navigate('All documents'), 'quiet');
+    if (view === 'All documents' || (view === 'Folders' && !parent)) all.setAttribute('aria-current','page');
+    crumbs.append(all);
     if (view === 'Folders') {
         const chain: Head[] = [], seen = new Set<string>(); let ancestor = heads.find(h => h.revision.object === parent);
         while (ancestor && !seen.has(ancestor.revision.object)) { seen.add(ancestor.revision.object); chain.unshift(ancestor); ancestor = heads.find(h => h.revision.object === ancestor!.metadata.parent); }
-        for (const h of chain) { const crumb = node('span'); crumb.append(icon('chevron',12), button(h.metadata.name, () => { parent = h.revision.object; void library(); }, 'quiet')); crumbs.append(crumb); }
+        for (const h of chain) {
+            const crumb = node('span');
+            const label = h.revision.object === parent ? node('span',h.metadata.name,'breadcrumb-current') : button(h.metadata.name, () => { parent = h.revision.object; filter = ''; void library(); }, 'quiet');
+            if (h.revision.object === parent) label.setAttribute('aria-current','page');
+            crumb.append(icon('chevron',12), label); crumbs.append(crumb);
+        }
+    }
+    if (view === 'Favorites' || view === 'Trash') {
+        const crumb = node('span'), current = node('span',view,'breadcrumb-current'); current.setAttribute('aria-current','page');
+        crumb.append(icon('chevron',12),current); crumbs.append(crumb);
     }
     const right = node('div', undefined, 'library-tools-right'), sorting = node('select'); sorting.setAttribute('aria-label','Sort documents');
     for (const [value,label] of [['name','Name'],['type','Type'],['size','Size']]) { const option = node('option',label); option.value = value; sorting.append(option); }
     sorting.value = sort; sorting.onchange = () => { sort = sorting.value as typeof sort; renderRows(); };
+    right.append(menu('View', ['All documents','Favorites','Folders','Trash'].map(label => ({label,run: () => navigate(label)}))));
     const organize = button('Organize files',() => {},'quiet'); organize.disabled = true; organize.title = 'Review file organization in the desktop app, then sync the tags here.'; if (view !== 'Trash') right.append(organize);
     const sortLabel = node('label',undefined,'sort'); sortLabel.append(sorting); right.append(sortLabel); tools.append(crumbs,right); main.append(tools,status);
     if (view === 'Trash') main.append(node('p','Documents stay here until you restore them. Nothing is permanently deleted.','trash-note'));
@@ -411,7 +424,7 @@ async function library() {
     let ranked: string[] = [], searchSequence = 0;
     function renderRows() {
         list.replaceChildren(); clear.hidden = !filter;
-        const visible = heads.filter(h => !semantic.internal(h) && !isTrashRoot(h) && (view === 'Trash' ? trashed(h) : !trashed(h)) && (view !== 'Favorites' || h.metadata.favorite) && (view !== 'Folders' || h.metadata.parent === parent) && (!tag || h.metadata.tags.includes(tag) || categoryByRevision.get(h.revision.id) === tag) && (!filter || ranked.includes(h.revision.id) || (h.metadata.name + ' ' + h.metadata.tags.join(' ')).toLocaleLowerCase().includes(filter.toLocaleLowerCase())));
+        const visible = heads.filter(h => !semantic.internal(h) && !isTrashRoot(h) && (view === 'Trash' ? trashed(h) : !trashed(h)) && (view !== 'Favorites' || h.metadata.favorite) && (view !== 'All documents' || h.metadata.parent === null) && (view !== 'Folders' || h.metadata.parent === parent) && (!tag || h.metadata.tags.includes(tag) || categoryByRevision.get(h.revision.id) === tag) && (!filter || ranked.includes(h.revision.id) || (h.metadata.name + ' ' + h.metadata.tags.join(' ')).toLocaleLowerCase().includes(filter.toLocaleLowerCase())));
         visible.sort((a,b) => {
             if (ranked.length) { const ai = ranked.indexOf(a.revision.id), bi = ranked.indexOf(b.revision.id); const rank = (ai < 0 ? Infinity : ai) - (bi < 0 ? Infinity : bi); if (rank) return rank; }
             return (sort === 'size' ? (b.metadata.size || 0) - (a.metadata.size || 0) : sort === 'type' ? a.metadata.type.localeCompare(b.metadata.type) : 0) || a.metadata.name.localeCompare(b.metadata.name);

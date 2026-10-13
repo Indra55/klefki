@@ -1,6 +1,6 @@
 import {StrictMode} from 'react';
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
-import {act,cleanup,render,screen,waitFor} from '@testing-library/react';
+import {act,cleanup,render,screen,waitFor,within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 import {visibleItems,type Item,type State} from './api';
@@ -10,6 +10,38 @@ let state:State;let events:Record<string,(e:any)=>void>;
 beforeEach(()=>{state={config:{accountPath:'account.v1',storePath:'local.db',server:'',preferences:{theme:'dark',idleMinutes:5}},unlocked:true,generation:1,accountID:'account',recoveryOnly:false,sync:'Local only',pending:0,lastSync:''};events={};vi.spyOn(document,'hasFocus').mockReturnValue(true);window.matchMedia=vi.fn().mockReturnValue({matches:true,addEventListener:vi.fn(),removeEventListener:vi.fn()});window.runtime={EventsOn:(name,cb)=>{events[name]=cb;return()=>{delete events[name]}}};window.go={main:{App:{State:vi.fn(async()=>state),List:vi.fn(async()=>({generation:state.generation,items:[item]})),Touch:vi.fn(),Lock:vi.fn(async()=>{state={...state,unlocked:false,generation:2};events['klefki:event']?.({generation:2,kind:'locked'})}),Edit:vi.fn(async()=>''),ClosePreview:vi.fn()} as any}}});
 afterEach(()=>{cleanup();vi.restoreAllMocks()});
 describe('library',()=>{
+ it('keeps folder children out of All while favorites and trash include them',()=>{
+  const folder={...item,object:'family',revision:'family-rev',name:'Family',type:'folder' as const};
+  const child={...item,object:'child',revision:'child-rev',parent:folder.object,favorite:true};
+  const trash={...child,object:'trash',revision:'trash-rev',trashed:true};
+  const items=[item,folder,child,trash];
+  expect(visibleItems(items,'All documents',null,'','','name')).toEqual([folder,item]);
+  expect(visibleItems(items,'Folders',folder.object,'','','name')).toEqual([child]);
+  expect(visibleItems(items,'Favorites',null,'','','name')).toEqual([child]);
+  expect(visibleItems(items,'Trash',null,'','','name')).toEqual([trash]);
+ });
+ it('opens nested folders and returns to an ancestor or All in one click',async()=>{
+  const folder={...item,object:'family',revision:'family-rev',name:'Family',type:'folder' as const};
+  const nested={...folder,object:'nested',revision:'nested-rev',name:'Hitanshu',parent:folder.object};
+  const child={...item,object:'child',revision:'child-rev',name:'Inside.txt',parent:nested.object};
+  window.go!.main.App.List=vi.fn(async()=>({generation:1,items:[item,folder,nested,child]}));
+  render(<App/>);await screen.findByText('Family');
+  expect(screen.queryByText('Hitanshu')).not.toBeInTheDocument();
+  expect(screen.queryByText('Inside.txt')).not.toBeInTheDocument();
+  await userEvent.click(screen.getByText('Family'));
+  expect(screen.queryByText('Passport.txt')).not.toBeInTheDocument();
+  await userEvent.click(screen.getByText('Hitanshu'));
+  expect(screen.getByText('Inside.txt')).toBeVisible();
+  const crumbs=within(screen.getByRole('navigation',{name:'Folder breadcrumb'}));
+  expect(crumbs.getByText('Hitanshu')).toHaveAttribute('aria-current','page');
+  await userEvent.click(crumbs.getByRole('button',{name:'Family'}));
+  expect(screen.queryByText('Inside.txt')).not.toBeInTheDocument();
+  expect(screen.getByText('Hitanshu')).toBeVisible();
+  await userEvent.click(crumbs.getByRole('button',{name:'All'}));
+  expect(screen.getByText('Passport.txt')).toBeVisible();
+  expect(screen.queryByText('Hitanshu')).not.toBeInTheDocument();
+  expect(screen.queryByText('Inside.txt')).not.toBeInTheDocument();
+ });
  it('opens the dedicated settings page and keeps the library search when returning',async()=>{
   render(<App/>);await screen.findByText('Passport.txt');
   await userEvent.type(screen.getByLabelText('Search your documents'),'passport');
