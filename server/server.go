@@ -157,6 +157,7 @@ func Open(c Config) (*Server, error) {
 		r.Use(s.auth)
 		r.Use(s.deletionAccess)
 		r.Post("/v1/sync/presence", s.presence)
+		r.Post("/v1/sync/device-state", s.deviceState)
 		r.Get("/v1/sync/status", s.syncStatus)
 		r.Get("/v1/sync/provenance", s.provenance)
 	})
@@ -309,7 +310,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/v1/login" || r.URL.Path == "/v1/signup" || strings.HasPrefix(r.URL.Path, "/v1/accounts/") {
 		group = "auth:"
 	}
-	if r.URL.Path == "/v1/sync/presence" || r.URL.Path == "/v1/sync/status" || r.URL.Path == "/v1/sync/provenance" {
+	if r.URL.Path == "/v1/sync/device-state" || r.URL.Path == "/v1/sync/presence" || r.URL.Path == "/v1/sync/status" || r.URL.Path == "/v1/sync/provenance" {
 		group = "status:"
 	}
 	if !s.allowed(group + host) {

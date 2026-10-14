@@ -79,7 +79,7 @@ func (r *Remote) Presence(ctx context.Context, session Session, in syncwire.Pres
 
 func (r *Remote) Status(ctx context.Context, session Session) (syncwire.Status, error) {
 	var out syncwire.Status
-	b, err := r.request(ctx, "GET", "/v1/sync/status", session.Token, nil, 32768)
+	b, err := r.request(ctx, "GET", "/v1/sync/status?deviceState=1", session.Token, nil, 32768)
 	if err == nil {
 		err = parseJSON(b, &out)
 	}
@@ -88,7 +88,7 @@ func (r *Remote) Status(ctx context.Context, session Session) (syncwire.Status, 
 			return out, ErrInvalid
 		}
 		for _, d := range out.Devices {
-			if _, e := parseID(d.Device); e != nil || d.Sequence < 0 || d.Sequence > out.LatestSequence || d.Outstanding < 0 || d.DoneBytes > d.TotalBytes {
+			if _, e := parseID(d.Device); e != nil || d.Sequence < 0 || d.Sequence > out.LatestSequence || d.Outstanding < 0 || d.DoneBytes > d.TotalBytes || (d.DeviceState != nil && (d.DeviceState.Version < 1 || d.DeviceState.Version > syncwire.MaxDeviceStateVersion || d.DeviceState.ReportedAt < 0)) {
 				return out, ErrInvalid
 			}
 		}
@@ -178,4 +178,80 @@ func (c *Client) updateProgress(update func(*syncwire.Progress)) {
 	if c.Observe != nil {
 		c.Observe(c.progress)
 	}
+}
+
+// DeviceState snapshots pending work and its report version in one transaction.
+func (s *Store) DeviceState(minimum int64) (syncwire.DeviceState, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out syncwire.DeviceState
+	tx, err := s.db.Begin()
+	if err != nil {
+		return out, ErrStore
+	}
+	defer tx.Rollback()
+	var pending int
+	var previous bool
+	if tx.QueryRow(`SELECT (SELECT COUNT(*) FROM revisions WHERE pending=1)+(SELECT COUNT(*) FROM deletions WHERE pending=1)`).Scan(&pending) != nil || tx.QueryRow(`SELECT version,pending FROM local_device_state WHERE id=1`).Scan(&out.Version, &previous) != nil {
+		return out, ErrStore
+	}
+	out.Pending = pending > 0
+	if out.Version == 0 || previous != out.Pending || out.Version < minimum {
+		out.Version = max(out.Version+1, minimum)
+		if out.Version > syncwire.MaxDeviceStateVersion {
+			return out, ErrInvalid
+		}
+		if _, err = tx.Exec(`UPDATE local_device_state SET version=?,pending=? WHERE id=1`, out.Version, out.Pending); err != nil {
+			return out, ErrStore
+		}
+	}
+	if tx.Commit() != nil {
+		return out, ErrStore
+	}
+	return out, nil
+}
+
+// ReportDeviceState sends only changed reports; receipt polling supplies capability and ordering.
+func (c *Client) ReportDeviceState(ctx context.Context, status syncwire.Status) (*syncwire.DeviceState, error) {
+	if !status.DeviceStateSupported {
+		return nil, nil
+	}
+	local, err := c.Store.RelayState()
+	if err != nil {
+		return nil, err
+	}
+	var peer *syncwire.DeviceStatus
+	for i := range status.Devices {
+		if status.Devices[i].Device == local.Device {
+			peer = &status.Devices[i]
+			break
+		}
+	}
+	if peer == nil {
+		return nil, nil
+	}
+	report, err := c.Store.DeviceState(0)
+	if err != nil {
+		return nil, err
+	}
+	if previous := peer.DeviceState; previous != nil {
+		if previous.Version == report.Version && previous.Pending == report.Pending {
+			return nil, nil
+		}
+		if previous.Version >= report.Version {
+			report, err = c.Store.DeviceState(previous.Version + 1)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	b, err := c.Remote.request(ctx, "POST", "/v1/sync/device-state", c.Session.Token, syncwire.DeviceStateUpdate{Device: local.Device, Version: report.Version, Pending: report.Pending}, 1024)
+	var out syncwire.DeviceState
+	if err == nil {
+		err = parseJSON(b, &out)
+	}
+	if err == nil && (out.Version != report.Version || out.Pending != report.Pending || out.ReportedAt < 0) {
+		err = ErrInvalid
+	}
+	return &out, err
 }

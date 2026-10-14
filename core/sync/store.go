@@ -133,6 +133,10 @@ func openStore(path string, account vc.ID, existing bool) (*Store, error) {
  INSERT INTO revision_sources SELECT NEW.id,device FROM relay_local WHERE id=1; END;`); e != nil {
 		return fail()
 	}
+	if _, e = db.Exec(`CREATE TABLE IF NOT EXISTS local_device_state(id INTEGER PRIMARY KEY CHECK(id=1),version INTEGER NOT NULL,pending INTEGER NOT NULL);
+ INSERT OR IGNORE INTO local_device_state VALUES(1,0,0);`); e != nil {
+		return fail()
+	}
 	success = true
 	return store, nil
 }

@@ -12,6 +12,7 @@ import (
 
 func migrateStatus(db *sql.DB) error {
 	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS sync_device_info(account TEXT NOT NULL,device TEXT NOT NULL,kind TEXT NOT NULL,last_seen INTEGER NOT NULL,PRIMARY KEY(account,device));
+ CREATE TABLE IF NOT EXISTS sync_device_state(account TEXT NOT NULL,device TEXT NOT NULL,version INTEGER NOT NULL,pending INTEGER NOT NULL,reported_at INTEGER NOT NULL,PRIMARY KEY(account,device),FOREIGN KEY(account,device) REFERENCES relay_devices(account,device) ON DELETE CASCADE);
  CREATE TABLE IF NOT EXISTS sync_sources(account TEXT NOT NULL,revision TEXT NOT NULL,origin TEXT NOT NULL,publisher TEXT NOT NULL,PRIMARY KEY(account,revision));`)
 	return err
 }
@@ -65,7 +66,7 @@ func (s *Server) presence(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) syncStatus(w http.ResponseWriter, r *http.Request) {
 	account := who(r).account
-	out := syncwire.Status{Devices: []syncwire.DeviceStatus{}}
+	out := syncwire.Status{Devices: []syncwire.DeviceStatus{}, DeviceStateSupported: r.URL.Query().Get("deviceState") == "1"}
 	tx, err := s.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		fail(w, 500)
@@ -84,18 +85,24 @@ func (s *Server) syncStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	rows, err := tx.QueryContext(r.Context(), `SELECT d.device,d.sequence,COALESCE(i.kind,''),COALESCE(i.last_seen,0),
- (SELECT COUNT(*) FROM changes c WHERE c.account=d.account AND c.sequence>d.sequence)
- FROM relay_devices d LEFT JOIN sync_device_info i ON i.account=d.account AND i.device=d.device WHERE d.account=? ORDER BY d.device`, account)
+ (SELECT COUNT(*) FROM changes c WHERE c.account=d.account AND c.sequence>d.sequence),
+ COALESCE(p.version,0),COALESCE(p.pending,0),COALESCE(p.reported_at,0)
+ FROM relay_devices d LEFT JOIN sync_device_info i ON i.account=d.account AND i.device=d.device
+ LEFT JOIN sync_device_state p ON p.account=d.account AND p.device=d.device WHERE d.account=? ORDER BY d.device`, account)
 	if err != nil {
 		fail(w, 500)
 		return
 	}
 	for rows.Next() {
 		var d syncwire.DeviceStatus
-		if rows.Scan(&d.Device, &d.Sequence, &d.ClientKind, &d.LastSeen, &d.Outstanding) != nil {
+		var report syncwire.DeviceState
+		if rows.Scan(&d.Device, &d.Sequence, &d.ClientKind, &d.LastSeen, &d.Outstanding, &report.Version, &report.Pending, &report.ReportedAt) != nil {
 			rows.Close()
 			fail(w, 500)
 			return
+		}
+		if out.DeviceStateSupported && report.Version > 0 {
+			d.DeviceState = &report
 		}
 		s.presenceMu.Lock()
 		live, ok := s.presences[account+":"+d.Device]
@@ -144,6 +151,58 @@ func (s *Server) provenance(w http.ResponseWriter, r *http.Request) {
 		out.Changes = append(out.Changes, p)
 	}
 	if rows.Err() != nil {
+		fail(w, 500)
+		return
+	}
+	reply(w, 200, out)
+}
+
+func (s *Server) deviceState(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Device  string `json:"device"`
+		Version int64  `json:"version"`
+		Pending *bool  `json:"pending"`
+	}
+	if !decode(w, r, 1024, &in) {
+		return
+	}
+	if !validID(in.Device) || in.Device != r.Header.Get("X-Klefki-Device") || in.Pending == nil || in.Version < 1 || in.Version > syncwire.MaxDeviceStateVersion {
+		fail(w, 400)
+		return
+	}
+	account := who(r).account
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		fail(w, 500)
+		return
+	}
+	defer tx.Rollback()
+	var registered int
+	if tx.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM relay_devices WHERE account=? AND device=?`, account, in.Device).Scan(&registered) != nil {
+		fail(w, 500)
+		return
+	}
+	if registered != 1 {
+		fail(w, 410)
+		return
+	}
+	var previous syncwire.DeviceState
+	err = tx.QueryRowContext(r.Context(), `SELECT version,pending,reported_at FROM sync_device_state WHERE account=? AND device=?`, account, in.Device).Scan(&previous.Version, &previous.Pending, &previous.ReportedAt)
+	if err != nil && err != sql.ErrNoRows {
+		fail(w, 500)
+		return
+	}
+	if in.Version < previous.Version || (in.Version == previous.Version && *in.Pending != previous.Pending) {
+		fail(w, 409)
+		return
+	}
+	if in.Version == previous.Version {
+		tx.Rollback()
+		reply(w, 200, previous)
+		return
+	}
+	out := syncwire.DeviceState{Version: in.Version, Pending: *in.Pending, ReportedAt: s.config.Now().UnixMilli()}
+	if _, err = tx.ExecContext(r.Context(), `INSERT INTO sync_device_state VALUES(?,?,?,?,?) ON CONFLICT(account,device) DO UPDATE SET version=excluded.version,pending=excluded.pending,reported_at=excluded.reported_at`, account, in.Device, out.Version, out.Pending, out.ReportedAt); err != nil || tx.Commit() != nil {
 		fail(w, 500)
 		return
 	}

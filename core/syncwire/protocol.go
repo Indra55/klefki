@@ -72,18 +72,34 @@ type Presence struct {
 	TotalBytes uint64 `json:"totalBytes"`
 }
 
+const MaxDeviceStateVersion int64 = 9007199254740991
+
+type DeviceState struct {
+	Version    int64 `json:"version"`
+	Pending    bool  `json:"pending"`
+	ReportedAt int64 `json:"reportedAt"`
+}
+
+type DeviceStateUpdate struct {
+	Device  string `json:"device"`
+	Version int64  `json:"version"`
+	Pending bool   `json:"pending"`
+}
+
 type DeviceStatus struct {
 	Presence
-	LastSeen    int64 `json:"lastSeen"`
-	Sequence    int64 `json:"sequence"`
-	Outstanding int   `json:"outstanding"`
+	DeviceState *DeviceState `json:"deviceState,omitempty"`
+	LastSeen    int64        `json:"lastSeen"`
+	Sequence    int64        `json:"sequence"`
+	Outstanding int          `json:"outstanding"`
 }
 
 type Status struct {
-	Epoch            string         `json:"epoch"`
-	LatestSequence   int64          `json:"latestSequence"`
-	DeletionSequence int64          `json:"deletionSequence,omitempty"`
-	Devices          []DeviceStatus `json:"devices"`
+	DeviceStateSupported bool           `json:"deviceStateSupported,omitempty"`
+	Epoch                string         `json:"epoch"`
+	LatestSequence       int64          `json:"latestSequence"`
+	DeletionSequence     int64          `json:"deletionSequence,omitempty"`
+	Devices              []DeviceStatus `json:"devices"`
 }
 
 type Provenance struct {
