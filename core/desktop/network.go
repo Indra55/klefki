@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -387,7 +388,8 @@ func (s *Service) SetDeviceAlias(id, name string) error {
 func (s *Service) monitorSync(x *session) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
-	var lastPresence, lastStatus time.Time
+	var lastPresence, lastStatus, lastReport time.Time
+	var lastReportPending bool
 	var lastRemote *vs.Remote
 	var lastToken string
 	for {
@@ -404,6 +406,7 @@ func (s *Service) monitorSync(x *session) {
 		}
 		remote, session, device := x.remote, x.remoteSession, s.syncDevice
 		info, panel := s.syncInfo, s.syncPanel
+		pending := s.pending > 0
 		refreshStatus := s.syncStatusRequested
 		s.syncStatusRequested = false
 		s.mu.Unlock()
@@ -412,7 +415,7 @@ func (s *Service) monitorSync(x *session) {
 		}
 		if remote != lastRemote || session.Token != lastToken {
 			lastRemote, lastToken = remote, session.Token
-			lastPresence, lastStatus = time.Time{}, time.Time{}
+			lastPresence, lastStatus, lastReport = time.Time{}, time.Time{}, time.Time{}
 		} else if refreshStatus {
 			lastStatus = time.Time{}
 		}
@@ -493,6 +496,34 @@ func (s *Service) monitorSync(x *session) {
 			}
 			s.mu.Unlock()
 			s.emitSync(x)
+		}
+		s.mu.Lock()
+		peers := s.syncInfo.Peers
+		active := s.session == x && !s.config.SyncPaused && x.remote == remote && x.remoteSession.Token == session.Token
+		s.mu.Unlock()
+		if active && peers != nil && peers.DeviceStateSupported {
+			if pending != lastReportPending || now.Sub(lastReport) >= 15*time.Second || refreshStatus {
+				lastReport, lastReportPending = now, pending
+				ctx, cancel := context.WithTimeout(x.ctx, 3*time.Second)
+				c := vs.Client{Store: x.store, Remote: remote, Session: session}
+				report, err := c.ReportDeviceState(ctx, *peers)
+				cancel()
+				if err == nil && report != nil {
+					s.mu.Lock()
+					if s.session == x && !s.config.SyncPaused && x.remote == remote && x.remoteSession.Token == session.Token && s.syncInfo.Peers != nil {
+						updated := *s.syncInfo.Peers
+						updated.Devices = slices.Clone(updated.Devices)
+						for i := range updated.Devices {
+							if updated.Devices[i].Device == device {
+								updated.Devices[i].DeviceState = report
+							}
+						}
+						s.syncInfo.Peers = &updated
+					}
+					s.mu.Unlock()
+					s.emitSync(x)
+				}
+			}
 		}
 	}
 }

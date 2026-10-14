@@ -180,6 +180,10 @@ func (s *Service) changed(x *session) {
 		})
 	}
 	s.mu.Unlock()
+	select {
+	case s.monitorWake <- struct{}{}:
+	default:
+	}
 }
 func (s *Service) Edit(revision string, edit vs.Edit) (id string, e error) {
 	if !validEdit(edit) {

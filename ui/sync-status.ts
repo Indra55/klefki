@@ -3,11 +3,13 @@ export type SyncProgress = {
   doneBytes: number; totalBytes: number; reusedBytes: number; chunk: number; chunks: number;
   attempt?: number; retryAt?: number; updatedAt: number;
 };
+export type DeviceState = {version:number;pending:boolean;reportedAt:number};
 export type DeviceStatus = {
+  deviceState?:DeviceState;
   device: string; clientKind: string; phase: string; revision?: string; direction?: string;
   doneBytes: number; totalBytes: number; lastSeen: number; sequence: number; outstanding: number;
 };
-export type ServerStatus = { epoch: string; latestSequence: number; devices: DeviceStatus[] };
+export type ServerStatus = { deviceStateSupported?:boolean; epoch: string; latestSequence: number; devices: DeviceStatus[] };
 export type Provenance = { sequence: number; revision: string; origin: string; publisher: string };
 export type SyncInfo = {
   paused?: boolean;
@@ -34,9 +36,16 @@ export function deviceName(id: string, aliases: Record<string,string>, devices: 
   const label = kind === 'desktop' ? 'Desktop' : kind === 'pwa' ? 'PWA' : kind === 'web' ? 'Browser' : kind === 'cli' ? 'CLI' : 'Device';
   return `${label} ${id.slice(0,8)}`;
 }
+export function devicePendingDetail(d: DeviceStatus, fresh: boolean) {
+  if (!d.deviceState?.pending) return '';
+  return `${fresh ? 'Last reported' : 'Last known report:'} changes waiting to upload. Reopen this device to finish syncing.`;
+}
+export function sourceDevices(info: SyncInfo, self: string) {
+  return info.peers?.devices.filter(d => d.device !== self && d.deviceState?.pending) || [];
+}
 export function receipt(d: DeviceStatus, fresh: boolean) {
   if (!fresh || !d.lastSeen) return 'Status unknown';
-  return d.outstanding ? `${d.outstanding} ${d.outstanding === 1 ? 'change' : 'changes'} waiting` : 'Received latest changes';
+  return d.outstanding ? `${d.outstanding} ${d.outstanding === 1 ? 'change' : 'changes'} waiting` : d.deviceState?.pending ? 'Received latest server changes' : 'Received latest changes';
 }
 export function presence(d: DeviceStatus, now = Date.now(), checked = now) {
   if (now-checked >= 45000 || !d.lastSeen || now-d.lastSeen >= 45000 || d.phase === 'unknown' || d.phase === 'locked') return 'Not recently seen';
@@ -49,6 +58,9 @@ export function waitingDevices(info: SyncInfo, self: string, now = Date.now()) {
 export function syncLabel(info: SyncInfo, self: string, aliases: Record<string,string>, now = Date.now()) {
   if (info.paused) return info.running ? 'Pausing after current sync' : 'Sync paused on this device';
   if (info.phase === 'waiting' && info.waitingFor === 'source') return 'Waiting for another device to supply changes';
+  const sources = sourceDevices(info,self);
+  if (!info.running && ['synced','waiting'].includes(info.phase) && sources.length && info.statusAvailable && now-info.lastDeviceCheck < 45000)
+    return `${deviceName(sources[0].device,aliases,info.peers?.devices,self)} reported changes waiting to upload`;
   const waiting = waitingDevices(info,self,now);
   if (!info.running && info.phase === 'synced' && waiting.length) return `Waiting for ${waiting.length === 1 ? deviceName(waiting[0].device,aliases,info.peers?.devices,self) : `${waiting.length} devices`}`;
   return phaseLabel(info.phase);
@@ -69,6 +81,8 @@ export function syncIndicator(info: SyncInfo, self: string, aliases: Record<stri
   if (info.phase === 'waiting') return {state:'waiting',label};
   const fresh=info.statusAvailable && now-info.lastDeviceCheck < 45000;
   if (fresh && info.peers?.devices.some(d=>d.device===self && d.outstanding>0)) return {state:'waiting',label:'Changes waiting to download'};
+  if (fresh && sourceDevices(info,self).length) return {state:'waiting',label};
+  if (!fresh && sourceDevices(info,self).length) return {state:'neutral',label:'Last known report: another device had changes waiting to upload'};
   if (info.phase === 'synced') return {state:waitingDevices(info,self,now).length?'waiting':'synced',label};
   return {state:'neutral',label:'Sync status unknown'};
 }
@@ -97,9 +111,11 @@ export function addActivity(list: SyncActivity[], p: SyncProgress) {
 export function validateStatus(value: ServerStatus) {
   const id = (s: unknown) => typeof s === 'string' && /^[0-9a-f]{32}$/.test(s) && !/^0+$/.test(s);
   if (!value || !id(value.epoch) || !Number.isSafeInteger(value.latestSequence) || value.latestSequence < 0 || !Array.isArray(value.devices) || value.devices.length > 64) throw Error('Invalid device status');
+  if (value.deviceStateSupported !== undefined && typeof value.deviceStateSupported !== 'boolean') throw Error('Invalid device status');
   const seen = new Set<string>();
   for (const d of value.devices) {
     if (!id(d.device) || seen.has(d.device) || !Number.isSafeInteger(d.sequence) || d.sequence < 0 || d.sequence > value.latestSequence || !Number.isSafeInteger(d.outstanding) || d.outstanding < 0 || !Number.isSafeInteger(d.lastSeen) || d.lastSeen < 0 || !Number.isSafeInteger(d.doneBytes) || !Number.isSafeInteger(d.totalBytes) || d.doneBytes < 0 || d.doneBytes > d.totalBytes || typeof d.phase !== 'string' || typeof d.clientKind !== 'string') throw Error('Invalid device status');
+    if (d.deviceState && (!Number.isSafeInteger(d.deviceState.version) || d.deviceState.version < 1 || typeof d.deviceState.pending !== 'boolean' || !Number.isSafeInteger(d.deviceState.reportedAt) || d.deviceState.reportedAt < 0)) throw Error('Invalid device status');
     seen.add(d.device);
   }
   return value;

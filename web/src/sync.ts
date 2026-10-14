@@ -1,6 +1,6 @@
 import * as c from './crypto.ts';
 import {syncDeletions,cleanupTrash,deletionRecords,expiredTrash} from './trash.ts';
-import { validateStatus, type SyncProgress, type Provenance, type ServerStatus } from '../../ui/sync-status.ts';
+import { validateStatus, type SyncProgress, type Provenance, type ServerStatus, type DeviceState } from '../../ui/sync-status.ts';
 import { Store, unlockRevision, type Revision } from './store.ts';
 export class HTTPError extends Error {
     constructor(readonly status: number, readonly after: number) { super('Klefki server returned ' + status); }
@@ -294,4 +294,21 @@ async function syncPass(store: Store, master: Uint8Array, remote: Remote) {
     if(quota)throw quota;
     await syncDeletions(store,master,remote);
     await cleanupTrash(store,master,remote);
+}
+
+export async function reportDeviceState(store:Store,remote:Remote,status:ServerStatus,refresh=true) {
+    if(!status.deviceStateSupported)return;
+    const local=await store.relayState(),peer=status.devices.find(d=>d.device===local.device);
+    if(!peer)return;
+    if(!refresh) {
+        const saved=await store.state<{version:number;pending:boolean}>('device-state');
+        if(saved&&peer.deviceState?.version===saved.version&&peer.deviceState.pending===saved.pending)return;
+    }
+    let report=await store.deviceState();
+    const previous=peer.deviceState;
+    if(previous?.version===report.version&&previous.pending===report.pending)return;
+    if(previous&&previous.version>=report.version)report=await store.deviceState(previous.version+1);
+    const result=c.strictJSON(c.decode(await remote.request('POST','/v1/sync/device-state',{device:local.device,...report},1024,{background:true}))) as DeviceState;
+    c.check(result.version===report.version&&result.pending===report.pending&&Number.isSafeInteger(result.reportedAt)&&result.reportedAt>=0);
+    return result;
 }

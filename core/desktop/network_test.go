@@ -370,3 +370,53 @@ func TestSyncPauseFinishesCurrentCycleWithoutQueuedRefresh(t *testing.T) {
 		t.Fatal("queued refresh ran after pausing", st.SyncInfo)
 	}
 }
+
+func TestDeviceStateMonitorReportsEditsDespiteFailedUpload(t *testing.T) {
+	s, _ := testService(t)
+	var blocked atomic.Bool
+	x, _, _ := syncServer(t, s, func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if blocked.Load() && strings.HasPrefix(r.URL.Path, "/v1/sync/revisions/") {
+				http.Error(w, "fixture upload blocked", 507)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	})
+	s.SyncNow()
+	awaitSync(t, s)
+	waitReport := func(pending bool) {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			st := s.State()
+			if st.SyncInfo.Peers != nil {
+				for _, d := range st.SyncInfo.Peers.Devices {
+					if d.Device == st.SyncDevice && d.DeviceState != nil && d.DeviceState.Pending == pending {
+						return
+					}
+				}
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		t.Fatal("monitor did not publish pending state", pending, s.State().SyncInfo)
+	}
+	waitReport(false)
+	blocked.Store(true)
+	if _, err := s.Folder("Saved while upload fails", nil); err != nil {
+		t.Fatal(err)
+	}
+	waitReport(true)
+	s.SyncNow()
+	awaitSync(t, s)
+	if s.State().Pending != 1 || s.State().SyncInfo.Phase != "full" {
+		t.Fatal("failed publication lost pending work", s.State().SyncInfo)
+	}
+	if n, err := x.store.Pending(); err != nil || n != 1 {
+		t.Fatal(n, err)
+	}
+	blocked.Store(false)
+	s.SyncNow()
+	awaitSync(t, s)
+	waitReport(false)
+}
