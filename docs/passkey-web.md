@@ -1,14 +1,14 @@
-# PWA passkey unlock
+# Web and PWA passkey unlock
 
 Klefki's web app can unlock its local encrypted library with a PRF-capable
-platform passkey. Your device chooses fingerprint, face recognition, or its
-screen-lock PIN. Klefki cannot force fingerprint verification and does not
+passkey from a compatible platform authenticator, provider, or security key.
+The browser/provider chooses fingerprint, face recognition, or PIN verification. Klefki cannot force fingerprint verification and does not
 receive or store biometric templates.
 
 ## Enable and use
 
 1. Open Klefki on its usual HTTPS domain and unlock with your password.
-2. Open **Klefki settings** and select **Enable passkey unlock**.
+2. Open **Settings > Privacy & lock** and select **Enable passkey unlock**.
 3. Create the passkey in the browser's device prompt, then verify it to finish
    setup. The device may prompt twice. Setup succeeds only when PRF key material
    is returned and the encrypted unlock wrapper passes a local round trip.
@@ -24,10 +24,14 @@ cannot use this feature even when the page is a secure context. Site storage is
 separate for each origin: changing hostname or port does not migrate an existing
 local library. Sync/export existing data before changing origins.
 
-The browser checks for a user-verifying platform authenticator before offering
-setup. PRF support is checked during the actual ceremony; passkey support alone
-does not establish PRF support. Unsupported providers leave password access
-available. An unsuccessful setup may leave a newly created passkey in the
+Setup is available in regular browser tabs and installed PWAs when WebAuthn
+and the secure-origin requirements are available. A built-in authenticator is
+not required: the browser can offer a passkey provider or security key. Requests
+retain required user verification and discoverable credentials, but do not
+restrict attachment or assume an internal transport. This follows the
+[WebAuthn authenticator selection rules](https://www.w3.org/TR/webauthn-3/#dom-authenticatorselectioncriteria-authenticatorattachment).
+PRF support is checked during the actual ceremony; passkey support alone does
+not establish PRF support. Unsupported providers leave password access available. An unsuccessful setup may leave a newly created passkey in the
 credential manager, but does not enable local passkey unlock.
 
 ## Storage and compatibility
@@ -79,6 +83,17 @@ by the origin or a compromised endpoint can steal keys while unlocked. This
 implementation has not received an independent security audit.
 
 ## Verification
+
+Verified on 2026-10-15: all 22 passkey Chromium cases and 45 shared crypto checks
+passed with the production build. The added desktop-web regression uses a real
+Chromium WebAuthn ceremony with a virtual USB/PRF authenticator while the
+platform-authenticator probe returns false. It verifies setup, document unlock
+and password fallback without changing existing wrappers. Missing WebAuthn and
+IP origins keep setup disabled with an explanation. Existing tamper, required
+user verification, cancellation, offline, lock and sync-credential tests pass.
+These are virtual-authenticator checks; physical security keys, credential
+providers and installed-PWA prompts remain separate acceptance checks.
+
 
 Verified on 2026-10-11: production web build passed, all 43 shared crypto checks
 passed, all 21 passkey browser cases passed, and all six existing PWA regression

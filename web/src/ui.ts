@@ -53,24 +53,51 @@ export function iconButton(text: string, name: string, run: () => void, classNam
 export function menu(label: string, choices: {label: string; run: () => void; danger?: boolean}[], symbol?: string) {
     const details = node('details', undefined, 'dropdown'), trigger = node('summary', symbol ? undefined : label, symbol ? 'icon' : 'quiet menu-trigger');
     trigger.setAttribute('role', 'button'); trigger.setAttribute('aria-label', label);
+    trigger.setAttribute('aria-haspopup', 'menu'); trigger.setAttribute('aria-expanded', 'false');
     if (symbol) trigger.append(icon(symbol, 20)); else trigger.append(icon('down', 12));
     const panel = node('div', undefined, 'menu'); panel.setAttribute('role', 'menu');
     for (const choice of choices) {
-        const action = button(choice.label, () => { details.open = false; choice.run(); }, 'menu-item' + (choice.danger ? ' danger' : ''));
+        const action = button(choice.label, () => { details.open = false; trigger.focus(); choice.run(); }, 'menu-item' + (choice.danger ? ' danger' : ''));
         action.setAttribute('role', 'menuitem'); panel.append(action);
     }
     details.append(trigger, panel);
+    details.addEventListener('toggle', () => {
+        trigger.setAttribute('aria-expanded', String(details.open));
+        if (details.open) positionMenu(details);
+    });
     details.onkeydown = event => {
         const items = [...panel.querySelectorAll<HTMLButtonElement>('button')];
-        if (event.key === 'Escape') { details.open = false; trigger.focus(); }
+        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); details.open = false; trigger.focus(); }
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault(); details.open = true;
+            positionMenu(details);
             const step = event.key === 'ArrowDown' ? 1 : -1, index = items.indexOf(document.activeElement as HTMLButtonElement);
-            items[(index + step + items.length) % items.length]?.focus();
+            items[(index < 0 ? (step === 1 ? 0 : items.length - 1) : (index + step + items.length) % items.length)]?.focus();
         }
     };
     return details;
 }
+function positionMenu(details: HTMLDetailsElement) {
+    const trigger = details.querySelector('summary')!, panel = details.querySelector<HTMLElement>('.menu')!;
+    const viewport = window.visualViewport, margin = 12, gap = 8;
+    const left = (viewport?.offsetLeft || 0) + margin, top = (viewport?.offsetTop || 0) + margin;
+    const width = Math.max(0, (viewport?.width || innerWidth) - margin * 2);
+    const height = Math.max(0, (viewport?.height || innerHeight) - margin * 2);
+    panel.style.maxWidth = `${Math.min(300, width)}px`; panel.style.minWidth = `${Math.min(180, width)}px`;
+    panel.style.maxHeight = `${height}px`;
+    const anchor = trigger.getBoundingClientRect(), rect = panel.getBoundingClientRect();
+    const below = top + height - anchor.bottom - gap, above = anchor.top - gap - top;
+    const y = rect.height <= below || below >= above ? anchor.bottom + gap : anchor.top - gap - rect.height;
+    panel.style.left = `${Math.max(left, Math.min(anchor.right - rect.width, left + width - rect.width))}px`;
+    panel.style.top = `${Math.max(top, Math.min(y, top + height - rect.height))}px`;
+}
+function positionOpenMenus() {
+    for (const details of document.querySelectorAll<HTMLDetailsElement>('.dropdown[open]')) positionMenu(details);
+}
+window.addEventListener('resize', positionOpenMenus);
+document.addEventListener('scroll', positionOpenMenus, true);
+window.visualViewport?.addEventListener('resize', positionOpenMenus);
+window.visualViewport?.addEventListener('scroll', positionOpenMenus);
 document.addEventListener('pointerdown', event => {
     for (const details of document.querySelectorAll<HTMLDetailsElement>('.dropdown[open]'))
         if (!details.contains(event.target as Node)) details.open = false;

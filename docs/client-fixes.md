@@ -10,8 +10,8 @@ unrelated documentation work stays intact.
 | 1 | Keep document editing open during background refresh on desktop, web and PWA | Fixed and validated |
 | 2 | Choose an iOS-style emoji per folder, synced across clients | Fixed and validated |
 | 3 | Add a per-device sync pause/resume control for bulk local uploads | Fixed and validated |
-| 4 | Keep mobile three-dot menus fully inside the viewport | Queued |
-| 5 | Make passkey unlock available on supported web browsers too | Queued |
+| 4 | Keep mobile three-dot menus fully inside the viewport | Fixed and validated |
+| 5 | Make passkey unlock available on supported web browsers too | Fixed and validated |
 | 6 | Replace the app icon with an original minimalist key-inspired design | Queued |
 | 7 | Diagnose stale Linux desktop sync and add an explicit fresh-download option | Queued |
 
@@ -80,11 +80,34 @@ unrelated documentation work stays intact.
   Klefki to use it. Hosted rollout, native-window network testing and a physical
   installed-PWA walkthrough remain separate checks.
 
+## 4–5. Viewport-safe menus and desktop web passkeys
+
+- Web/PWA action and View menus now measure the visible viewport, flip above
+  their trigger when necessary, clamp to a 12px edge margin, and scroll if the
+  screen is too short. Position updates on page scroll, resize and visual
+  viewport changes, including zoom. Arrow keys, Escape and focus return work.
+  Desktop menus retain Radix collision handling with the same edge margin and
+  a scrollable height limit.
+- Passkey setup no longer requires a built-in platform authenticator or forces
+  an internal transport. Regular browser tabs and PWAs can use compatible PRF
+  providers/security keys. Required user verification, encrypted local wrappers,
+  origin/account binding and password fallback are retained. Existing recovery
+  access through desktop/CLI is unchanged; no new browser recovery flow is added.
+- Both regressions reproduced before the fixes. Validation: 22 Chromium passkey
+  cases passed, including a virtual USB/PRF authenticator with the platform
+  availability probe returning false, offline decryption, tampering, cancellation
+  and missing WebAuthn. The menu browser case passed at 320/390/600/1280px, near
+  upper/lower edges, after resize to 568x180, during scroll and at 2x visual
+  viewport zoom. All 17 existing library/PWA/parity cases passed.
+- All 43 desktop UI tests and the desktop browser menu edge/scroll case passed.
+  Both production builds, 45 shared crypto checks and the native Linux build
+  passed. The installed executable matches the rebuilt binary byte for byte;
+  restart Klefki to load it. Hosted rollout, physical passkey providers/security
+  keys, native-window interaction and installed-phone PWA acceptance remain
+  separate checks. See [passkey setup](passkey-web.md).
+
 ## Acceptance for queued tasks
 
-4. Verify menus near each viewport edge at narrow mobile widths.
-5. Inspect the existing PRF/WebAuthn implementation and browser eligibility;
-   keep password and recovery unlock available.
 6. Use original artwork with a key/keyring motif, then update desktop and PWA
    icons, including install and maskable variants.
 7. Inspect the current sync failure before resetting anything. Offer a clear,

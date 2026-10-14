@@ -47,8 +47,7 @@ async function wrappingKey(secret: Uint8Array, record: Record) {
 export async function available() {
     if (!globalThis.isSecureContext || /^\d+\.\d+\.\d+\.\d+$/.test(location.hostname) || location.hostname.includes(':') || typeof PublicKeyCredential === 'undefined' || !navigator.credentials?.create || !navigator.credentials?.get)
         return false;
-    try { return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); }
-    catch { return false; }
+    return true;
 }
 export function configured(account: c.Account) {
     try { return localStorage.getItem(prefix + account.account) !== null; }
@@ -83,7 +82,7 @@ async function assertion(record: Record, signal: AbortSignal) {
     const challenge = c.random(32);
     const result = await navigator.credentials.get({ signal, publicKey: {
         challenge: buffer(challenge), rpId: record.rpId, timeout: 60000,
-        allowCredentials: [{ type: 'public-key', id: buffer(credentialBytes(record.credentialId)), transports: ['internal'] }],
+        allowCredentials: [{ type: 'public-key', id: buffer(credentialBytes(record.credentialId)) }],
         userVerification: 'required', extensions: { prf: { eval: { first: buffer(encoded(record.salt, 32)) } } },
     } }) as PublicKeyCredential | null;
     const output = result?.getClientExtensionResults().prf?.results;
@@ -124,7 +123,7 @@ export async function enable(account: c.Account, keys: Keys, signal: AbortSignal
             challenge: buffer(challenge), rp: { id: record.rpId, name: 'Klefki' },
             user: { id: buffer(c.unhex(account.account)), name: account.account, displayName: 'Klefki document library' },
             pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -8 }, { type: 'public-key', alg: -257 }],
-            authenticatorSelection: { authenticatorAttachment: 'platform', residentKey: 'required', userVerification: 'required' },
+            authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
             attestation: 'none', timeout: 60000, extensions: { prf: { eval: { first: buffer(encoded(record.salt, 32)) } } },
         } }) as PublicKeyCredential | null;
         const extension = created?.getClientExtensionResults().prf;
@@ -173,7 +172,7 @@ export function errorMessage(error: unknown) {
     if (name === 'SecurityError' || code === 'PASSKEY_UNAVAILABLE' && (/^\d+\.\d+\.\d+\.\d+$/.test(location.hostname) || location.hostname.includes(':')))
         return 'Open Klefki on an HTTPS domain or localhost to use passkey unlock. IP-address URLs cannot use passkeys.';
     if (code === 'PASSKEY_UNAVAILABLE')
-        return 'Passkey unlock needs HTTPS (or localhost) and a browser with device verification. Use your password.';
+        return 'Passkey unlock needs HTTPS (or localhost) and a browser with WebAuthn. Use your password.';
     if (code === 'PASSKEY_UNSUPPORTED' || name === 'NotSupportedError')
         return 'This browser or passkey provider cannot protect your unlock keys with PRF. Use your password.';
     if (code === 'Klefki open elsewhere')

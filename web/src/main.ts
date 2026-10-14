@@ -711,7 +711,7 @@ if ('serviceWorker' in navigator) {
 function semanticMessage(code:string){return ({SEARCH_REBUILD_REQUIRED:'Sync a current index from desktop or CLI.',SEMANTIC_UNAVAILABLE:'The local model is unavailable. Enable it in settings.',SEMANTIC_MODEL_INVALID:'Model verification or inference failed.',SEMANTIC_CORRECTION_CONFLICT:'Choose a correction to resolve changes from different devices.',SEARCH_INDEX_INVALID:'The synced index is invalid. Rebuild it on desktop or CLI.',SEARCH_LIMIT:'The query exceeds local search limits.'} as Record<string,string>)[code]||'Local semantic search is unavailable.'}
 function addPasskeySettings(parent: HTMLElement) {
     const target = account!, g = generation, section = node('section');
-    const feedback = node('p', passkey.configured(target) ? 'Passkey unlock is enabled in this browser.' : 'Enable device verification to unlock without typing your password.', 'muted');
+    const feedback = node('p', passkey.configured(target) ? 'Passkey unlock is enabled in this browser.' : 'Use a passkey provider or security key to unlock without typing your password.', 'muted');
     feedback.setAttribute('aria-live', 'polite');
     const enable = button('Enable passkey unlock', () => void (async () => {
         if (busy || !master || !credential) return;
@@ -742,7 +742,7 @@ function addPasskeySettings(parent: HTMLElement) {
         catch { feedback.textContent = 'Browser storage could not be updated. Try removing passkey unlock again.'; }
     });
     enable.hidden = passkey.configured(target); disable.hidden = !enable.hidden;
-    section.append(node('h3', 'Passkey unlock'), feedback, enable, cancel, disable, node('p', 'Optional fingerprint, face, or PIN verification. Setup is saved only in this browser; your passkey provider may sync the passkey. Keep your password and recovery code. Clearing site data removes this setup.', 'footnote'));
+    section.append(node('h3', 'Passkey unlock'), feedback, enable, cancel, disable, node('p', 'Available on web and PWA with a compatible passkey provider or security key. Verification may use fingerprint, face, or PIN. Setup is saved only in this browser; your passkey provider may sync the passkey. Keep your password and recovery code. Clearing site data removes this setup.', 'footnote'));
     parent.append(section);
     void passkey.available().then(available => {
         if (g !== generation || !section.isConnected || available) return;

@@ -5,11 +5,11 @@ import * as c from '../src/crypto.ts';
 const password = 'public passkey browser fixture password';
 test.use({ baseURL: 'http://localhost:5188' });
 const recordKey = async (page: Page) => page.evaluate(() => 'klefki-passkey-v1-' + JSON.parse(localStorage.getItem('klefki-account')!).account);
-async function authenticator(context: BrowserContext, page: Page, hasPrf = true) {
+async function authenticator(context: BrowserContext, page: Page, hasPrf = true, transport: 'internal' | 'usb' = 'internal') {
     const session = await context.newCDPSession(page);
     await session.send('WebAuthn.enable');
     const { authenticatorId } = await session.send('WebAuthn.addVirtualAuthenticator', { options: {
-        protocol: 'ctap2', ctap2Version: 'ctap2_1', transport: 'internal', hasResidentKey: true,
+        protocol: 'ctap2', ctap2Version: 'ctap2_1', transport, hasResidentKey: true,
         hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true, hasPrf,
     } });
     return { session, authenticatorId };
@@ -76,6 +76,18 @@ test('PRF passkey unlock persists, works offline, and retains the sync credentia
     await lock(page);
     await passwordUnlock(page);
     await expect(page.getByText('private.txt', { exact: true })).toBeVisible();
+});
+
+test('desktop web enables and unlocks with a PRF security key without a platform authenticator',async({page,context})=>{
+ await page.addInitScript(()=>{PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable=async()=>false;});
+ await authenticator(context,page,true,'usb');
+ await create(page);
+ await upload(page,{name:'security-key.txt',mimeType:'text/plain',buffer:Buffer.from('public external passkey fixture')});
+ await enable(page);await lock(page);await passkeyUnlock(page);
+ await page.getByRole('button',{name:'Open security-key.txt',exact:true}).click();
+ await expect(page.locator('dialog pre')).toHaveText('public external passkey fixture');
+ await page.getByRole('button',{name:'Close',exact:true}).click();
+ await lock(page);await passwordUnlock(page);
 });
 
 test('a platform authenticator without PRF leaves password unlock intact', async ({ page, context }) => {
@@ -243,12 +255,12 @@ test('IP-address origins disable setup with an explanation', async ({ page, cont
     await expect(page.getByText('Open Klefki on an HTTPS domain or localhost to use passkey unlock. IP-address URLs cannot use passkeys.', { exact: true })).toBeVisible();
 });
 
-test('unavailable device verification keeps setup disabled and password usable', async ({ page }) => {
-    await page.addInitScript(() => { PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable = async () => false; });
+test('missing WebAuthn keeps setup disabled and password usable', async ({ page }) => {
+    await page.addInitScript(() => { Object.defineProperty(window,'PublicKeyCredential',{value:undefined}); });
     await create(page);
     await settings(page);
     await expect(page.getByRole('button', { name: 'Enable passkey unlock', exact: true })).toBeDisabled();
-    await expect(page.getByText('Passkey unlock needs HTTPS (or localhost) and a browser with device verification. Use your password.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Passkey unlock needs HTTPS (or localhost) and a browser with WebAuthn. Use your password.', { exact: true })).toBeVisible();
     await lock(page);
     await passwordUnlock(page);
 });
