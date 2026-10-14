@@ -163,7 +163,7 @@ func (s *Service) changed(x *session) {
 	s.mu.Unlock()
 	s.event(Event{Generation: x.generation, Kind: "library"})
 	s.mu.Lock()
-	if s.session == x {
+	if s.session == x && !s.config.SyncPaused {
 		if s.syncRunning && s.syncOwner == x {
 			s.syncAgain = true
 		}

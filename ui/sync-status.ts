@@ -10,6 +10,7 @@ export type DeviceStatus = {
 export type ServerStatus = { epoch: string; latestSequence: number; devices: DeviceStatus[] };
 export type Provenance = { sequence: number; revision: string; origin: string; publisher: string };
 export type SyncInfo = {
+  paused?: boolean;
   phase: string; running: boolean; progress?: SyncProgress; lastContact: number;
   lastDeviceCheck: number; statusAvailable: boolean; peers?: ServerStatus;
   waitingFor?: 'source' | 'receipts';
@@ -46,6 +47,7 @@ export function waitingDevices(info: SyncInfo, self: string, now = Date.now()) {
   return info.peers?.devices.filter(d => d.device !== self && d.outstanding > 0) || [];
 }
 export function syncLabel(info: SyncInfo, self: string, aliases: Record<string,string>, now = Date.now()) {
+  if (info.paused) return info.running ? 'Pausing after current sync' : 'Sync paused on this device';
   if (info.phase === 'waiting' && info.waitingFor === 'source') return 'Waiting for another device to supply changes';
   const waiting = waitingDevices(info,self,now);
   if (!info.running && info.phase === 'synced' && waiting.length) return `Waiting for ${waiting.length === 1 ? deviceName(waiting[0].device,aliases,info.peers?.devices,self) : `${waiting.length} devices`}`;
@@ -59,6 +61,7 @@ export const syncLegend: {state:SyncIndicatorState;label:string}[] = [
 ];
 export function syncIndicator(info: SyncInfo, self: string, aliases: Record<string,string>, pending = 0, now = Date.now()): {state:SyncIndicatorState;label:string} {
   const label=syncLabel(info,self,aliases,now);
+  if (info.paused) return {state:info.running?'running':'neutral',label};
   if (['error','auth','unreachable','timeout','full'].includes(info.phase)) return {state:'error',label};
   if (['offline','local','locked'].includes(info.phase)) return {state:'neutral',label};
   if (info.running) return {state:'running',label};

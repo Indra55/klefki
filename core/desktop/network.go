@@ -61,9 +61,48 @@ func (s *Service) Connect(address string, register bool) error {
 func (s *Service) SyncNow()                { s.syncNow(false) }
 func (s *Service) RefreshSync()            { s.runSync(false, true) }
 func (s *Service) syncNow(background bool) { s.runSync(background, false) }
+
+// An active cycle finishes; no new cycle starts until this device resumes.
+func (s *Service) SetSyncPaused(paused bool) error {
+	s.mu.Lock()
+	x := s.session
+	if x == nil {
+		s.mu.Unlock()
+		return ErrLocked
+	}
+	previous := s.config.SyncPaused
+	s.config.SyncPaused = paused
+	if err := s.save(); err != nil {
+		s.config.SyncPaused = previous
+		s.mu.Unlock()
+		return err
+	}
+	s.syncInfo.Paused = paused
+	if s.syncRunning && s.syncOwner == x {
+		s.syncInfo.Running = true
+		if !paused {
+			s.syncAgain = true
+		}
+	}
+	if paused {
+		s.syncAgain, s.syncRefresh = false, false
+		s.syncInfo.StatusAvailable = false
+		if s.syncTimer != nil {
+			s.syncTimer.Stop()
+			s.syncTimer = nil
+		}
+	}
+	s.mu.Unlock()
+	s.emitSync(x)
+	if !paused {
+		s.SyncNow()
+	}
+	return nil
+}
+
 func (s *Service) runSync(background, reconnect bool) {
 	s.mu.Lock()
-	if s.session == nil || s.session.recovery || s.config.Server == "" {
+	if s.session == nil || s.session.recovery || s.config.Server == "" || s.config.SyncPaused {
 		s.mu.Unlock()
 		return
 	}
@@ -182,10 +221,12 @@ func (s *Service) runSync(background, reconnect bool) {
 			return
 		}
 		if idle {
+			s.syncInfo.Running = false
 			again := s.syncAgain || n > 0
 			refresh := s.syncRefresh
 			s.syncAgain = false
 			s.mu.Unlock()
+			s.emitSync(x)
 			if refresh {
 				s.RefreshSync()
 			} else if again {
@@ -366,7 +407,7 @@ func (s *Service) monitorSync(x *session) {
 		refreshStatus := s.syncStatusRequested
 		s.syncStatusRequested = false
 		s.mu.Unlock()
-		if remote == nil || session.Token == "" || device == "" {
+		if info.Paused || remote == nil || session.Token == "" || device == "" {
 			continue
 		}
 		if remote != lastRemote || session.Token != lastToken {
@@ -408,6 +449,12 @@ func (s *Service) monitorSync(x *session) {
 		if panel {
 			interval = 5 * time.Second
 		}
+		s.mu.Lock()
+		paused := s.config.SyncPaused
+		s.mu.Unlock()
+		if paused {
+			continue
+		}
 		if now.Sub(lastStatus) >= interval {
 			ctx, cancel := context.WithTimeout(x.ctx, 3*time.Second)
 			peers, err := remote.Status(ctx, session)
@@ -418,7 +465,7 @@ func (s *Service) monitorSync(x *session) {
 				s.mu.Unlock()
 				return
 			}
-			if x.remote != remote || x.remoteSession.Token != session.Token {
+			if s.config.SyncPaused || x.remote != remote || x.remoteSession.Token != session.Token {
 				s.mu.Unlock()
 				continue
 			}

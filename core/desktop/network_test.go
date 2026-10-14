@@ -274,3 +274,99 @@ func TestStatusPollCannotCompleteSourceWait(t *testing.T) {
 	}
 	t.Fatal("status poll did not run")
 }
+
+func TestSyncPauseKeepsLocalChangesAcrossRestartAndResumes(t *testing.T) {
+	s, _ := testService(t)
+	var requests atomic.Int32
+	x, _, _ := syncServer(t, s, func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			next.ServeHTTP(w, r)
+		})
+	})
+	if err := s.SetSyncPaused(true); err != nil {
+		t.Fatal(err)
+	}
+	requests.Store(0)
+	for _, name := range []string{"Batch one", "Batch two"} {
+		if _, err := s.Folder(name, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s.SyncNow()
+	s.RefreshSync()
+	s.syncNow(true)
+	s.SetSyncPanel(true)
+	time.Sleep(1800 * time.Millisecond)
+	if requests.Load() != 0 || s.State().Pending != 2 || !s.State().SyncInfo.Paused {
+		t.Fatal("paused client transferred or lost changes", requests.Load(), s.State().SyncInfo)
+	}
+	// A new process must load the preference before its unlock-triggered sync.
+	reopened, err := New(filepath.Dir(s.configPath), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reopened.State().Config.SyncPaused {
+		t.Fatal("pause was not persisted")
+	}
+	reopened.Close()
+	s.Lock()
+	if err := s.Unlock("synthetic desktop password", false); err != nil {
+		t.Fatal(err)
+	}
+	if !s.State().SyncInfo.Paused {
+		t.Fatal("unlock cleared pause")
+	}
+	// Restore the fixture's trusted TLS transport after unlocking.
+	s.mu.Lock()
+	s.session.remote = x.remote
+	s.mu.Unlock()
+	if err := s.SetSyncPaused(false); err != nil {
+		t.Fatal(err)
+	}
+	awaitSync(t, s)
+	if st := s.State(); st.Pending != 0 || st.SyncInfo.Paused || st.Sync != "Synced" {
+		t.Fatal("resume did not upload the local batch", st.SyncInfo)
+	}
+}
+
+func TestSyncPauseFinishesCurrentCycleWithoutQueuedRefresh(t *testing.T) {
+	s, _ := testService(t)
+	started, release := make(chan struct{}), make(chan struct{})
+	defer close(release)
+	var blocked atomic.Bool
+	var logins atomic.Int32
+	syncServer(t, s, func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/v1/login" {
+				logins.Add(1)
+			}
+			if r.URL.Path == "/v1/sync/deletions" && blocked.CompareAndSwap(false, true) {
+				close(started)
+				select {
+				case <-release:
+				case <-r.Context().Done():
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	})
+	s.SyncNow()
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("sync did not start")
+	}
+	s.RefreshSync()
+	if err := s.SetSyncPaused(true); err != nil {
+		t.Fatal(err)
+	}
+	if !s.State().SyncInfo.Paused || !s.State().SyncInfo.Running {
+		t.Fatal("missing finishing state")
+	}
+	release <- struct{}{}
+	awaitSync(t, s)
+	if st := s.State(); !st.SyncInfo.Paused || st.SyncInfo.Running || logins.Load() != 0 {
+		t.Fatal("queued refresh ran after pausing", st.SyncInfo)
+	}
+}

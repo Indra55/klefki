@@ -34,6 +34,7 @@ type Config struct {
 	AccountPath         string                         `json:"accountPath"`
 	StorePath           string                         `json:"storePath"`
 	Server              string                         `json:"server"`
+	SyncPaused          bool                           `json:"syncPaused,omitempty"`
 	FingerprintAccounts []string                       `json:"fingerprintAccounts,omitempty"`
 	Preferences         Preferences                    `json:"preferences"`
 	Semantic            map[string]SemanticPreferences `json:"semantic,omitempty"`
@@ -57,6 +58,7 @@ type State struct {
 	DeviceAliases map[string]string   `json:"deviceAliases"`
 }
 type SyncInfo struct {
+	Paused          bool               `json:"paused,omitempty"`
 	Phase           string             `json:"phase"`
 	Running         bool               `json:"running"`
 	Progress        *syncwire.Progress `json:"progress,omitempty"`

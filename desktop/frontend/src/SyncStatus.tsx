@@ -2,10 +2,14 @@ import {useEffect,useRef,useState} from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import {X} from 'lucide-react';
 import {api, type State} from './api';
-import {idleSync, phaseLabel, syncIndicator, syncLegend, activityPage, transferDetail, deviceName, presence, receipt, waitingDevices, bytes, TransferRate, type SyncInfo, type SyncActivity, type DeviceStatus} from '../../../ui/sync-status';
+import {idleSync, syncLabel, phaseLabel, syncIndicator, syncLegend, activityPage, transferDetail, deviceName, presence, receipt, waitingDevices, bytes, TransferRate, type SyncInfo, type SyncActivity, type DeviceStatus} from '../../../ui/sync-status';
 
 export function syncInfo(state: State): SyncInfo {
   return state.syncInfo || {...idleSync(),phase:state.sync==='Synced'?'synced':state.sync==='Syncing'?'checking':state.sync==='Pending'?'pending':'local',running:state.sync==='Syncing'};
+}
+export function SyncPauseControl({state,onRefresh}:{state:State;onRefresh:()=>Promise<void>}) {
+  const [saving,setSaving]=useState(false),[error,setError]=useState('');
+  return <><button className="quiet" disabled={saving} onClick={()=>{setSaving(true);setError('');void api().SetSyncPaused(!syncInfo(state).paused).then(onRefresh).catch(()=>setError('Could not save the sync preference. Try again.')).finally(()=>setSaving(false));}}>{syncInfo(state).paused?'Resume sync':'Pause sync'}</button>{error&&<p role="alert">{error}</p>}</>;
 }
 function useClock() {
   const [now,setNow]=useState(Date.now());
@@ -15,8 +19,8 @@ function useClock() {
 export function SyncStrip({state,onDetails}:{state:State;onDetails?:()=>void}) {
   const info=syncInfo(state),now=useClock(),rate=useRef(new TransferRate()),p=info.progress;
   const speed=p?rate.current.update(p):'';
-  if (!info.running) return null;
-  return <section className="sync-strip" aria-label="Sync progress"><div><strong>{phaseLabel(info.phase)}</strong><p>{p?transferDetail(p,state.deviceAliases||{},info.peers?.devices||[],state.syncDevice||'',now):'Connecting to your server…'}</p>{speed&&<p className="sync-speed">{speed}</p>}</div>{onDetails&&<button className="quiet" onClick={onDetails}>Details</button>}<progress aria-label="Document sync progress" max={p?.totalBytes||1} value={p?.totalBytes&&p.phase!=='verifying'?p.doneBytes:undefined}/></section>;
+  if (!info.running) return info.paused?<section className="sync-strip" aria-label="Sync paused"><div><strong>{syncLabel(info,state.syncDevice||'',state.deviceAliases||{})}</strong><p>Local changes stay queued until you resume.</p></div>{onDetails&&<button className="quiet" onClick={onDetails}>Details</button>}</section>:null;
+  return <section className="sync-strip" aria-label="Sync progress"><div><strong>{info.paused?syncLabel(info,state.syncDevice||'',state.deviceAliases||{}):phaseLabel(info.phase)}</strong><p>{p?transferDetail(p,state.deviceAliases||{},info.peers?.devices||[],state.syncDevice||'',now):'Connecting to your server…'}</p>{speed&&<p className="sync-speed">{speed}</p>}</div>{onDetails&&<button className="quiet" onClick={onDetails}>Details</button>}<progress aria-label="Document sync progress" max={p?.totalBytes||1} value={p?.totalBytes&&p.phase!=='verifying'?p.doneBytes:undefined}/></section>;
 }
 export function SyncDevices({state,now:time,onRefresh,onForget}:{state:State;now?:number;onRefresh:()=>Promise<void>;onForget?:(id:string)=>void}) {
   const clock=useClock(),now=time||clock;
@@ -50,10 +54,10 @@ export function SyncStatus({state,activity,open,onOpen,onSettings,onRefresh}:{st
       {state.lastSync&&<p>Last sync completed {new Date(state.lastSync).toLocaleString()}</p>}
       <SyncStrip state={state}/>
       <div className="sync-controls">
-        {state.config.server&&!state.recoveryOnly&&<button className="quiet" disabled={info.running||refreshing} onClick={()=>{
+        {state.config.server&&!state.recoveryOnly&&<button className="quiet" disabled={info.running||refreshing||info.paused} onClick={()=>{
           setRefreshing(true);setError('');void api().RefreshSync().catch(()=>setError('Could not start sync.')).finally(()=>setRefreshing(false));
         }}>Refresh sync</button>}
-        <button className="quiet" onClick={()=>{onOpen(false);onSettings()}}>Connection settings</button>
+        <SyncPauseControl state={state} onRefresh={onRefresh}/><button className="quiet" onClick={()=>{onOpen(false);onSettings()}}>Connection settings</button>
       </div>
       {error&&<p className="sync-error" role="alert">{error}</p>}
       <div className="sync-legend" aria-label="Sync color legend">{syncLegend.map(item=><span key={item.state} data-state={item.state}><span className="sync-dot" aria-hidden="true"/>{item.label}</span>)}</div>

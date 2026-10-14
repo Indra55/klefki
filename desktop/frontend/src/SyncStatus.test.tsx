@@ -13,7 +13,7 @@ beforeEach(()=>{
   state={config:{accountPath:'account',storePath:'store',server:'https://sync.test',preferences:{theme:'dark',idleMinutes:5}},unlocked:true,generation:1,accountID:'account',recoveryOnly:false,sync:'Synced',pending:1,lastSync:'',syncDevice:self,syncDevices:[self,phone],deviceAliases:{[phone]:'My phone'},syncInfo:{...idleSync(),phase:'synced'}};
   window.matchMedia=vi.fn().mockReturnValue({matches:false,addEventListener:vi.fn(),removeEventListener:vi.fn()});
   window.runtime={EventsOn:(name,cb)=>{if(name==='klefki:event')emit=cb;return()=>{}}};
-  window.go={main:{App:{State:vi.fn(async()=>state),List:vi.fn(()=>new Promise(()=>{})),Touch:vi.fn(),SyncNow:vi.fn(async()=>{}),RefreshSync:vi.fn(async()=>{}),SetSyncPanel:vi.fn(async()=>{}),SetDeviceAlias:vi.fn(async()=>{}),ClosePreview:vi.fn()} as any}};
+  window.go={main:{App:{State:vi.fn(async()=>state),List:vi.fn(()=>new Promise(()=>{})),Touch:vi.fn(),SyncNow:vi.fn(async()=>{}),RefreshSync:vi.fn(async()=>{}),SetSyncPaused:vi.fn(async(paused:boolean)=>{state={...state,syncInfo:{...state.syncInfo!,paused}}}),SetSyncPanel:vi.fn(async()=>{}),SetDeviceAlias:vi.fn(async()=>{}),ClosePreview:vi.fn()} as any}};
 });
 afterEach(()=>{cleanup();vi.restoreAllMocks()});
 
@@ -73,6 +73,23 @@ describe('sync visibility',()=>{
     expect(onOpen).not.toHaveBeenCalled();
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not start sync.');
     expect(screen.getByRole('dialog',{name:'Sync activity'})).toBeVisible();
+  });
+  it('shows a paused device above pending work and resumes explicitly',async()=>{
+    const user=userEvent.setup(),onRefresh=vi.fn(async()=>{});
+    state.syncInfo={...idleSync(),phase:'auth',paused:true};
+    const props={state,activity:[],open:true,onOpen:vi.fn(),onSettings:vi.fn(),onRefresh};
+    const view=render(<SyncStatus {...props}/>);
+    expect(screen.getByRole('button',{name:'Sync status'})).toHaveAttribute('data-state','neutral');
+    expect(screen.getByRole('button',{name:'Sync status'})).toHaveTextContent('Sync paused on this device');
+    expect(screen.getByRole('button',{name:'Refresh sync'})).toBeDisabled();
+    await user.click(screen.getByRole('button',{name:'Resume sync'}));
+    await waitFor(()=>expect(onRefresh).toHaveBeenCalledTimes(1));
+    expect(window.go!.main.App.SetSyncPaused).toHaveBeenCalledWith(false);
+    view.rerender(<SyncStatus {...props} state={{...state,syncInfo:{...idleSync(),phase:'uploading',running:true}}}/>);
+    await user.click(screen.getByRole('button',{name:'Pause sync'}));
+    expect(window.go!.main.App.SetSyncPaused).toHaveBeenLastCalledWith(true);
+    view.rerender(<SyncStatus {...props} state={{...state,syncInfo:{...idleSync(),phase:'uploading',running:true,paused:true}}}/>);
+    expect(screen.getByRole('button',{name:'Sync status'})).toHaveTextContent('Pausing after current sync');
   });
   it('paginates activity, preserves the page on ticks, clamps on removal and resets on reopen',async()=>{
     const user=userEvent.setup(),activity=Array.from({length:12},(_,i)=>({...p,revision:String(i),name:`Transfer ${i}`}));

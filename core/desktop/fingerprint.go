@@ -261,7 +261,7 @@ func (s *Service) startSession(ctx context.Context, cfg Config, a vc.Account, ma
 	s.pending = n
 	s.syncMode, s.syncDevice, s.syncDevices = relay.Mode, relay.Device, relay.Known
 	s.syncState = "Local only"
-	s.syncInfo = SyncInfo{Phase: "local"}
+	s.syncInfo = SyncInfo{Phase: "local", Paused: s.config.SyncPaused}
 	x := s.session
 	s.mu.Unlock()
 	go s.SyncNow()

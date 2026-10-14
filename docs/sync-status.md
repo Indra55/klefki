@@ -21,7 +21,7 @@ internal scrolling. Wider browser and desktop windows keep the corner panel.
 | Purple | Changes waiting to download, another device needed to supply content, or linked devices awaiting receipt. |
 | Blue | Checking, transferring, saving, or retrying. |
 | Red | Server unavailable, timeout, sign-in required, relay full, or sync error. |
-| Gray | Offline, local-only, locked, or unknown status. |
+| Gray | Paused, offline, local-only, locked, or unknown status. |
 
 Connection failures take priority over active work, then local pending changes
 and device waiting. Device-derived waiting states require fresh status. Green
@@ -77,6 +77,33 @@ status endpoints bypass the relay transfer lock and have a separate rate budget.
 Presence is sent every 15 seconds when idle and at most every five seconds during
 a transfer. Status polling runs every five seconds with the activity panel open
 and every 30 seconds otherwise.
+
+## Pause syncing for a batch
+
+Choose **Pause sync** in Sync activity or Settings > Sync & devices on each
+client you want to pause. Add files, create folders and edit documents locally,
+then choose **Resume sync** when ready. Incoming changes also wait until resume.
+The library shows a paused banner and the queued change count remains available
+in Sync activity. Sync now and Refresh sync stay disabled while paused.
+
+An already running sync cycle finishes, including its uploads and downloads;
+the label reads **Pausing after current sync** until it stops. Pause clears
+queued automatic follow-up runs and stops automatic transfers, presence and
+status polling. A request already in flight can still finish. Resume immediately
+starts syncing, or queues behind current local work. Browser tabs/PWAs still
+need to remain open for transfers to complete.
+
+The preference survives lock, unlock and restart. Desktop saves it in the local
+application settings; web/PWA saves it in that account's local IndexedDB state.
+It is never sent to another client. Clearing browser storage removes the
+preference along with the local store. Server storage mode is a separate,
+account-wide setting. Resume before changing server storage or forgetting a
+device on web, as those actions include a sync pass.
+
+Pause reduces repeated transfers while preparing a batch. It does not merge
+concurrent edits or prevent conflict copies when different devices edit the
+same document. Resume devices after finishing their batches and allow changes
+to arrive before editing shared documents again.
 
 ## Transport and compatibility
 

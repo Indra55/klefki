@@ -1,7 +1,7 @@
 import type {SyncInfo} from '../../../ui/sync-status';
 export type Preferences = {theme:'dark'|'light'|'system';idleMinutes:number;density?:'comfortable'|'compact';defaultSort?:'name'|'type'|'size'};
 export type FingerprintState={supported:boolean;available:boolean;enabled:boolean;reason:string};
-export type State = {config:{accountPath:string;storePath:string;server:string;preferences:Preferences};unlocked:boolean;generation:number;accountID:string;recoveryOnly:boolean;sync:string;pending:number;lastSync:string;syncMode?:'persistent'|'temporary-relay';syncDevices?:string[];syncDevice?:string;syncInfo?:SyncInfo;deviceAliases?:Record<string,string>;semantic?:SemanticPreferences;fingerprint?:FingerprintState};
+export type State = {config:{accountPath:string;storePath:string;server:string;syncPaused?:boolean;preferences:Preferences};unlocked:boolean;generation:number;accountID:string;recoveryOnly:boolean;sync:string;pending:number;lastSync:string;syncMode?:'persistent'|'temporary-relay';syncDevices?:string[];syncDevice?:string;syncInfo?:SyncInfo;deviceAliases?:Record<string,string>;semantic?:SemanticPreferences;fingerprint?:FingerprintState};
 export type DeletionPreview = {revision:string;count:number;targets:{object:string;folder:boolean;files:string[];heads?:string[]}[]};
 export type Item = {object:string;revision:string;name:string;type:'file'|'folder';parent:string|null;tags:string[];favorite:boolean;size:number;conflict:boolean;trashed:boolean;trashRoot:boolean;deleteAt?:number;category?:string;folder_icon?:string};
 export type Edit = Pick<Item,'name'|'parent'|'tags'|'favorite'|'folder_icon'>;
@@ -26,7 +26,7 @@ export interface API {
  AddFiles(parent:string|null,tags:string[]):Promise<string>;ImportDropped(paths:string[],parent:string|null,tags:string[]):Promise<string>;
  Export(revision:string,name:string):Promise<string>;ExportAccount():Promise<void>;Cancel(op:string):Promise<void>;
  SetSyncPanel?(open:boolean):Promise<void>;SetDeviceAlias?(id:string,name:string):Promise<void>;
- Connect(address:string,register:boolean):Promise<void>;SetSyncMode(mode:string):Promise<void>;ForgetSyncDevice(id:string):Promise<void>;SyncNow():Promise<void>;RefreshSync():Promise<void>;Preview(revision:string):Promise<PreviewInfo>;ClosePreview():Promise<void>;
+ Connect(address:string,register:boolean):Promise<void>;SetSyncMode(mode:string):Promise<void>;ForgetSyncDevice(id:string):Promise<void>;SyncNow():Promise<void>;RefreshSync():Promise<void>;SetSyncPaused(paused:boolean):Promise<void>;Preview(revision:string):Promise<PreviewInfo>;ClosePreview():Promise<void>;
 }
 declare global {interface Window {go?:{main:{App:API}};runtime?:{EventsOn:(name:string,cb:(data:any)=>void)=>(()=>void)}}}
 export function api():API {if(!window.go?.main.App)throw new Error('DESKTOP_REQUIRED');return window.go.main.App}

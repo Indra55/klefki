@@ -25,9 +25,13 @@ let syncModeDraft: {base:string;selected:string} | undefined;
 let view = 'All documents', tag = '', sort = preferences().defaultSort, settings: Section | null = null, feedback = '', syncState = 'Local only';
 let syncInfo:SyncInfo=idleSync(),syncActivity:SyncActivity[]=[],aliases:Record<string,string>={},syncDevice='',linkedDevices:string[]=[],lastSync=0;
 let operationQueue=Promise.resolve();
+let syncPaused=false,pauseSaving=false;
 let syncRunning=false,syncRequested=false,registerRequested=false,refreshRequested=false,syncTimer:number|undefined,monitorBusy=false,lastPresence=0,lastDeviceCheck=0;
-const syncView=new SyncView({refresh:()=>void syncNow(false,false,true),settings:()=>showSettings('sync'),panel:open=>{if(open){lastDeviceCheck=0;void monitorSync()}},alias:saveAlias});
+const syncView=new SyncView({refresh:()=>void syncNow(false,false,true),settings:()=>showSettings('sync'),panel:open=>{if(open){lastDeviceCheck=0;void monitorSync()}},alias:saveAlias,pause:()=>void setSyncPaused(!syncPaused)});
 function renderSync(){
+    syncInfo={...syncInfo,paused:syncPaused,...(syncPaused?{running:syncRunning}:{})};
+    for(const el of document.querySelectorAll<HTMLButtonElement>('[data-sync-pause]')){el.textContent=syncPaused?'Resume sync':'Pause sync';el.disabled=pauseSaving;}
+    for(const el of document.querySelectorAll<HTMLButtonElement>('[data-sync-start]'))el.disabled=syncPaused||syncRunning;
     syncView.update({info:syncInfo,pending:pendingChanges,server:location.origin,aliases,self:syncDevice,activity:syncActivity,lastSync,devices:linkedDevices});
     const label=document.querySelector('#settings-sync-label');if(label)label.textContent=syncLabel(syncInfo,syncDevice,aliases);
     for(const el of document.querySelectorAll<HTMLElement>('[data-sync-device]'))el.textContent=deviceName(el.dataset.syncDevice!,aliases,syncInfo.peers?.devices,syncDevice);
@@ -40,7 +44,21 @@ async function saveAlias(id:string,name:string){
     await s.transaction(['state'],'readwrite',async tx=>{tx.objectStore('state').put(next,'device-aliases')});
     if(g===generation){aliases=next;renderSync();}
 }
+async function setSyncPaused(paused:boolean){
+    if(!master||!store||pauseSaving)return;
+    const s=store,g=generation;pauseSaving=true;renderSync();
+    try {
+        await s.transaction(['state'],'readwrite',async tx=>{tx.objectStore('state').put(paused,'sync-paused')});
+        if(g!==generation)return;
+        syncPaused=paused;
+        if(paused){window.clearTimeout(syncTimer);syncRequested=registerRequested=refreshRequested=false;syncInfo={...syncInfo,statusAvailable:false};}
+        message(paused?'Sync paused on this device. Local changes stay queued. An active sync will finish.':'Sync resumed on this device.');
+        if(!paused){lastPresence=lastDeviceCheck=0;syncRequested=true;void syncNow();}
+    } catch {if(g===generation)message('Could not save the sync preference. Try again.');}
+    finally {if(g===generation){pauseSaving=false;renderSync();}}
+}
 function scheduleSync(){
+    if(syncPaused)return;
     syncRequested=true;window.clearTimeout(syncTimer);syncTimer=window.setTimeout(()=>{if(master&&document.visibilityState==='visible')void syncNow()},1000);
 }
 function syncErrorPhase(e:unknown){
@@ -51,7 +69,7 @@ function syncErrorPhase(e:unknown){
     return e instanceof TypeError?'unreachable':'error';
 }
 async function monitorSync(){
-    if(monitorBusy||!master||!remote||document.visibilityState!=='visible')return;
+    if(syncPaused||monitorBusy||!master||!remote||document.visibilityState!=='visible')return;
     const r=remote,g=generation;monitorBusy=true;
     try {
         const now=Date.now();
@@ -59,10 +77,11 @@ async function monitorSync(){
             lastPresence=now;const p=syncInfo.progress;let phase=syncInfo.phase;if(['local','synced','pending','complete'].includes(phase))phase='idle';if(['auth','offline','unreachable','timeout','full'].includes(phase))phase='error';
             try { await r.request('POST','/v1/sync/presence',{device:syncDevice,clientKind:matchMedia('(display-mode: standalone)').matches?'pwa':'web',phase,...(syncRunning&&p?{revision:p.revision,direction:p.direction,doneBytes:p.doneBytes,totalBytes:p.totalBytes}:{doneBytes:0,totalBytes:0})},1024,{background:true}); } catch {}
         }
+        if(syncPaused||g!==generation||r!==remote)return;
         if(now-lastDeviceCheck>=(syncView.open?5000:30000)){
             lastDeviceCheck=now;
-            try {const peers=validateStatus(c.strictJSON(c.decode(await r.request('GET','/v1/sync/status',undefined,32768,{background:true}))) as ServerStatus);if(g!==generation||r!==remote)return;syncInfo={...syncInfo,peers,statusAvailable:true,lastDeviceCheck:Date.now()};if(!syncRunning&&syncInfo.phase==='waiting'&&syncInfo.waitingFor==='receipts'&&peers.devices.every(peer=>peer.outstanding===0)){syncInfo={...syncInfo,phase:'synced',waitingFor:undefined};syncState='Synced';}}
-            catch(e) {if(g===generation&&r===remote){const phase=syncErrorPhase(e);syncInfo={...syncInfo,statusAvailable:false,...(!syncRunning&&['auth','unreachable','offline','timeout'].includes(phase)?{phase}:{})};}}
+            try {const peers=validateStatus(c.strictJSON(c.decode(await r.request('GET','/v1/sync/status',undefined,32768,{background:true}))) as ServerStatus);if(syncPaused||g!==generation||r!==remote)return;syncInfo={...syncInfo,peers,statusAvailable:true,lastDeviceCheck:Date.now()};if(!syncRunning&&syncInfo.phase==='waiting'&&syncInfo.waitingFor==='receipts'&&peers.devices.every(peer=>peer.outstanding===0)){syncInfo={...syncInfo,phase:'synced',waitingFor:undefined};syncState='Synced';}}
+            catch(e) {if(!syncPaused&&g===generation&&r===remote){const phase=syncErrorPhase(e);syncInfo={...syncInfo,statusAvailable:false,...(!syncRunning&&['auth','unreachable','offline','timeout'].includes(phase)?{phase}:{})};}}
         }
         if(g===generation)renderSync();
     } finally {if(g===generation)monitorBusy=false;}
@@ -95,7 +114,7 @@ function shell() {
     }
     root.prepend(header); if (waitingUpdate?.waiting) offerUpdate(root); app.append(root); return root;
 }
-function lock() { syncModeDraft=undefined;syncView.clear();window.clearTimeout(syncTimer);syncInfo=idleSync();syncActivity=[];aliases={};syncDevice='';linkedDevices=[];lastSync=0;syncRunning=syncRequested=registerRequested=refreshRequested=monitorBusy=false;lastPresence=lastDeviceCheck=pendingChanges=0;closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
+function lock() { syncModeDraft=undefined;syncView.clear();window.clearTimeout(syncTimer);syncInfo=idleSync();syncActivity=[];aliases={};syncDevice='';linkedDevices=[];lastSync=0;syncPaused=pauseSaving=syncRunning=syncRequested=registerRequested=refreshRequested=monitorBusy=false;lastPresence=lastDeviceCheck=pendingChanges=0;closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
     c.wipe(master); if (credential)
     c.wipe(credential); master = credential = undefined; heads = []; store?.close(); store = undefined; release?.(); release = undefined; busy = false; parent = null; filter = ''; favorites = false; view = 'All documents'; tag = ''; settings = null; feedback = ''; syncState = 'Local only'; for (const url of urls)
     URL.revokeObjectURL(url); urls.clear(); for (const b of previews)
@@ -145,11 +164,11 @@ async function enterKeys(target: c.Account, unlocked: passkey.Keys, g: number) {
         c.check(g === generation && account === target);
         opened = await Store.open(target);
         c.check(g === generation && account === target);
-        const local=await opened.relayState(),savedAliases=await opened.state<Record<string,string>>('device-aliases')||{};
+        const local=await opened.relayState(),savedAliases=await opened.state<Record<string,string>>('device-aliases')||{},savedPause=await opened.state<boolean>('sync-paused')===true;
         c.check(g===generation&&account===target);
         master = unlocked.master;
         credential = unlocked.credential;
-        store = opened;syncDevice=local.device;aliases=savedAliases;
+        store = opened;syncDevice=local.device;aliases=savedAliases;syncPaused=savedPause;
         opened.onChange=()=>{if(g===generation){if(!syncRunning)syncInfo={...syncInfo,phase:'pending'};scheduleSync();renderSync();}};
         release = held;
         adopted = true;
@@ -293,9 +312,9 @@ async function connectRemote(register=false){
     remote=r;lastPresence=lastDeviceCheck=0;
 }
 async function syncNow(register = false, background = false, reconnect = false) {
-    if(!master)return;
+    if(!master||syncPaused)return;
     refreshRequested ||= reconnect;
-    if(syncRunning){if(register){syncRequested=true;registerRequested=true;}return;}
+    if(syncRunning){if(!background)syncRequested=true;if(register){syncRequested=true;registerRequested=true;}return;}
     if(busy){if(!background||refreshRequested){syncRequested=true;registerRequested ||= register;}return;}
     reconnect=refreshRequested;refreshRequested=false;
     if(reconnect){remote=undefined;background=false;syncInfo={...syncInfo,statusAvailable:false};}
@@ -364,15 +383,17 @@ async function library() {
     status.id = 'status'; status.setAttribute('role', 'status'); root.append(status);
     if (settings) {
         root.append(settingsPage({
-            section: settings, account: account!.account, pending, mode, selectedMode:syncModeDraft?.selected||mode, selectMode:selected=>{syncModeDraft={base:mode,selected};}, devices, device, syncInfo,aliases,rename:saveAlias,
+            pause:()=>void setSyncPaused(!syncPaused), section: settings, account: account!.account, pending, mode, selectedMode:syncModeDraft?.selected||mode, selectMode:selected=>{syncModeDraft={base:mode,selected};}, devices, device, syncInfo,aliases,rename:saveAlias,
             changeSection: showSettings, back: () => { settings = null; syncModeDraft=undefined; void library(); },
             sync: register => void syncNow(register), exportAccount: () => download(c.accountBytes(account!), 'account.klefki'),
             setMode: mode => void operation(async (key, current) => {
+                if(syncPaused)throw Error('Resume sync before changing server storage.');
                 if (!remote) await connectRemote();
                 await setSyncMode(s, key, remote!, mode as 'persistent' | 'temporary-relay');
                 if (current === generation) { await refresh(); message('Sync mode updated for this account.'); }
             }),
             forget: id => void operation(async (key, current) => {
+                if(syncPaused)throw Error('Resume sync before changing linked devices.');
                 if (!remote) await connectRemote();
                 await remote!.request('DELETE', '/v1/sync/relay/devices/' + id, undefined, 1024);
                 await sync(s, key, remote!);

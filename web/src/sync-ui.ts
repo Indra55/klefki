@@ -1,8 +1,8 @@
 import {node,button} from './ui.ts';
-import {idleSync,syncIndicator,syncLegend,activityPage,phaseLabel,deviceName,transferDetail,receipt,presence,waitingDevices,bytes,TransferRate,type SyncInfo,type SyncActivity} from '../../ui/sync-status.ts';
+import {idleSync,syncLabel,syncIndicator,syncLegend,activityPage,phaseLabel,deviceName,transferDetail,receipt,presence,waitingDevices,bytes,TransferRate,type SyncInfo,type SyncActivity} from '../../ui/sync-status.ts';
 
 type Data = {info:SyncInfo;pending:number;server:string;aliases:Record<string,string>;self:string;activity:SyncActivity[];lastSync:number;devices:string[]};
-type Actions = {refresh:()=>void;settings:()=>void;panel:(open:boolean)=>void;alias:(id:string,name:string)=>Promise<void>};
+type Actions = {pause:()=>void;refresh:()=>void;settings:()=>void;panel:(open:boolean)=>void;alias:(id:string,name:string)=>Promise<void>};
 export class SyncView {
   private data:Data={info:idleSync(),pending:0,server:'',aliases:{},self:'',activity:[],lastSync:0,devices:[]};
   private trigger?:HTMLButtonElement;
@@ -35,7 +35,7 @@ export class SyncView {
       const dialog=node('dialog',undefined,'sync-panel');dialog.setAttribute('aria-label','Sync activity');
       const header=node('header');header.append(node('h2','Sync activity'),button('Close',()=>dialog.close(),'quiet'));
       this.summary=node('div');this.transfer=node('section',undefined,'sync-strip');
-      const controls=node('div',undefined,'sync-controls');this.syncButton=button('Refresh sync',()=>this.actions.refresh(),'quiet');controls.append(this.syncButton,button('Connection settings',()=>{dialog.close();this.actions.settings()},'quiet'));
+      const controls=node('div',undefined,'sync-controls');this.syncButton=button('Refresh sync',()=>this.actions.refresh(),'quiet');this.syncButton.dataset.syncStart='';const pause=button('Pause sync',()=>this.actions.pause(),'quiet');pause.dataset.syncPause='';controls.append(this.syncButton,pause,button('Connection settings',()=>{dialog.close();this.actions.settings()},'quiet'));
       const legend=node('div',undefined,'sync-legend');legend.setAttribute('aria-label','Sync color legend');
       for(const item of syncLegend){const entry=node('span');entry.dataset.state=item.state;const dot=node('span',undefined,'sync-dot');dot.setAttribute('aria-hidden','true');entry.append(dot,document.createTextNode(item.label));legend.append(entry)}
       this.deviceList=node('div',undefined,'sync-devices');this.history=node('ul',undefined,'sync-history');
@@ -50,11 +50,15 @@ export class SyncView {
   }
   private progress(container:HTMLElement,details:boolean) {
     const {info,aliases,self}=this.data,p=info.progress;
-    container.hidden=!info.running;
-    if (!info.running) return;
+    container.hidden=!info.running&&!info.paused;
+    if (!info.running) {
+      if(info.paused&&container.dataset.paused!=='true'){container.dataset.paused='true';const copy=node('div');copy.append(node('strong',syncLabel(info,self,aliases)),node('p','Local changes stay queued until you resume.'));container.replaceChildren(copy);if(details){const resume=button('Resume sync',()=>this.actions.pause(),'quiet');resume.dataset.syncPause='';container.append(resume);}}
+      return;
+    }
+    if(container.dataset.paused){container.replaceChildren();delete container.dataset.paused;}
     let text=container.querySelector<HTMLDivElement>('.sync-copy');
     if(!text){text=node('div',undefined,'sync-copy');text.append(node('strong'),node('p',undefined,'sync-detail'),node('p',undefined,'sync-speed'));container.append(text)}
-    text.querySelector('strong')!.textContent=phaseLabel(info.phase);
+    text.querySelector('strong')!.textContent=info.paused?syncLabel(info,self,aliases):phaseLabel(info.phase);
     text.querySelector('.sync-detail')!.textContent=p?transferDetail(p,aliases,info.peers?.devices||[],self):'Connecting to your server…';
     const speed=p?this.rate.update(p):'',speedNode=text.querySelector<HTMLElement>('.sync-speed')!;speedNode.textContent=speed;speedNode.hidden=!speed;
     if(details&&!container.querySelector('button'))container.append(button('Details',()=>this.show(),'quiet'));
@@ -73,7 +77,8 @@ export class SyncView {
     if(info.lastContact)this.summary.append(node('p','Last successful server contact '+new Date(info.lastContact).toLocaleString()));
     if(lastSync)this.summary.append(node('p','Last sync completed '+new Date(lastSync).toLocaleString()));
     if(!info.statusAvailable)this.summary.append(node('p','Device status unavailable. Your documents can still sync.'));
-    this.progress(this.transfer,false);if(this.syncButton)this.syncButton.disabled=info.running;
+    for(const pause of this.dialog!.querySelectorAll<HTMLButtonElement>('[data-sync-pause]'))pause.textContent=info.paused?'Resume sync':'Pause sync';
+    this.progress(this.transfer,false);if(this.syncButton)this.syncButton.disabled=info.running||!!info.paused;
     // Keep an unfinished nickname edit and its keyboard focus across progress ticks.
     if(!this.deviceList.contains(document.activeElement)){
       this.deviceList.replaceChildren();

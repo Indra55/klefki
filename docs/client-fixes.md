@@ -9,7 +9,7 @@ unrelated documentation work stays intact.
 |---|---|---|
 | 1 | Keep document editing open during background refresh on desktop, web and PWA | Fixed and validated |
 | 2 | Choose an iOS-style emoji per folder, synced across clients | Fixed and validated |
-| 3 | Add a per-device sync pause/resume control for bulk local uploads | Queued |
+| 3 | Add a per-device sync pause/resume control for bulk local uploads | Fixed and validated |
 | 4 | Keep mobile three-dot menus fully inside the viewport | Queued |
 | 5 | Make passkey unlock available on supported web browsers too | Queued |
 | 6 | Replace the app icon with an original minimalist key-inspired design | Queued |
@@ -55,11 +55,33 @@ unrelated documentation work stays intact.
 - Older Go clients can drop this optional field when rewriting a folder;
   update linked clients before editing folder icons.
 
+## 3. Pause and resume syncing per device
+
+- Added Pause sync / Resume sync to Sync activity and Sync & devices on desktop,
+  web and PWA, with a visible paused banner. Local files, folders and edits stay
+  available and queued. Incoming changes wait too; other devices keep syncing.
+- The local preference survives lock/unlock and restart. All automatic sync
+  entry points and status/presence polling respect it. An active cycle finishes
+  with an explicit pausing label; queued follow-up runs are cleared. Resume
+  starts a sync without changing account-wide storage mode or encrypted formats.
+- Pausing batches transfers; concurrent edits can still create conflict copies.
+  See [sync activity](sync-status.md#pause-syncing-for-a-batch).
+- Validation: desktop backend race suite, desktop vet and native module checks
+  passed. All 43 desktop UI tests passed; the eight sync UI cases were rerun
+  after final status-copy changes. Three new browser cases verify zero automatic
+  API requests while paused, local imports/edits surviving reload, reconnect and
+  polling triggers, active-cycle completion, and resumed file contents in both
+  directions with persistent storage and temporary relay. All six existing
+  relay/activity cases passed in the broader run; the new cases passed in their
+  final focused rerun after tightening navigation and document selectors.
+- Desktop frontend browser controls/layout passed at 320/390/600/800/1200px;
+  web settings fit 320/390/600px. Web production and Linux native builds passed.
+  The rebuilt Linux executable is installed and matches byte for byte; restart
+  Klefki to use it. Hosted rollout, native-window network testing and a physical
+  installed-PWA walkthrough remain separate checks.
+
 ## Acceptance for queued tasks
 
-3. Pause automatic transfers on that device while keeping local imports/edits
-   queued; make the paused state visible and resume explicitly. Pausing cannot
-   prevent conflicts from concurrent edits on different devices.
 4. Verify menus near each viewport edge at narrow mobile widths.
 5. Inspect the existing PRF/WebAuthn implementation and browser eligibility;
    keep password and recovery unlock available.

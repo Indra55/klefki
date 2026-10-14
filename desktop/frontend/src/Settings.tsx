@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowUpRight, Cloud, LockKeyhole, Palette, Search } from 'lu
 import { api, errorMessage, type Preferences, type State } from './api';
 import { FingerprintIcon, type FingerprintAnimation } from './FingerprintIcon';
 import { SemanticSettings } from './Semantic';
-import {SyncDevices,syncInfo} from './SyncStatus';
+import {SyncDevices,SyncPauseControl,syncInfo} from './SyncStatus';
 import {syncLabel} from '../../../ui/sync-status';
 
 export type SettingsSection = 'appearance' | 'privacy' | 'sync' | 'search';
@@ -129,7 +129,8 @@ export function Settings({ state, section, onSectionChange, scan, onScanStart, o
 
         {section === 'sync' && <section aria-labelledby="sync-heading">
           <header className="settings-panel-heading"><h2 id="sync-heading">Sync & devices</h2><p>Keep the same encrypted library on your devices. You can still work offline.</p></header>
-          <div className="connection-status"><div><span>{syncLabel(syncInfo(state),state.syncDevice||'',state.deviceAliases||{})}</span><p>{state.pending ? `${state.pending} ${state.pending === 1 ? 'change waiting' : 'changes waiting'} to sync` : 'No local changes waiting to sync.'}</p>{state.lastSync && <p>Last synced {new Date(state.lastSync).toLocaleString()}</p>}</div>{state.config.server && !state.recoveryOnly && <button className="secondary" disabled={state.sync === 'Syncing' || busy} onClick={() => void api().SyncNow().catch(e => setError(errorMessage(e)))}>Sync now</button>}</div>
+          <div className="connection-status"><div><span>{syncLabel(syncInfo(state),state.syncDevice||'',state.deviceAliases||{})}</span><p>{state.pending ? `${state.pending} ${state.pending === 1 ? 'change waiting' : 'changes waiting'} to sync` : 'No local changes waiting to sync.'}</p>{state.lastSync && <p>Last synced {new Date(state.lastSync).toLocaleString()}</p>}</div>{state.config.server && !state.recoveryOnly && <button className="secondary" disabled={syncInfo(state).running || syncInfo(state).paused || busy} onClick={() => void api().SyncNow().catch(e => setError(errorMessage(e)))}>Sync now</button>}<SyncPauseControl state={state} onRefresh={onRefresh}/></div>
+          <p className="settings-hint">Pause syncing on this device while adding files. Local changes stay queued; an active sync finishes. Resume when the batch is ready. Concurrent edits on other devices can still create conflicts.</p>
           <form className="settings-connect" onSubmit={async e => {
             e.preventDefault(); setBusy(true); setError(''); setMessage('');
             try { await api().Connect(url, register); setMessage('Connected. Your documents and folders will sync automatically.'); await onRefresh(); }
