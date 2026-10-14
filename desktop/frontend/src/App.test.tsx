@@ -10,6 +10,29 @@ let state:State;let events:Record<string,(e:any)=>void>;
 beforeEach(()=>{state={config:{accountPath:'account.v1',storePath:'local.db',server:'',preferences:{theme:'dark',idleMinutes:5}},unlocked:true,generation:1,accountID:'account',recoveryOnly:false,sync:'Local only',pending:0,lastSync:''};events={};vi.spyOn(document,'hasFocus').mockReturnValue(true);window.matchMedia=vi.fn().mockReturnValue({matches:true,addEventListener:vi.fn(),removeEventListener:vi.fn()});window.runtime={EventsOn:(name,cb)=>{events[name]=cb;return()=>{delete events[name]}}};window.go={main:{App:{State:vi.fn(async()=>state),List:vi.fn(async()=>({generation:state.generation,items:[item]})),Touch:vi.fn(),Lock:vi.fn(async()=>{state={...state,unlocked:false,generation:2};events['klefki:event']?.({generation:2,kind:'locked'})}),Edit:vi.fn(async()=>''),ClosePreview:vi.fn()} as any}}});
 afterEach(()=>{cleanup();vi.restoreAllMocks()});
 describe('library',()=>{
+ it('preserves an edit draft across sync revision changes and stale saves, then clears it on lock',async()=>{
+  const bridge=window.go!.main.App;
+  render(<App/>);await screen.findByText('Passport.txt');
+  await userEvent.click(screen.getByRole('button',{name:'Actions for Passport.txt'}));
+  await userEvent.click(screen.getByRole('menuitem',{name:'Edit details & move'}));
+  const dialog=await screen.findByRole('dialog',{name:'Document details'});
+  const name=within(dialog).getByLabelText('Name');
+  await userEvent.clear(name);await userEvent.type(name,'My draft.txt');
+  await userEvent.type(within(dialog).getByLabelText(/^Tags/),', Personal');
+  await userEvent.click(name);
+  bridge.List=vi.fn(async()=>({generation:1,items:[{...item,revision:'synced-revision',name:'Remote.txt'}]}));
+  await act(async()=>events['klefki:event']({generation:1,kind:'sync'}));
+  expect(dialog).toBeVisible();expect(name).toHaveValue('My draft.txt');
+  expect(within(dialog).getByLabelText(/^Tags/)).toHaveValue('Identity, Personal');
+  expect(name).toHaveFocus();
+  bridge.Edit=vi.fn(async()=>{throw new Error('STALE')});
+  await userEvent.click(within(dialog).getByRole('button',{name:'Save changes'}));
+  expect(await within(dialog).findByRole('alert')).toHaveTextContent('This document changed.');
+  expect(name).toHaveValue('My draft.txt');expect(bridge.Edit).toHaveBeenCalledWith('revision',expect.objectContaining({name:'My draft.txt'}));
+  act(()=>{state={...state,unlocked:false,generation:2};events['klefki:event']({generation:2,kind:'locked'})});
+  await screen.findByText('Unlock Klefki.');
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();expect(screen.queryByDisplayValue('My draft.txt')).not.toBeInTheDocument();
+ });
  it('confirms Empty Trash against the whole trash and keeps cancellation reversible',async()=>{
   const bridge=window.go!.main.App,trash={...item,trashed:true,deleteAt:Date.now()+86400000};
   bridge.List=vi.fn(async()=>({generation:1,items:[trash]}));

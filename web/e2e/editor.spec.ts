@@ -1,0 +1,57 @@
+import {test,expect} from '@playwright/test';
+import * as c from '../src/crypto.ts';
+import {documentAction,openSettings,upload} from './ui.ts';
+
+for(const width of [1280,390])test(`editor draft survives background sync at width ${width}`,async({page})=>{
+  const password='public editor refresh fixture password';
+  await c.ready;const created=c.createAccount(password);
+  let release=()=>{};
+  try{
+    await page.setViewportSize({width,height:844});
+    await page.goto('/');
+    await page.getByLabel('Open an encrypted account file').setInputFiles({name:'account.klefki',mimeType:'application/octet-stream',buffer:Buffer.from(c.accountBytes(created.account))});
+    await page.getByLabel('Password',{exact:true}).fill(password);
+    await page.getByRole('button',{name:'Unlock Klefki',exact:true}).click();
+    await openSettings(page,'Sync & devices');
+    await page.getByRole('button',{name:'Register this store on server',exact:true}).click();
+    await expect(page.getByRole('status')).toContainText('Synced.');
+    await upload(page,{name:'note.txt',mimeType:'text/plain',buffer:Buffer.from('original public fixture')});
+    await expect(page.getByRole('button',{name:'Open note.txt',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Sync status',exact:true})).toHaveAttribute('data-state','synced');
+    await documentAction(page,'note.txt','Edit details & move');
+    await page.getByRole('button',{name:'Edit text content',exact:true}).click();
+    await page.getByLabel('Document text').fill('unsaved text draft');
+    await page.getByLabel('Name',{exact:true}).fill('draft.txt');
+    await page.getByLabel('Tags, separated by commas').fill('Personal');
+    await page.getByLabel('Favorite',{exact:true}).check();
+    await page.getByLabel('Name',{exact:true}).focus();
+    await page.locator('.shell').evaluate(el=>el.setAttribute('data-before-sync','true'));
+    const blocked=new Promise<void>(resolve=>{release=resolve});let held=false;
+    await page.route('**/v1/sync/changes?*',async route=>{held=true;await blocked;await route.continue()});
+    await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+    await expect.poll(()=>held).toBe(true);release();
+    await expect(page.locator('[data-before-sync]')).toHaveCount(0);
+    const dialog=page.locator('dialog[open]');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByLabel('Name',{exact:true})).toHaveValue('draft.txt');
+    await expect(dialog.getByLabel('Name',{exact:true})).toBeFocused();
+    await expect(dialog.getByLabel('Document text')).toHaveValue('unsaved text draft');
+    await expect(dialog.getByLabel('Tags, separated by commas')).toHaveValue('Personal');
+    await expect(dialog.getByLabel('Favorite',{exact:true})).toBeChecked();
+    await dialog.getByRole('button',{name:'Save changes',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Open draft.txt',exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'Open draft.txt',exact:true}).click();
+    await expect(page.locator('dialog pre')).toHaveText('unsaved text draft');
+    await page.getByRole('button',{name:'Close',exact:true}).click();
+    await documentAction(page,'draft.txt','Edit details & move');
+    await page.getByLabel('Name',{exact:true}).fill('discarded draft.txt');
+    await page.getByRole('button',{name:'Cancel',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Open draft.txt',exact:true})).toBeVisible();
+    await documentAction(page,'draft.txt','Edit details & move');
+    await page.getByLabel('Name',{exact:true}).fill('private draft.txt');
+    await page.keyboard.press('Control+Shift+L');
+    await expect(page.getByRole('button',{name:'Unlock Klefki',exact:true})).toBeVisible();
+    await expect(page.locator('dialog')).toHaveCount(0);
+    expect(await page.locator('input').evaluateAll(inputs=>inputs.some(input=>input.value==='private draft.txt'))).toBe(false);
+  }finally{release();c.wipe(created.master);}
+});

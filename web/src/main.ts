@@ -79,7 +79,10 @@ function syncStatus(text: string) {
 function showSettings(section: Section = 'appearance') { settings = section; void library().then(() => document.querySelector<HTMLHeadingElement>('.settings-heading h1')?.focus()); }
 function navigate(next: string) { settings = null; view = next; parent = null; tag = ''; filter = ''; void library(); }
 function shell() {
-    app.replaceChildren();
+    for (const child of Array.from(app.children)) {
+        if (master && child instanceof HTMLDialogElement && child.open) continue;
+        child.remove();
+    }
     const root = node('div', undefined, 'shell'), header = node('header', undefined, 'topbar');
     header.append(button('Klefki', () => { if (master) navigate('All documents'); }, 'brand'));
     if (master) {
