@@ -17,6 +17,7 @@
 .library-actions{display:flex;align-items:center;gap:20px;flex-shrink:0}.library-actions .quiet{white-space:nowrap;padding:10px 0}
 @media(max-width:600px){.category-line{flex-wrap:wrap}.categories{flex:1 1 100%}.library-actions{margin-left:auto;gap:16px}.library-actions .quiet{font-size:13px}}
 
+.navbar-settings svg{width:16px;height:16px;flex-shrink:0}
 .navbar-settings[aria-pressed=true]{color:var(--text)}
 .library[data-density=compact] .document{min-height:70px}
 .library[data-density=compact] .document-open{padding:12px 0}
@@ -28,7 +29,7 @@
 .settings-heading p{color:var(--muted);font-size:14px;line-height:1.8;margin:0}
 .settings-layout{display:grid;grid-template-columns:190px minmax(0,1fr);gap:54px;margin-top:38px;border-top:1px solid var(--border);padding-top:30px}
 .settings-nav{display:flex;flex-direction:column;align-items:stretch;gap:5px;align-self:start}
-.settings-nav button{display:flex;align-items:center;gap:12px;padding:12px 14px;color:var(--muted);font-size:13px;border-radius:5px;text-align:left}
+.settings-nav button{display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:12px 14px;color:var(--muted);font-size:13px;border-radius:5px;text-align:left}
 .settings-nav button[aria-current=page]{color:var(--text);background:var(--hover)}
 .settings-nav button:hover{background:var(--hover)}
 .settings-nav svg{flex-shrink:0}
