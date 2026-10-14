@@ -196,6 +196,13 @@ export interface Metadata {
     chunk_count?: number;
     trashed_at?: number;
     trash_previous_parent?: string | null;
+    folder_icon?: string;
+}
+export function validFolderIcon(value: unknown): value is string {
+    return typeof value === 'string' && (value === '' || value.length <= 55 && /^[0-9a-f]{4,6}(-[0-9a-f]{4,6}){0,7}$/.test(value) && value.split('-').every(part => {
+        const scalar = parseInt(part, 16);
+        return scalar > 0 && scalar <= 0x10ffff && !(scalar >= 0xd800 && scalar <= 0xdfff);
+    }));
 }
 export function metadata(b: Uint8Array): Metadata {
     check(b.length <= MAX_METADATA);
@@ -203,6 +210,10 @@ export function metadata(b: Uint8Array): Metadata {
     check(m && typeof m === 'object' && !Array.isArray(m) && (m.type === 'file' || m.type === 'folder') && typeof m.name === 'string' && Array.isArray(m.tags) && m.tags.every(t => typeof t === 'string') && typeof m.favorite === 'boolean');
     if (m.trashed_at !== undefined) check(Number.isSafeInteger(m.trashed_at) && m.trashed_at >= 0);
     if (m.trash_previous_parent != null) validID(m.trash_previous_parent);
+    if (Object.hasOwn(m, 'folder_icon')) {
+        check(m.type === 'folder' && validFolderIcon(m.folder_icon));
+        if (m.folder_icon === '') delete m.folder_icon;
+    }
     if (m.parent !== null)
         validID(m.parent);
     if (m.type === 'file') {
@@ -214,7 +225,7 @@ export function metadata(b: Uint8Array): Metadata {
             check(!Object.hasOwn(m, k));
     return m;
 }
-export function encryptMetadata(key: Uint8Array, account: string, object: string, m: Metadata) { const p = utf8(JSON.stringify(m)); try {
+export function encryptMetadata(key: Uint8Array, account: string, object: string, m: Metadata) { const p = utf8(JSON.stringify({...m,folder_icon:m.folder_icon === '' ? undefined : m.folder_icon})); try {
     metadata(p);
     return seal(key, { kind: 4, account, object }, p);
 }

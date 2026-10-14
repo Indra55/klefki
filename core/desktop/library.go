@@ -11,19 +11,20 @@ import (
 )
 
 type Item struct {
-	Object    string   `json:"object"`
-	Revision  string   `json:"revision"`
-	Name      string   `json:"name"`
-	Type      string   `json:"type"`
-	Parent    *string  `json:"parent"`
-	Tags      []string `json:"tags"`
-	Favorite  bool     `json:"favorite"`
-	Size      uint64   `json:"size"`
-	Conflict  bool     `json:"conflict"`
-	Trashed   bool     `json:"trashed"`
-	TrashRoot bool     `json:"trashRoot"`
-	Category  string   `json:"category"`
-	DeleteAt  int64    `json:"deleteAt"`
+	Object     string   `json:"object"`
+	Revision   string   `json:"revision"`
+	Name       string   `json:"name"`
+	Type       string   `json:"type"`
+	Parent     *string  `json:"parent"`
+	Tags       []string `json:"tags"`
+	Favorite   bool     `json:"favorite"`
+	Size       uint64   `json:"size"`
+	Conflict   bool     `json:"conflict"`
+	Trashed    bool     `json:"trashed"`
+	TrashRoot  bool     `json:"trashRoot"`
+	Category   string   `json:"category"`
+	DeleteAt   int64    `json:"deleteAt"`
+	FolderIcon string   `json:"folder_icon,omitempty"`
 }
 type Library struct {
 	Generation uint64 `json:"generation"`
@@ -71,7 +72,7 @@ func items(heads []vs.Head) []Item {
 				return at + vs.TrashRetention.Milliseconds()
 			}
 			return 0
-		}()})
+		}(), m.FolderIcon})
 	}
 	return out
 }
@@ -110,6 +111,9 @@ func (s *Service) List() (out Library, e error) {
 	return
 }
 func validEdit(e vs.Edit) bool {
+	if e.FolderIcon != nil && !vc.ValidFolderIcon(*e.FolderIcon) {
+		return false
+	}
 	if strings.TrimSpace(e.Name) == "" || len(e.Name) > 255 || strings.ContainsAny(e.Name, "\x00/\\") || len(e.Tags) > 64 {
 		return false
 	}
@@ -207,6 +211,12 @@ func (s *Service) Edit(revision string, edit vs.Edit) (id string, e error) {
 	return
 }
 func (s *Service) Folder(name string, parent *string) (id string, e error) {
+	return s.FolderWithIcon(name, parent, "")
+}
+func (s *Service) FolderWithIcon(name string, parent *string, icon string) (id string, e error) {
+	if !vc.ValidFolderIcon(icon) {
+		return "", ErrInvalid
+	}
 	if !validEdit(vs.Edit{Name: name, Tags: []string{}}) {
 		return "", ErrInvalid
 	}
@@ -222,7 +232,7 @@ func (s *Service) Folder(name string, parent *string) (id string, e error) {
 		if !validParent(h, obj.String(), parent) {
 			return ErrInvalid
 		}
-		id, e = x.store.PutContext(x.ctx, x.master, obj.String(), "", vc.Metadata{Type: "folder", Name: name, Parent: parent, Tags: []string{}}, nil)
+		id, e = x.store.PutContext(x.ctx, x.master, obj.String(), "", vc.Metadata{Type: "folder", Name: name, Parent: parent, Tags: []string{}, FolderIcon: icon}, nil)
 		if e == nil {
 			s.changed(x)
 		}

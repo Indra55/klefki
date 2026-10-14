@@ -10,6 +10,32 @@ let state:State;let events:Record<string,(e:any)=>void>;
 beforeEach(()=>{state={config:{accountPath:'account.v1',storePath:'local.db',server:'',preferences:{theme:'dark',idleMinutes:5}},unlocked:true,generation:1,accountID:'account',recoveryOnly:false,sync:'Local only',pending:0,lastSync:''};events={};vi.spyOn(document,'hasFocus').mockReturnValue(true);window.matchMedia=vi.fn().mockReturnValue({matches:true,addEventListener:vi.fn(),removeEventListener:vi.fn()});window.runtime={EventsOn:(name,cb)=>{events[name]=cb;return()=>{delete events[name]}}};window.go={main:{App:{State:vi.fn(async()=>state),List:vi.fn(async()=>({generation:state.generation,items:[item]})),Touch:vi.fn(),Lock:vi.fn(async()=>{state={...state,unlocked:false,generation:2};events['klefki:event']?.({generation:2,kind:'locked'})}),Edit:vi.fn(async()=>''),ClosePreview:vi.fn()} as any}}});
 afterEach(()=>{cleanup();vi.restoreAllMocks()});
 describe('library',()=>{
+ it('creates a folder with an emoji and changes or resets its icon in details',async()=>{
+  const bridge=window.go!.main.App;
+  let folder:Item={...item,object:'folder',revision:'folder-rev',type:'folder',name:'Study',tags:[]};
+  bridge.List=vi.fn(async()=>({generation:1,items:[folder]}));
+  bridge.FolderWithIcon=vi.fn(async(name,parent,icon)=>{folder={...folder,name,parent,folder_icon:icon};return folder.revision});
+  bridge.Edit=vi.fn(async(revision,edit)=>{folder={...folder,...edit};return revision});
+  render(<App/>);await screen.findByText('Study');
+  await userEvent.click(screen.getByRole('button',{name:'New folder'}));
+  await userEvent.type(screen.getByLabelText('Folder name'),'Study records');
+  await userEvent.click(screen.getByRole('button',{name:'Choose folder icon'}));
+  await userEvent.click(screen.getByRole('button',{name:'Graduation cap'}));
+  expect(screen.getByRole('button',{name:'Choose folder icon'})).toHaveFocus();
+  await userEvent.click(screen.getByRole('button',{name:'Create folder'}));
+  await waitFor(()=>expect(bridge.FolderWithIcon).toHaveBeenCalledWith('Study records',null,'1f393'));
+  const title=await screen.findByText('Study records');expect(title.closest('.document-title')?.querySelector('img')).toHaveAttribute('src',expect.stringContaining('1f393.png'));
+  await userEvent.click(screen.getByRole('button',{name:'Actions for Study records'}));
+  await userEvent.click(screen.getByRole('menuitem',{name:'Edit details & move'}));
+  await userEvent.click(screen.getByRole('button',{name:'Choose folder icon'}));
+  expect(screen.getByRole('button',{name:'Graduation cap'})).toHaveAttribute('aria-pressed','true');
+  await userEvent.click(screen.getByRole('button',{name:'Default folder'}));
+  await userEvent.click(screen.getByRole('button',{name:'Save changes'}));
+  await waitFor(()=>expect(bridge.Edit).toHaveBeenCalledWith('folder-rev',expect.objectContaining({folder_icon:''})));
+  await waitFor(()=>expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  await userEvent.click(screen.getByText('Study records'));
+  expect(screen.getByRole('navigation',{name:'Folder breadcrumb'}).querySelector('img')).toHaveAttribute('src',expect.stringContaining('1f4c1.png'));
+ });
  it('preserves an edit draft across sync revision changes and stale saves, then clears it on lock',async()=>{
   const bridge=window.go!.main.App;
   render(<App/>);await screen.findByText('Passport.txt');

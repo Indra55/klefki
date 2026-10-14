@@ -1,0 +1,38 @@
+export const folderIcons = [
+    {value:'',label:'Default folder',src:new URL('./emoji/apple/1f4c1.png',import.meta.url).href},
+    {value:'1f3e0',label:'Home',src:new URL('./emoji/apple/1f3e0.png',import.meta.url).href},
+    {value:'1f4bc',label:'Briefcase',src:new URL('./emoji/apple/1f4bc.png',import.meta.url).href},
+    {value:'1f393',label:'Graduation cap',src:new URL('./emoji/apple/1f393.png',import.meta.url).href},
+    {value:'1f3e6',label:'Bank',src:new URL('./emoji/apple/1f3e6.png',import.meta.url).href},
+    {value:'1f4b3',label:'Credit card',src:new URL('./emoji/apple/1f4b3.png',import.meta.url).href},
+    {value:'1f4b0',label:'Money bag',src:new URL('./emoji/apple/1f4b0.png',import.meta.url).href},
+    {value:'1f9fe',label:'Receipt',src:new URL('./emoji/apple/1f9fe.png',import.meta.url).href},
+    {value:'1f3e5',label:'Hospital',src:new URL('./emoji/apple/1f3e5.png',import.meta.url).href},
+    {value:'1fa7a',label:'Stethoscope',src:new URL('./emoji/apple/1fa7a.png',import.meta.url).href},
+    {value:'1f48a',label:'Medicine',src:new URL('./emoji/apple/1f48a.png',import.meta.url).href},
+    {value:'1f4da',label:'Books',src:new URL('./emoji/apple/1f4da.png',import.meta.url).href},
+    {value:'1f4dc',label:'Scroll',src:new URL('./emoji/apple/1f4dc.png',import.meta.url).href},
+    {value:'1f4dd',label:'Memo',src:new URL('./emoji/apple/1f4dd.png',import.meta.url).href},
+    {value:'1f512',label:'Lock',src:new URL('./emoji/apple/1f512.png',import.meta.url).href},
+    {value:'1f511',label:'Key',src:new URL('./emoji/apple/1f511.png',import.meta.url).href},
+    {value:'1f4bb',label:'Laptop',src:new URL('./emoji/apple/1f4bb.png',import.meta.url).href},
+    {value:'1f4f7',label:'Camera',src:new URL('./emoji/apple/1f4f7.png',import.meta.url).href},
+    {value:'1f4e6',label:'Package',src:new URL('./emoji/apple/1f4e6.png',import.meta.url).href},
+    {value:'1f680',label:'Rocket',src:new URL('./emoji/apple/1f680.png',import.meta.url).href},
+    {value:'2708-fe0f',label:'Airplane',src:new URL('./emoji/apple/2708-fe0f.png',import.meta.url).href},
+    {value:'1f697',label:'Car',src:new URL('./emoji/apple/1f697.png',import.meta.url).href},
+    {value:'1f527',label:'Tools',src:new URL('./emoji/apple/1f527.png',import.meta.url).href},
+    {value:'1f3ae',label:'Games',src:new URL('./emoji/apple/1f3ae.png',import.meta.url).href},
+    {value:'1f31f',label:'Star',src:new URL('./emoji/apple/1f31f.png',import.meta.url).href},
+    {value:'1f30d',label:'Globe',src:new URL('./emoji/apple/1f30d.png',import.meta.url).href},
+    {value:'1f3a8',label:'Art',src:new URL('./emoji/apple/1f3a8.png',import.meta.url).href},
+    {value:'1f3b5',label:'Music',src:new URL('./emoji/apple/1f3b5.png',import.meta.url).href},
+    {value:'1f4cc',label:'Pin',src:new URL('./emoji/apple/1f4cc.png',import.meta.url).href},
+    {value:'1f9e0',label:'Brain',src:new URL('./emoji/apple/1f9e0.png',import.meta.url).href},
+    {value:'1f331',label:'Seedling',src:new URL('./emoji/apple/1f331.png',import.meta.url).href},
+    {value:'1f4ce',label:'Paperclip',src:new URL('./emoji/apple/1f4ce.png',import.meta.url).href},
+] as const;
+
+export function folderIcon(value = '') {
+    return folderIcons.find(icon => icon.value === value) || folderIcons[0];
+}

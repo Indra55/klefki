@@ -1,0 +1,15 @@
+.folder-emoji{display:inline-block;width:22px;height:22px;object-fit:contain;flex-shrink:0;vertical-align:middle}
+.breadcrumbs .folder-emoji{width:16px;height:16px}
+.breadcrumb-current{display:inline-flex;align-items:center;gap:7px}
+.folder-icon-picker{margin-top:18px}
+.folder-icon-picker>span{display:block;font-size:12px;color:var(--muted);margin-bottom:7px}
+.folder-icon-picker details{border:1px solid var(--border);border-radius:6px}
+.folder-icon-picker summary{display:flex;align-items:center;gap:10px;list-style:none;cursor:pointer;padding:10px 12px;font-size:13px;color:var(--text);min-height:44px}
+.folder-icon-picker summary::-webkit-details-marker{display:none}
+.folder-icon-picker summary>svg{margin-left:auto;color:var(--muted)}
+.folder-icon-picker summary:focus-visible{outline:2px solid var(--muted);outline-offset:3px;border-radius:4px}
+.folder-icon-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(44px,1fr));gap:4px;max-height:208px;overflow:auto;padding:8px;border-top:1px solid var(--border)}
+.folder-icon-choice{display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:5px;border:1px solid transparent}
+.folder-icon-choice:hover{background:var(--hover)}
+.folder-icon-choice[aria-pressed=true]{border-color:var(--muted);background:var(--hover)}
+.folder-icon-choice .folder-emoji{width:28px;height:28px}

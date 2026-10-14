@@ -8,7 +8,7 @@ unrelated documentation work stays intact.
 | # | Task | Status |
 |---|---|---|
 | 1 | Keep document editing open during background refresh on desktop, web and PWA | Fixed and validated |
-| 2 | Add consistent folder icons using the requested iOS emoji style | Queued |
+| 2 | Choose an iOS-style emoji per folder, synced across clients | Fixed and validated |
 | 3 | Add a per-device sync pause/resume control for bulk local uploads | Queued |
 | 4 | Keep mobile three-dot menus fully inside the viewport | Queued |
 | 5 | Make passkey unlock available on supported web browsers too | Queued |
@@ -31,10 +31,32 @@ unrelated documentation work stays intact.
 - Delivery: restart the desktop app to load its new executable. Hosted rollout
   and a physical installed-PWA walkthrough are separate from these local checks.
 
+## 2. Per-folder emoji icons
+
+- Added 32 locally bundled Apple emoji choices to folder creation and details
+  across desktop, web and PWA, with keyboard selection and default-folder reset.
+  Library rows and breadcrumbs show the chosen icon consistently.
+- The user approved optional encrypted `folder_icon` metadata. Shared Go/TS
+  fixtures check valid values and reject URLs, invalid scalars and file icons.
+  Rename, favorites, moves and trash/restore preserve the selection; choices
+  travel through the existing encrypted revision sync.
+- Bundled artwork is pinned and credited separately from the application
+  license; see [folder icons](folder-icons.md) and [artwork notice](../ui/emoji/README.md).
+  Small PNGs are emitted as local files to work under the existing web CSP.
+- Validation: `go test -race ./...`, `go vet ./...`, desktop-module tests and
+  45 web crypto checks passed. All 41 existing desktop UI tests and the new
+  picker regression passed (the new test was rerun after fixing its selector).
+  Eight web editor/parity cases, the new cross-client/offline icon case, and
+  the desktop frontend browser picker case passed. All 32 images loaded in
+  both built frontends; keyboard/Escape and 320/390/600px layouts were checked.
+- Web production and Linux native builds passed. The final Linux build is
+  installed; restart the app to load it. Hosted rollout, a native-window
+  walkthrough and physical installed-PWA testing remain separate checks.
+- Older Go clients can drop this optional field when rewriting a folder;
+  update linked clients before editing folder icons.
+
 ## Acceptance for queued tasks
 
-2. Research a usable source and its redistribution terms before bundling the
-   requested emoji artwork. Folder icons should look consistent across clients.
 3. Pause automatic transfers on that device while keeping local imports/edits
    queued; make the paused state visible and resume explicitly. Pausing cannot
    prevent conflicts from concurrent edits on different devices.

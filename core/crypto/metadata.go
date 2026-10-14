@@ -5,7 +5,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"regexp"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -20,6 +22,25 @@ type Metadata struct {
 	ChunkCount          uint64   `json:"chunk_count"`
 	TrashedAt           int64    `json:"trashed_at,omitempty"`
 	TrashPreviousParent *string  `json:"trash_previous_parent,omitempty"`
+	FolderIcon          string   `json:"folder_icon,omitempty"`
+}
+
+var folderIconPattern = regexp.MustCompile(`^[0-9a-f]{4,6}(-[0-9a-f]{4,6}){0,7}$`)
+
+func ValidFolderIcon(icon string) bool {
+	if icon == "" {
+		return true
+	}
+	if len(icon) > 55 || !folderIconPattern.MatchString(icon) {
+		return false
+	}
+	for _, part := range strings.Split(icon, "-") {
+		value, e := strconv.ParseUint(part, 16, 32)
+		if e != nil || value == 0 || value > 0x10ffff || value >= 0xd800 && value <= 0xdfff {
+			return false
+		}
+	}
+	return true
 }
 
 func ParseID(s string) (out ID, e error) {
@@ -202,6 +223,11 @@ func ParseMetadata(b []byte) (m Metadata, e error) {
 			return m, e
 		}
 	}
+	if raw, ok := fields["folder_icon"]; ok {
+		if m.Type != "folder" || bytes.Equal(raw, []byte("null")) || json.Unmarshal(raw, &m.FolderIcon) != nil || !ValidFolderIcon(m.FolderIcon) {
+			return m, ErrInvalid
+		}
+	}
 	// Unknown fields remain encrypted and are ignored for forward compatibility.
 	return m, nil
 }
@@ -225,7 +251,8 @@ func MarshalMetadata(m Metadata) ([]byte, error) {
 			Favorite            bool     `json:"favorite"`
 			TrashedAt           int64    `json:"trashed_at,omitempty"`
 			TrashPreviousParent *string  `json:"trash_previous_parent,omitempty"`
-		}{m.Type, m.Name, m.Parent, m.Tags, m.Favorite, m.TrashedAt, m.TrashPreviousParent})
+			FolderIcon          string   `json:"folder_icon,omitempty"`
+		}{m.Type, m.Name, m.Parent, m.Tags, m.Favorite, m.TrashedAt, m.TrashPreviousParent, m.FolderIcon})
 	} else {
 		b, e = json.Marshal(m)
 	}

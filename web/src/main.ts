@@ -2,6 +2,7 @@ import '@fontsource/inter/latin-400.css';
 import '@fontsource/inter/latin-500.css';
 import './style.css';
 import { node, button, field, icon, iconButton, menu, preferences } from './ui.ts';
+import {folderImage,folderIconPicker} from './folder-icons.ts';
 import { settingsPage, type Section } from './settings.ts';
 import { showPreview, closePreviews } from './preview.ts';
 import * as c from './crypto.ts';
@@ -416,6 +417,7 @@ async function library() {
             const crumb = node('span');
             const label = h.revision.object === parent ? node('span',h.metadata.name,'breadcrumb-current') : button(h.metadata.name, () => { parent = h.revision.object; filter = ''; void library(); }, 'quiet');
             if (h.revision.object === parent) label.setAttribute('aria-current','page');
+            label.prepend(folderImage(h.metadata.folder_icon));
             crumb.append(icon('chevron',12), label); crumbs.append(crumb);
         }
     }
@@ -446,7 +448,7 @@ async function library() {
                 else if (h.metadata.type === 'file') void openDocument(h);
             }, 'document-open');
             open.setAttribute('aria-label', 'Open ' + h.metadata.name);
-            const title = node('div', undefined, 'document-title'); if (h.metadata.type === 'folder') title.append(icon('folder',18)); title.append(node('span',h.metadata.name));
+            const title = node('div', undefined, 'document-title'); if (h.metadata.type === 'folder') title.append(folderImage(h.metadata.folder_icon)); title.append(node('span',h.metadata.name));
             if (h.conflict) title.append(node('span','Conflict copy · ' + h.revision.id.slice(0,6),'conflict'));
             const meta = node('div', undefined, 'document-meta'), tags = h.metadata.tags.filter(t => !t.startsWith('klefki:system:'));
             meta.append(node('span',tags.join(' · ') || (h.metadata.type === 'folder' ? 'Folder' : h.metadata.name.split('.').pop()?.toUpperCase())));
@@ -557,12 +559,13 @@ function confirmDeletion(revision:string) {
 }
 function folderDialog() {
     const dialog = node('dialog',undefined,'modal'), input = field('Folder name'); input.input.required = true; input.input.maxLength = 255;
-    const form = node('form'); form.append(input.wrap);
+    let folderIcon='';
+    const form = node('form'); form.append(input.wrap,folderIconPicker(folderIcon,value=>{folderIcon=value}));
     const create = node('button','Create folder','primary'); create.type = 'submit';
     const actions = node('div',undefined,'form-actions'); actions.append(button('Cancel',() => dialog.close(),'quiet'),create); form.append(actions);
     form.onsubmit = event => {
         event.preventDefault(); const name = input.input.value.trim(); if (!name || /[\x00/\\]/.test(name)) return;
-        dialog.close(); dialog.remove(); void operation(async (key,g) => { await store!.put(key,{type:'folder',name,parent:view === 'Folders' ? parent : null,tags:tag ? [tag] : [],favorite:false}); if (g === generation) await refresh(); });
+        dialog.close(); dialog.remove(); void operation(async (key,g) => { await store!.put(key,{type:'folder',name,parent:view === 'Folders' ? parent : null,tags:tag ? [tag] : [],favorite:false,folder_icon:folderIcon}); if (g === generation) await refresh(); });
     };
     dialog.append(node('h2','A new folder'),form); dialog.onclose = () => dialog.remove(); app.append(dialog); dialog.showModal();
 }
@@ -578,6 +581,8 @@ function editDialog(h: Head) {
     }
     destination.value = h.metadata.parent || ''; folderLabel.append(destination);
     d.append(node('h2', 'Document details'), name.wrap, tags.wrap, folderLabel, favorite.wrap);
+    let folderIcon=h.metadata.folder_icon||'';
+    if(h.metadata.type==='folder') name.wrap.after(folderIconPicker(folderIcon,value=>{folderIcon=value}));
     let text: HTMLTextAreaElement | undefined;
     if (h.metadata.type === 'file' && /\.(txt|md|csv|json)$/i.test(h.metadata.name) && h.metadata.size! <= 1048576) {
         d.append(button('Edit text content', () => void operation(async (key, g) => { const b = await store!.export(key, h.revision); try {
@@ -597,7 +602,7 @@ function editDialog(h: Head) {
         if (!n.trim() || n.length > 255 || /[\x00/\\]/.test(n) || t.some(x => x.startsWith('klefki:system:')))
             return;
         if (!validParent(h.revision.object,destination.value || null)) return;
-        const edit = { name: n.trim(), parent: destination.value || null, tags: Array.from(new Set(t)), favorite: favorite.input.checked }, content = text?.value;
+        const edit = { name: n.trim(), parent: destination.value || null, tags: Array.from(new Set(t)), favorite: favorite.input.checked,...(h.metadata.type==='folder'?{folder_icon:folderIcon}:{}) }, content = text?.value;
         d.close();
         d.remove();
         void operation(async (key, g) => { if (content !== undefined) {

@@ -176,6 +176,10 @@ func (a *App) Folder(name string, parent *string) (string, error) {
 	v, e := a.service.Folder(name, parent)
 	return v, safe(e)
 }
+func (a *App) FolderWithIcon(name string, parent *string, icon string) (string, error) {
+	v, e := a.service.FolderWithIcon(name, parent, icon)
+	return v, safe(e)
+}
 func (a *App) Trash(revision string) (string, error) {
 	v, e := a.service.Trash(revision)
 	return v, safe(e)

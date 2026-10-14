@@ -1,4 +1,5 @@
 @import '../../ui/style.css';
+@import '../../ui/folder-icons.css';
 
 html,body{min-width:320px}button,input,textarea,select{font:inherit}[hidden]{display:none!important}
 .status{font-size:13px;line-height:1.8;color:var(--muted);margin:0;padding:10px 0;overflow-wrap:anywhere}.status:empty{display:none}

@@ -181,11 +181,12 @@ export class Store {
         await this.commit(r, chunks, file, true);
         return r;
     }
-    async edit(master: Uint8Array, base: Revision, edit: Pick<c.Metadata, 'name' | 'parent' | 'tags' | 'favorite' | 'trashed_at' | 'trash_previous_parent'>) {
+    async edit(master: Uint8Array, base: Revision, edit: Pick<c.Metadata, 'name' | 'parent' | 'tags' | 'favorite' | 'trashed_at' | 'trash_previous_parent' | 'folder_icon'>) {
         if(edit.parent)c.check(!await this.transaction(['deletions'],'readonly',tx=>req(tx.objectStore('deletions').get(edit.parent!))));
         const { metadata, key } = unlockRevision(master, this.account.account, base);
         if (key)
             c.wipe(key);
+        if (edit.folder_icon !== undefined) c.check(metadata.type === 'folder' && c.validFolderIcon(edit.folder_icon));
         const r: Revision = { ...base, id: c.id(), base: base.id, metadata: c.base64(c.encryptMetadata(master, this.account.account, base.object, { ...metadata, ...edit })) };
         await this.commit(r, [], undefined, true);
         return r;

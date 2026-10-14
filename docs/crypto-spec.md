@@ -158,6 +158,18 @@ preserve them through metadata edits and clear them on restore. These fields
 use the existing metadata envelope and key hierarchy; no v1 byte layout changes.
 See [trash retention and deletion](trash.md) for lifecycle and compatibility.
 
+The folder icon extension (approved 2026-10-14) adds optional `folder_icon` to
+folder metadata only. It is a lowercase Unicode image identifier with one to
+eight components of four to six hex digits separated by hyphens. Each component
+must be a nonzero Unicode scalar value through U+10FFFF, excluding surrogates.
+Empty/absent selects the default artwork; writers omit empty values. `null`,
+non-string values, and this field on files are rejected. The identifier is never
+a URL or path. Unknown valid identifiers display default artwork while retaining
+the stored value. An omitted icon in an edit preserves the existing selection;
+an explicit empty string resets it. No envelope, key or server format changes.
+Older clients ignore this field but may drop it when rewriting folder metadata.
+See [folder icons](folder-icons.md) for UI and compatibility details.
+
 The file-key wrapper belongs to the revision selected with that metadata. Its
 expected file ID comes from decrypted metadata. Metadata and the wrapped file key
 must be stored/updated atomically as one revision in later sync work; the server

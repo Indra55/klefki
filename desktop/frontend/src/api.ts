@@ -3,8 +3,8 @@ export type Preferences = {theme:'dark'|'light'|'system';idleMinutes:number;dens
 export type FingerprintState={supported:boolean;available:boolean;enabled:boolean;reason:string};
 export type State = {config:{accountPath:string;storePath:string;server:string;preferences:Preferences};unlocked:boolean;generation:number;accountID:string;recoveryOnly:boolean;sync:string;pending:number;lastSync:string;syncMode?:'persistent'|'temporary-relay';syncDevices?:string[];syncDevice?:string;syncInfo?:SyncInfo;deviceAliases?:Record<string,string>;semantic?:SemanticPreferences;fingerprint?:FingerprintState};
 export type DeletionPreview = {revision:string;count:number;targets:{object:string;folder:boolean;files:string[];heads?:string[]}[]};
-export type Item = {object:string;revision:string;name:string;type:'file'|'folder';parent:string|null;tags:string[];favorite:boolean;size:number;conflict:boolean;trashed:boolean;trashRoot:boolean;deleteAt?:number;category?:string};
-export type Edit = Pick<Item,'name'|'parent'|'tags'|'favorite'>;
+export type Item = {object:string;revision:string;name:string;type:'file'|'folder';parent:string|null;tags:string[];favorite:boolean;size:number;conflict:boolean;trashed:boolean;trashRoot:boolean;deleteAt?:number;category?:string;folder_icon?:string};
+export type Edit = Pick<Item,'name'|'parent'|'tags'|'favorite'|'folder_icon'>;
 export type KlefkiEvent = {generation:number;kind:string;operation?:string;name?:string;done?:number;total?:number;error?:string;durationMs?:number;syncInfo?:SyncInfo};
 export type PreviewInfo = {url:string;mime:string;generation:number};
 export type Field={kind:"date"|"amount";raw:string;value:string;currency?:string;evidence:string};
@@ -20,7 +20,7 @@ export interface API {
  State():Promise<State>; FingerprintStatus():Promise<FingerprintState>; EnableFingerprint():Promise<void>;DisableFingerprint():Promise<void>;UnlockFingerprint():Promise<void>;CancelFingerprint():Promise<void>; Unlock(secret:string,recovery:boolean):Promise<void>; Lock():Promise<void>; Touch():Promise<void>;
  SetPreferences(p:Preferences):Promise<void>;Create(password:string):Promise<void>;OpenExisting(copy:boolean):Promise<void>;
  Search(query:string):Promise<{generation:number;mode?:string;availability?:string;hits:{object:string;revision:string;name:string;score:number}[]}>;RebuildIndex():Promise<string>;
- List():Promise<{generation:number;items:Item[]}>;Edit(revision:string,edit:Edit):Promise<string>;Folder(name:string,parent:string|null):Promise<string>;
+ List():Promise<{generation:number;items:Item[]}>;Edit(revision:string,edit:Edit):Promise<string>;Folder(name:string,parent:string|null):Promise<string>;FolderWithIcon(name:string,parent:string|null,icon:string):Promise<string>;
  PreviewDeletion(revision:string):Promise<DeletionPreview>;DeletePermanently(preview:DeletionPreview):Promise<void>;
  Trash(revision:string):Promise<string>;Restore(revision:string):Promise<{revision:string;atRoot:boolean}>;
  AddFiles(parent:string|null,tags:string[]):Promise<string>;ImportDropped(paths:string[],parent:string|null,tags:string[]):Promise<string>;

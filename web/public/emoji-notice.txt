@@ -1,0 +1,11 @@
+Apple emoji artwork: Copyright Apple Inc.
+
+The 32 folder-icon PNGs are from iamcal/emoji-data revision
+13ee711e222ea17fe537bfea953c687866f16411 (img-apple-64).
+Source: https://github.com/iamcal/emoji-data/tree/13ee711e222ea17fe537bfea953c687866f16411/img-apple-64
+Image-rights notice: https://github.com/iamcal/emoji-data/blob/13ee711e222ea17fe537bfea953c687866f16411/README.md#image-sources
+
+The source README states that Apple images are not licensed for commercial
+usage. These images are not covered by Klefki's AGPL license or by the
+emoji-data repository's MIT code/data license. Bundling does not grant
+additional rights to Apple artwork.

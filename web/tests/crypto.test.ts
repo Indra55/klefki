@@ -169,6 +169,14 @@ test('encrypted trash metadata roundtrip and validation',()=>{
  for(const type of ['file','folder'] as const){const m:c.Metadata={type,name:'private trash name',parent:null,tags:[],favorite:false,trashed_at:1791849600000,trash_previous_parent:'2122232425262728292a2b2c2d2e2f30',...(type==='file'?{file_id:'3132333435363738393a3b3c3d3e3f40',size:0,chunk_count:1}:{})};const data=c.encryptMetadata(key,account,object,m);assert.deepEqual(c.decryptMetadata(key,account,object,data),m);assert.equal(Buffer.from(data).includes(Buffer.from('1791849600000')),false);}
  for(const at of [-1,9007199254740992,null,1.5])assert.throws(()=>c.metadata(c.utf8(JSON.stringify({type:'folder',name:'Trash',parent:null,tags:[],favorite:false,trashed_at:at}))));
 });
+test('folder icon metadata uses shared valid and invalid fixtures',()=>{
+ const cases=JSON.parse(readFileSync(new URL('../../testvectors/folder-icons.json',import.meta.url),'utf8'));
+ const folder:c.Metadata={type:'folder',name:'public folder',parent:null,tags:[],favorite:false};
+ const key=new Uint8Array(32),account='0102030405060708090a0b0c0d0e0f10',object='1112131415161718191a1b1c1d1e1f20';
+ for(const folder_icon of cases.valid){const m={...folder,folder_icon};const data=c.encryptMetadata(key,account,object,m);assert.equal(c.decryptMetadata(key,account,object,data).folder_icon,folder_icon||undefined);if(folder_icon)assert.equal(Buffer.from(data).includes(Buffer.from(folder_icon)),false);}
+ for(const folder_icon of cases.invalid)assert.throws(()=>c.metadata(c.utf8(JSON.stringify({...folder,folder_icon}))));
+ assert.throws(()=>c.metadata(c.utf8(JSON.stringify({...folder,type:'file',file_id:object,size:0,chunk_count:1,folder_icon:''}))));
+});
 let failed = 0;
 for (const t of cases) {
     try {
