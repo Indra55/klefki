@@ -14,6 +14,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -25,6 +26,9 @@ import (
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+//go:embed build/appicon.png
+var appIcon []byte
 
 type App struct {
 	ctx          context.Context
@@ -296,7 +300,7 @@ func main() {
 	app.service.SetFingerprintProvider(newFingerprintProvider())
 	defer app.service.Close()
 	files, _ := fs.Sub(assets, "frontend/dist")
-	e = wails.Run(&options.App{Title: "Klefki", Width: 1200, Height: 820, MinWidth: 800, MinHeight: 600, BackgroundColour: &options.RGBA{R: 17, G: 18, B: 20, A: 255}, AssetServer: &assetserver.Options{Assets: files, Handler: http.HandlerFunc(app.serveHTTP)}, OnStartup: app.startup, OnShutdown: func(context.Context) { app.Lock() }, Bind: []interface{}{app}, SingleInstanceLock: &options.SingleInstanceLock{UniqueId: "klefki-desktop-v1"}, DragAndDrop: &options.DragAndDrop{EnableFileDrop: true, DisableWebViewDrop: true}, Windows: &windows.Options{OnSuspend: app.Lock}, ErrorFormatter: func(err error) any { return err.Error() }})
+	e = wails.Run(&options.App{Title: "Klefki", Width: 1200, Height: 820, MinWidth: 800, MinHeight: 600, BackgroundColour: &options.RGBA{R: 17, G: 18, B: 20, A: 255}, AssetServer: &assetserver.Options{Assets: files, Handler: http.HandlerFunc(app.serveHTTP)}, OnStartup: app.startup, OnShutdown: func(context.Context) { app.Lock() }, Bind: []interface{}{app}, SingleInstanceLock: &options.SingleInstanceLock{UniqueId: "klefki-desktop-v1"}, DragAndDrop: &options.DragAndDrop{EnableFileDrop: true, DisableWebViewDrop: true}, Linux: &linux.Options{Icon: appIcon}, Windows: &windows.Options{OnSuspend: app.Lock}, ErrorFormatter: func(err error) any { return err.Error() }})
 	if e != nil {
 		os.Exit(1)
 	}
