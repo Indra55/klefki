@@ -14,7 +14,8 @@ type Edit struct {
 }
 type Revision struct {
 	Head
-	Base string
+	Base           string
+	ContentMissing bool
 }
 
 func (s *Store) Revision(master vc.Key, id string) (Revision, error) {
@@ -91,6 +92,9 @@ func (s *Store) Edit(master vc.Key, base string, edit Edit) (string, error) {
 		return "", e
 	}
 	if _, e = tx.Exec(`INSERT INTO revisions(id,object,base,metadata,file_key,pending) VALUES(?,?,?,?,?,1)`, id.String(), r.Object, base, data, r.FileKey); e != nil {
+		return "", ErrStore
+	}
+	if _, e = tx.Exec(`INSERT OR IGNORE INTO deferred_content(revision,wanted,trash) SELECT ?,wanted,trash FROM deferred_content WHERE revision=?`, id.String(), base); e != nil {
 		return "", ErrStore
 	}
 	if tx.Commit() != nil {

@@ -118,6 +118,13 @@ func (s *Service) freshDownload(remote *vs.Remote) error {
 			return err
 		}
 		defer copy.Close()
+		policy, err := x.store.TrashPolicy()
+		if err != nil {
+			return err
+		}
+		if err = copy.SetTrashOverride(policy.Override); err != nil {
+			return err
+		}
 		client := vs.Client{Store: copy, Remote: remote, Session: auth, Master: x.master, Observe: func(p syncwire.Progress) { s.observeSync(x, p) }}
 		defer vc.Wipe(client.Master[:])
 		if err = client.Sync(x.ctx); err != nil {

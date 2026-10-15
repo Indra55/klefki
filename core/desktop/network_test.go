@@ -18,7 +18,7 @@ import (
 type stalledTransport struct{ started chan struct{} }
 
 func (r stalledTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if req.URL.Path == "/v1/sync/deletions" {
+	if req.URL.Path == "/v1/sync/settings" {
 		close(r.started)
 	}
 	<-req.Context().Done()

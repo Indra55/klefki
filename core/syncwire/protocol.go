@@ -16,6 +16,7 @@ type Change struct {
 	Revision Revision `json:"revision"`
 }
 type Page struct {
+	Latest  int64    `json:"latest,omitempty"`
 	Changes []Change `json:"changes"`
 }
 type Cursor struct {
@@ -26,11 +27,31 @@ const Persistent = "persistent"
 const TemporaryRelay = "temporary-relay"
 
 type SyncSettings struct {
-	Mode              string `json:"mode"`
-	Epoch             string `json:"epoch"`
-	Queued            int    `json:"queued"`
-	DeletionSupported bool   `json:"deletion_supported,omitempty"`
-	DeletionSequence  int64  `json:"deletion_sequence,omitempty"`
+	Mode               string `json:"mode"`
+	Epoch              string `json:"epoch"`
+	Queued             int    `json:"queued"`
+	DeletionSupported  bool   `json:"deletion_supported,omitempty"`
+	DeletionSequence   int64  `json:"deletion_sequence,omitempty"`
+	SelectiveContent   bool   `json:"selective_content,omitempty"`
+	TrashDefault       bool   `json:"trash_default,omitempty"`
+	TrashPolicyVersion int64  `json:"trash_policy_version,omitempty"`
+	ContentVersion     int64  `json:"content_version,omitempty"`
+}
+
+type ContentBatch struct {
+	IDs []string `json:"ids"`
+}
+type ContentAction struct {
+	IDs    []string `json:"ids"`
+	Action string   `json:"action"`
+}
+type ContentState struct {
+	ID        string `json:"id"`
+	Available bool   `json:"available"`
+	Requested bool   `json:"requested"`
+}
+type ContentStates struct {
+	States []ContentState `json:"states"`
 }
 type RelayDevice struct {
 	Device   string   `json:"device"`

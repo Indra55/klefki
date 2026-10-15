@@ -20,6 +20,14 @@ removes document chunks when no undelivered revision or active upload needs them
 The first device alone never triggers cleanup. Local copies and revision history
 remain on your devices until [permanent deletion](trash.md).
 
+Trash file sync is optional and off by default, with a vault default and device
+overrides. Metadata acknowledgements and file-content receipts are separate.
+Clients register requested contents before advancing their delivery cursor;
+cleanup retains those files until authenticated local saves are acknowledged.
+Excluded Trash does not hold up active documents or count as a saved file copy.
+Enabling later may require an existing device to reconnect and supply contents
+again. See [Trash sync and recovery](trash.md#optional-trash-file-sync).
+
 Devices do not need simultaneous uptime: the source uploads first, and the
 receiver can save its copy later while the source is closed. If the source has
 not finished uploading, another device can show **reported changes waiting to

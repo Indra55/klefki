@@ -11,6 +11,44 @@ search. Both actions confirm the count and remove folder contents, historical
 versions, and conflict copies. Permanent deletion cannot be undone in Klefki.
 Automatic cleanup skips unresolved conflicts, including conflicted ancestors.
 
+## Optional Trash file sync
+
+Open **Settings → Sync & devices → Trash sync** on desktop or web/PWA.
+
+| Setting | Choices | Default |
+| --- | --- | --- |
+| Sync Trash for this vault | On / Off | Off |
+| Sync Trash on this device | Follow vault / On / Off | Follow vault |
+
+A device override wins over the vault default. The effective setting appears
+below the controls. The device setting belongs to its local vault store and
+survives restart. Changing the vault default reaches other devices when they
+next contact the server.
+
+When off, automatic uploads and downloads omit Trash file contents, including
+files inside trashed folders and older revisions of currently trashed objects.
+Listings, icons, removal updates, retention dates, and permanent deletions still
+sync. Moving an existing document to Trash removes it from other devices' active
+libraries. Turning off keeps existing copies; normal retention, permanent
+deletion, and temporary-relay cleanup still apply.
+
+When on, active documents finish before Trash contents transfer. New active work
+interrupts the remaining Trash queue between files. A device setting change can
+stop an ongoing Trash transfer after its current bounded chunk window; enabling
+again resumes through the ordinary authenticated sync path.
+
+Trash listings without local contents show **Not stored on this device**.
+Preview and Export ask you to enable Trash sync. **Restore** explicitly requests
+missing contents regardless of the receiving device's background setting, and
+reports success only after the required files have been authenticated and saved.
+Folder restores fetch their missing descendants first. An unavailable source
+leaves the item in Trash with a retryable recovery request. Reconnect a device
+that retains the file and enable Trash sync there, or restore it on that device.
+This does not guarantee a recoverable copy exists elsewhere.
+
+CLI equivalents are `sync --trash-sync follow-vault|on|off` for the persistent
+device override and `sync --vault-trash-sync on|off` for the vault default.
+
 Cleanup runs on unlock and periodically while a client is unlocked. Connected
 vaults require a successful sync before automatic deletion. Offline manual
 deletion removes the local copies and queues deletion for the next sync. Closed
@@ -44,6 +82,12 @@ cleanup remains disabled. After the first deletion reaches the server, that
 account requires deletion-aware clients for sync. This applies in persistent and
 temporary-relay modes. Already downloaded copies on old clients cannot be erased
 remotely; those clients must update and reconnect.
+
+Selective content delivery also requires an updated server. The first selective
+sync activates a capability gate for that account; older clients receive HTTP
+428 and must update. A new client refuses unsupported servers rather than
+silently transferring excluded contents. Encryption envelopes, keys, and the
+encrypted metadata format are unchanged.
 
 New encrypted backups preserve deletion records. An older backup reconnecting
 to a surviving server ledger applies deletion before uploading its history.
@@ -95,3 +139,16 @@ See the focused deletion tests in `core/sync/deletions_test.go`, desktop UI test
 and Go/browser deletion cases in `web/e2e/klefki.spec.ts`. These use synthetic
 fixtures. Hosted deployment, native-window interaction, and an installed mobile
 PWA require separate acceptance.
+
+## Implementation validation
+
+Synthetic acceptance passed the complete Go test suite, targeted race checks for
+selective sync/deletion/corrupt downloads, 62 browser E2E tests, 49 desktop UI
+tests, 45 browser crypto checks, both frontend builds, and the Linux executable
+build. Three optional model E2E tests were skipped. A complete Go race run hit
+its four-minute limit during an Argon2 fixture; only the targeted race run is
+counted as passing. Coverage includes default-off transfers, overrides,
+multi-page history, inherited Trash membership, active conflicts, work arriving
+during Trash uploads, interrupted metadata publication, restart/backup recovery,
+relay reseeding, and deletion fences. Hosted rollout and physical-device
+acceptance have not been performed for this change.

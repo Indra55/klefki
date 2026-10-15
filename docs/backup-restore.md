@@ -107,6 +107,14 @@ or that another device has no unsynced work. Only the account wrapper used for
 unlock is authenticated; periodically test recovery-code restoration separately.
 
 The browser's IndexedDB store cannot be supplied directly to these commands.
+
+Selective sync can leave deliberately deferred file contents in a local store.
+Encrypted backups preserve their encrypted metadata, availability markers,
+device override, and recovery requests. Integrity checks authenticate every
+stored chunk and report the number of revisions whose contents were deferred;
+they do not describe such a backup as containing every file. Plaintext export
+omits deferred contents and identifies them in its manifest. Restored stores
+can request them again, provided a server or another device still retains them.
 Sync web changes to a desktop/CLI store before backing them up. M6 supplies CLI
 operations; desktop/web backup buttons are not included.
 

@@ -21,7 +21,7 @@ const syncHelp = `klefki register [--klefki PATH] [--password-file PATH] --serve
 klefki add [--klefki PATH] [--password-file PATH] [--store PATH] [--object ID --base REVISION] FILE
 klefki list [--klefki PATH] [--password-file PATH] [--store PATH]
 klefki export [--klefki PATH] [--password-file PATH] [--store PATH] -o PATH REVISION
-klefki sync [--klefki PATH] [--password-file PATH] [--store PATH] --server URL [--sync-mode persistent|temporary-relay] [--forget-device ID] [--dev-http]
+klefki sync [--klefki PATH] [--password-file PATH] [--store PATH] --server URL [--sync-mode persistent|temporary-relay] [--forget-device ID] [--trash-sync follow-vault|on|off] [--vault-trash-sync on|off] [--dev-http]
 Sync flags must precede positional arguments. HTTP requires explicit loopback development mode.`
 
 func runSync(args []string, out io.Writer) error {
@@ -32,6 +32,7 @@ func runSync(args []string, out io.Writer) error {
 	passwordPath := f.String("password-file", "", "")
 	var storePath, serverURL, object, base, dest string
 	var dev bool
+	trashOverride, trashDefault := "", ""
 	mode := ""
 	forget := ""
 	if command != "register" {
@@ -43,6 +44,8 @@ func runSync(args []string, out io.Writer) error {
 	}
 	if command == "sync" {
 		f.StringVar(&mode, "sync-mode", "", "")
+		f.StringVar(&trashOverride, "trash-sync", "", "")
+		f.StringVar(&trashDefault, "vault-trash-sync", "", "")
 		f.StringVar(&forget, "forget-device", "", "")
 	}
 	if command == "add" {
@@ -53,6 +56,12 @@ func runSync(args []string, out io.Writer) error {
 		f.StringVar(&dest, "o", "", "")
 	}
 	if f.Parse(args[1:]) != nil {
+		return errUsage
+	}
+	if trashOverride != "" && trashOverride != "follow-vault" && trashOverride != "on" && trashOverride != "off" {
+		return errUsage
+	}
+	if trashDefault != "" && trashDefault != "on" && trashDefault != "off" {
 		return errUsage
 	}
 	if mode != "" && mode != syncwire.Persistent && mode != syncwire.TemporaryRelay {
@@ -155,11 +164,11 @@ func runSync(args []string, out io.Writer) error {
 		_, e = fmt.Fprintln(out, "Revision exported.")
 		return e
 	case "sync":
-		return networkSync(store, serverURL, dev, account, master, password, false, mode, forget, out)
+		return networkSync(store, serverURL, dev, account, master, password, false, mode, forget, out, trashOverride, trashDefault)
 	}
 	return errUsage
 }
-func networkSync(store *vs.Store, address string, dev bool, account vc.Account, master vc.Key, password []byte, register bool, mode, forget string, out io.Writer) error {
+func networkSync(store *vs.Store, address string, dev bool, account vc.Account, master vc.Key, password []byte, register bool, mode, forget string, out io.Writer, trashOptions ...string) error {
 	defer vc.Wipe(master[:])
 	remote, e := vs.NewRemote(address, nil, dev)
 	if e != nil {
@@ -207,6 +216,16 @@ func networkSync(store *vs.Store, address string, dev bool, account vc.Account, 
 	}
 	if mode != "" {
 		if e = client.SetMode(ctx, mode); e != nil {
+			return e
+		}
+	}
+	if len(trashOptions) > 0 && trashOptions[0] != "" {
+		if e = store.SetTrashOverride(trashOptions[0]); e != nil {
+			return e
+		}
+	}
+	if len(trashOptions) > 1 && trashOptions[1] != "" {
+		if e = client.SetTrashDefault(ctx, trashOptions[1] == "on"); e != nil {
 			return e
 		}
 	}

@@ -89,24 +89,44 @@ rewrite the old metadata table.
 
 ## Push, pull, retry and restart
 
-1. Pending edits are pushed in local insertion order, so a queued base precedes
-   its children. The client verifies local file integrity before uploading.
-2. It pages through the server's chunk inventory and uploads only missing chunks.
-   Retries use the exact stored ciphertext. M2's exclusive publication makes an
-   identical retry safe, including after a lost HTTP response or server restart.
-3. Only after all chunks are accepted does it publish the immutable revision.
-   The server transaction assigns one log sequence. Repeating a lost commit
-   response returns that same sequence. Only then is the local pending flag cleared.
-4. Pull starts from the **local** durable cursor, never from the server's device
-   acknowledgement. For each event the client authenticates metadata, its file
-   key wrapper, and every chunk's account/file/index/final flag/length. Missing,
-   truncated or modified chunks fail the pull.
-5. Complete ciphertext, the revision and the new local cursor commit in one
-   transaction. A failed import leaves no partial visible revision and does not
-   move the cursor. Earlier successfully imported revisions remain durable.
-6. Device acknowledgement follows that local commit. Lost acknowledgements can
-   be retried or sent on the next sync. A freshly created local store starts at
-   zero even if the supplied session already has a later server acknowledgement.
+1. Authenticate permanent-deletion records before ordinary history replay.
+2. Negotiate `X-Klefki-Content: 1`, register the stable local device, and activate
+   selective delivery. The server advertises `selective_content`, the vault
+   `trash_default`, its `trash_policy_version`, and a per-device `content_version`
+   notification. Unsupported servers require an update; activated accounts reject
+   older clients with HTTP 428.
+3. Publish encrypted revision metadata in insertion order so bases precede their
+   children. Metadata publication does not claim file-content delivery. Read
+   metadata through the first page's captured `latest` sequence, using `through`
+   on subsequent pages. Authenticate envelopes and persist each revision, its
+   metadata cursor, availability marker, and receipt sequence atomically.
+4. Classify current heads and folder ancestry before selecting file contents.
+   Active branches keep required content eligible even when another conflict
+   branch is trashed. Off excludes all history of fully trashed objects. The
+   vault default is off; each store can follow it or override it on/off.
+5. Register requested file contents before advancing delivery receipts. Verify
+   local contents before upload, inventory remote chunks, and reuse immutable
+   ciphertext on retries. Download through bounded four-chunk windows and
+   authenticate account/file/index/final flag/length before committing contents.
+   Incomplete active documents remain hidden; deferred Trash listings are visible.
+6. Finish active transfers before optional Trash transfers. Recheck new work
+   between Trash files and policy changes between chunk windows. Explicit Restore
+   requests can fetch deferred contents without changing background preferences.
+7. Acknowledge authenticated, durable file saves separately from metadata. Advance
+   the ordinary delivery cursor only through durably received or deliberately
+   excluded revisions. Corrupt or interrupted contents never receive a delivery
+   acknowledgement. Temporary-relay cleanup also checks outstanding content
+   requests, so a metadata acknowledgement cannot discard a requested file.
+
+`PUT /v1/sync/trash-policy` accepts `{enabled:boolean}` independently of storage
+mode. `POST /v1/sync/content/activate` enables the account capability gate.
+`POST /v1/sync/content/state` accepts up to 256 revision IDs and reports each ID's
+server availability and transfer demand. `POST /v1/sync/content` accepts the same
+bounded IDs plus an action: `request`, `received`, `available`, or `release`.
+These authenticated operations carry opaque IDs only. `available` follows a
+verified upload; `received` follows a verified local save. Notifications wake
+other devices for requests/availability without treating a device's own receipts
+as new incoming work. Excluded contents are not reported as pending transfers.
 
 Each sync request retries network failures, HTTP 408, 429 and 5xx up to four
 attempts by default, with exponential delays starting at 250 ms and capped at
@@ -118,7 +138,7 @@ settings are configurable in `Client.Retry`; attempts are capped at ten.
 After exhaustion, durable pending work remains for the next `Sync` call. There
 is no background daemon or filesystem watcher. The current CLI runs one sync
 pass on demand. Successful upload plus failed pull still preserves the local
-revision; the log is replayed next time. Downloads commit at revision granularity:
+revision; unfinished content tasks are retried next time. Downloads commit at revision granularity:
 a failed multi-chunk download retries that revision, while uploaded chunks resume
 individually. The client bounds response sizes, rejects redirects (including
 same-origin redirects), and uses normal certificate validation.

@@ -11,20 +11,21 @@ import (
 )
 
 type Item struct {
-	Object     string   `json:"object"`
-	Revision   string   `json:"revision"`
-	Name       string   `json:"name"`
-	Type       string   `json:"type"`
-	Parent     *string  `json:"parent"`
-	Tags       []string `json:"tags"`
-	Favorite   bool     `json:"favorite"`
-	Size       uint64   `json:"size"`
-	Conflict   bool     `json:"conflict"`
-	Trashed    bool     `json:"trashed"`
-	TrashRoot  bool     `json:"trashRoot"`
-	Category   string   `json:"category"`
-	DeleteAt   int64    `json:"deleteAt"`
-	FolderIcon string   `json:"folder_icon,omitempty"`
+	Object         string   `json:"object"`
+	Revision       string   `json:"revision"`
+	Name           string   `json:"name"`
+	Type           string   `json:"type"`
+	Parent         *string  `json:"parent"`
+	Tags           []string `json:"tags"`
+	Favorite       bool     `json:"favorite"`
+	Size           uint64   `json:"size"`
+	Conflict       bool     `json:"conflict"`
+	Trashed        bool     `json:"trashed"`
+	TrashRoot      bool     `json:"trashRoot"`
+	Category       string   `json:"category"`
+	DeleteAt       int64    `json:"deleteAt"`
+	FolderIcon     string   `json:"folder_icon,omitempty"`
+	ContentMissing bool     `json:"contentMissing,omitempty"`
 }
 type Library struct {
 	Generation uint64 `json:"generation"`
@@ -72,7 +73,7 @@ func items(heads []vs.Head) []Item {
 				return at + vs.TrashRetention.Milliseconds()
 			}
 			return 0
-		}(), m.FolderIcon})
+		}(), m.FolderIcon, false})
 	}
 	return out
 }
@@ -83,6 +84,13 @@ func (s *Service) List() (out Library, e error) {
 			return e
 		}
 		list := items(h)
+		for i := range list {
+			available, err := x.store.ContentAvailable(x.master, list[i].Revision)
+			if err != nil {
+				return err
+			}
+			list[i].ContentMissing = !available
+		}
 		if s.semanticPreferences(x).Enabled {
 			cs, e := search.Corrections(x.ctx, x.store, x.master, h)
 			if e != nil {
@@ -318,6 +326,33 @@ func (s *Service) Restore(revision string) (out Restored, e error) {
 		}
 		if !found {
 			return ErrInvalid
+		}
+		selected := map[string]bool{r.Object: true}
+		for changed := true; changed; {
+			changed = false
+			for _, head := range h {
+				if head.Metadata.Parent != nil && selected[*head.Metadata.Parent] && !selected[head.Object] {
+					selected[head.Object] = true
+					changed = true
+				}
+			}
+		}
+		for _, head := range h {
+			if selected[head.Object] && head.Metadata.Type == "file" {
+				available, err := x.store.ContentAvailable(x.master, head.Revision)
+				if err != nil {
+					return err
+				}
+				if !available {
+					c, err := s.contentClient(x)
+					if err != nil {
+						return err
+					}
+					if err = c.EnsureContent(x.ctx, head.Revision); err != nil {
+						return err
+					}
+				}
+			}
 		}
 		m := r.Metadata
 		var parent *string

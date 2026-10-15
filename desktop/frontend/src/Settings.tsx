@@ -163,11 +163,22 @@ export function Settings({ state, section, onSectionChange, scan, onScanStart, o
             </div>}
           </section>
           <section className="settings-section">
+            <h3>Trash sync</h3>
+            <p className="muted small">Active documents sync first. Trash listings and removal updates always sync. Turning this off keeps existing copies.</p>
+            <div className="preference-row"><div><label htmlFor="trash-vault">Sync Trash for this vault</label><p>Default for linked devices. Each device can override it.</p></div>
+              <select id="trash-vault" value={String(state.trashPolicy?.default||false)} disabled={busy||state.recoveryOnly||!state.config.server} onChange={e=>{const enabled=e.target.value==='true';setBusy(true);setError('');void api().SetTrashDefault(enabled).then(onRefresh).catch(e=>setError(errorMessage(e))).finally(()=>setBusy(false));}}><option value="false">Off</option><option value="true">On</option></select>
+            </div>
+            <div className="preference-row"><div><label htmlFor="trash-device">Sync Trash on this device</label><p>Uploads and downloads of Trash file contents.</p></div>
+              <select id="trash-device" value={state.trashPolicy?.override||'follow-vault'} disabled={busy} onChange={e=>{const value=e.target.value as 'follow-vault'|'on'|'off';setBusy(true);setError('');void api().SetTrashOverride(value).then(onRefresh).catch(e=>setError(errorMessage(e))).finally(()=>setBusy(false));}}><option value="follow-vault">Follow vault</option><option value="on">On</option><option value="off">Off</option></select>
+            </div>
+            <p className="settings-hint">Trash file sync is {state.trashPolicy?.effective?'on':'off'} on this device. Restore can fetch a missing file when a source is available.</p>
+          </section>
+          <section className="settings-section">
             <h3>Server storage</h3>
             <div className="preference-row"><div><label htmlFor="sync-mode">Sync mode</label><p>Shared by every device linked to this account.</p></div>
               <select id="sync-mode" value={syncMode} disabled={busy || state.recoveryOnly} onChange={e=>setSyncMode(e.target.value as typeof syncMode)}><option value="persistent">Persistent storage</option><option value="temporary-relay">Temporary relay</option></select>
             </div>
-            <p className="muted small">{syncMode==='temporary-relay'?'The server removes delivered documents after every linked device has saved them, with at least two devices required. Offline devices keep deliveries queued. Keep a local backup. New devices need an existing device to reconnect.':'Keep encrypted documents on the server so devices can download them later.'}</p>
+            <p className="muted small">{syncMode==='temporary-relay'?'The server removes deliveries after linked devices save the contents they need, with at least two devices required. Devices can exclude Trash contents. Keep a local backup. New devices need an existing device to reconnect.':'Keep encrypted documents on the server so devices can download them later.'}</p>
             {syncMode==='temporary-relay' && <p className="muted small">Free hosts can erase queued deliveries on restart. Existing devices retain their copies and supply them again when they reconnect.</p>}
             <button className="secondary" disabled={busy || state.recoveryOnly || !state.config.server || syncMode===(state.syncMode || 'persistent')} onClick={()=>void(async()=>{setBusy(true);setError('');setMessage('');try{await api().SetSyncMode(syncMode);await onRefresh();setMessage('Sync mode updated for this account.');}catch(e){setError(errorMessage(e));}finally{setBusy(false);}})()}>Apply sync mode</button>
           </section>

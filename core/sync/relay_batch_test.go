@@ -2,6 +2,7 @@ package sync_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -38,13 +39,22 @@ func TestRelayPreparationRequestCounts(t *testing.T) {
 					}
 					return transport.RoundTrip(r)
 				})}, false)
+				if legacy != 0 && count > 0 {
+					if err := c.Sync(context.Background()); !errors.Is(err, vs.ErrContentUnsupported) {
+						t.Fatal("mixed-version server did not require update", err)
+					}
+					if chunks != 0 {
+						t.Fatal("unsupported sync transferred chunks")
+					}
+					continue
+				}
 				syncNow(t, c)
-				expected := 5
+				expected := 7
 				if count > 0 {
-					expected += (count - 1) / 256
+					expected += (count + 255) / 256
 				}
 				if legacy != 0 {
-					expected = 7 + (count+15)/16
+					expected = 9
 				}
 				if calls != expected || chunks != 0 {
 					t.Fatalf("legacy=%d requests=%d want=%d chunks=%d", legacy, calls, expected, chunks)

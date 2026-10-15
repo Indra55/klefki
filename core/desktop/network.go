@@ -287,7 +287,7 @@ func syncFailure(err error) (string, string) {
 	var he *vs.HTTPError
 	var ne net.Error
 	switch {
-	case err.Error() == "RELAY_QUEUED", errors.Is(err, vs.ErrRelayWaiting):
+	case err.Error() == "RELAY_QUEUED", errors.Is(err, vs.ErrRelayWaiting), errors.Is(err, vs.ErrContentUnavailable):
 		return "waiting", "Waiting for linked devices"
 	case errors.As(err, &he):
 		switch he.Status {

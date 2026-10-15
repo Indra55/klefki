@@ -174,7 +174,7 @@ func TestRelayQuotaRetainsPendingAndCanDrain(t *testing.T) {
 		t.Fatal("quota lost pending edit")
 	}
 	checkRelayExport(t, a, h.master, second, strings.Repeat("b", 300))
-	if e = cb.Sync(ctx); e != nil {
+	if e = cb.Sync(ctx); e != nil && !errors.Is(e, vs.ErrContentUnavailable) {
 		t.Fatal(e)
 	}
 	checkRelayExport(t, b, h.master, first, strings.Repeat("a", 300))
@@ -252,6 +252,7 @@ func TestRelayForgottenDevicesAndRetiredRevisionIntegrity(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+ca.Session.Token)
 	state, _ = a.RelayState()
 	req.Header.Set("X-Klefki-Device", state.Device)
+	req.Header.Set("X-Klefki-Content", "1")
 	res, e := h.web.Client().Do(req)
 	if e != nil {
 		t.Fatal(e)

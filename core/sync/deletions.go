@@ -414,7 +414,14 @@ func (s *Store) PruneDeleted(master vc.Key) error {
 				return e
 			}
 			remove := !parents[r.ID] && m.Parent != nil && deleted[*m.Parent]
-			if internalMetadata(m) {
+			available, err := s.ContentAvailable(master, r.ID)
+			if err != nil {
+				return err
+			}
+			if internalMetadata(m) && !available {
+				remove = true
+			}
+			if internalMetadata(m) && available {
 				var data bytes.Buffer
 				if m.Size > 64<<20 {
 					return ErrInvalid

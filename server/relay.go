@@ -76,6 +76,15 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if r.Header.Get("X-Klefki-Content") == "1" {
+		out.SelectiveContent = true
+		out.TrashPolicyVersion = 1
+		e = s.db.QueryRow(`SELECT enabled,version,COALESCE((SELECT version FROM content_notifications WHERE account=trash_policy.account AND device=?),0) FROM trash_policy WHERE account=?`, r.Header.Get("X-Klefki-Device"), who(r).account).Scan(&out.TrashDefault, &out.TrashPolicyVersion, &out.ContentVersion)
+		if e != nil && e != sql.ErrNoRows {
+			fail(w, 500)
+			return
+		}
+	}
 	reply(w, 200, out)
 }
 func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
@@ -318,7 +327,8 @@ func (s *Server) cleanupRelay(account string) error {
 	}
 	rows, e := s.db.Query(`SELECT DISTINCT file FROM relay_revisions rr WHERE account=? AND file<>'' AND NOT EXISTS
  (SELECT 1 FROM relay_revisions x JOIN changes c ON c.account=x.account AND c.revision=x.revision WHERE x.account=rr.account AND x.file=rr.file AND c.sequence>?)
- AND NOT EXISTS(SELECT 1 FROM relay_uploads u WHERE u.account=rr.account AND u.file=rr.file)`, account, floor)
+ AND NOT EXISTS(SELECT 1 FROM relay_uploads u WHERE u.account=rr.account AND u.file=rr.file)
+ AND NOT EXISTS(SELECT 1 FROM content_requests cr WHERE cr.account=rr.account AND cr.file=rr.file AND cr.received=0)`, account, floor)
 	if e != nil {
 		return e
 	}
@@ -344,6 +354,9 @@ func (s *Server) cleanupRelay(account string) error {
 			return e
 		}
 		if e = os.RemoveAll(dir); e != nil {
+			return e
+		}
+		if _, e = s.db.Exec(`DELETE FROM content_available WHERE account=? AND file=?`, account, file); e != nil {
 			return e
 		}
 	}
@@ -381,6 +394,10 @@ func (s *Server) forgetRelayDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if tx.Commit() != nil {
+		fail(w, 500)
+		return
+	}
+	if _, e = s.db.Exec(`DELETE FROM content_requests WHERE account=? AND device=?`, who(r).account, id); e != nil {
 		fail(w, 500)
 		return
 	}

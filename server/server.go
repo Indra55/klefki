@@ -132,6 +132,10 @@ func Open(c Config) (*Server, error) {
 		db.Close()
 		return nil, e
 	}
+	if e = migrateContent(db); e != nil {
+		db.Close()
+		return nil, e
+	}
 	if e = migrateStatus(db); e != nil {
 		db.Close()
 		return nil, e
@@ -166,10 +170,15 @@ func Open(c Config) (*Server, error) {
 		r.Use(s.relayBuffered)
 		r.Use(s.deletionAccess)
 		r.Use(s.relayAccess)
+		r.Use(s.contentAccess)
 		r.Get("/v1/sync/deletions", s.getDeletions)
 		r.Post("/v1/sync/deletions", s.putDeletions)
 		r.Get("/v1/sync/settings", s.getSettings)
 		r.Put("/v1/sync/settings", s.putSettings)
+		r.Put("/v1/sync/trash-policy", s.putTrashPolicy)
+		r.Post("/v1/sync/content/activate", s.activateContent)
+		r.Post("/v1/sync/content/state", s.contentStates)
+		r.Post("/v1/sync/content", s.contentAction)
 		r.Post("/v1/sync/relay/device", s.relayDevice)
 		r.Post("/v1/sync/relay/need", s.relayNeed)
 		r.Post("/v1/sync/relay/prepare", s.relayPrepare)
@@ -657,10 +666,17 @@ func (s *Server) putMetadata(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
+		if file := revisionFile(syncwire.Revision{FileKey: in.FileKey}); file != "" {
+			if _, e = tx.Exec(`INSERT OR IGNORE INTO content_available VALUES(?,?)`, account, file); e != nil {
+				fail(w, 500)
+				return
+			}
+		}
 		if tx.Commit() != nil {
 			fail(w, 500)
 			return
 		}
+
 		w.WriteHeader(201)
 		return
 	}

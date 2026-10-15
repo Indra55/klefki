@@ -145,6 +145,11 @@ func (s *Service) Import(paths []string, parent *string, tags []string) (string,
 func (s *Service) Export(revision, path string) (string, error) {
 	return s.operation(func(x *session, ctx context.Context, op string) error {
 		return local.Publish(path, func(w io.Writer) error {
+			if available, err := x.store.ContentAvailable(x.master, revision); err != nil {
+				return err
+			} else if !available {
+				return errors.New("CONTENT_NOT_LOCAL")
+			}
 			if e := x.store.ExportContext(ctx, x.master, revision, w); e != nil {
 				return e
 			}
@@ -190,6 +195,11 @@ func (s *Service) Preview(revision string) (out Preview, e error) {
 			return errors.New("PREVIEW_UNSUPPORTED")
 		}
 		var b bytes.Buffer
+		if available, err := x.store.ContentAvailable(x.master, revision); err != nil {
+			return err
+		} else if !available {
+			return errors.New("CONTENT_NOT_LOCAL")
+		}
 		if e = x.store.ExportContext(x.ctx, x.master, revision, &b); e != nil {
 			vc.Wipe(b.Bytes())
 			return e

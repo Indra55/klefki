@@ -108,7 +108,13 @@ func runBackup(args []string, out io.Writer) error {
 		if e != nil {
 			return e
 		}
-		_, e = fmt.Fprintf(out, "Integrity verified: %d revisions; all stored chunks authenticated.\n", len(revisions))
+		missing := 0
+		for _, r := range revisions {
+			if r.ContentMissing {
+				missing++
+			}
+		}
+		_, e = fmt.Fprintf(out, "Integrity verified: %d revisions; all stored chunks authenticated; %d revisions have deferred contents.\n", len(revisions), missing)
 		return e
 	}
 	if e = os.Mkdir(*dest, 0700); e != nil {
@@ -162,7 +168,7 @@ func runBackup(args []string, out io.Writer) error {
 	}
 	if command == "export-plain" {
 		for _, r := range revisions {
-			if r.Metadata.Type != "file" {
+			if r.Metadata.Type != "file" || r.ContentMissing {
 				continue
 			}
 			// Opaque revision names avoid collisions and untrusted metadata paths.
@@ -187,6 +193,12 @@ func runBackup(args []string, out io.Writer) error {
 		return e
 	}
 	complete = true
-	_, e = fmt.Fprintf(out, "%s complete: %d revisions verified.\n", command, len(revisions))
+	missing := 0
+	for _, r := range revisions {
+		if r.ContentMissing {
+			missing++
+		}
+	}
+	_, e = fmt.Fprintf(out, "%s complete: %d revisions verified; %d revisions have deferred contents.\n", command, len(revisions), missing)
 	return e
 }

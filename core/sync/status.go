@@ -34,6 +34,20 @@ func (c *Client) NeedsSync(ctx context.Context) (bool, error) {
 	if e = c.Store.db.QueryRow(`SELECT cursor FROM deletion_state WHERE id=1`).Scan(&deletionCursor); e != nil {
 		return true, e
 	}
+	var contentVersion int64
+	if c.Store.db.QueryRow(`SELECT content_version FROM content_policy WHERE id=1`).Scan(&contentVersion) != nil {
+		return true, ErrStore
+	}
+	if contentVersion != settings.ContentVersion {
+		return true, nil
+	}
+	policy, err := c.Store.TrashPolicy()
+	if err != nil {
+		return true, err
+	}
+	if settings.TrashPolicyVersion != policy.Version {
+		return true, nil
+	}
 	if settings.DeletionSequence != deletionCursor {
 		return true, nil
 	}
@@ -192,7 +206,7 @@ func (s *Store) DeviceState(minimum int64) (syncwire.DeviceState, error) {
 	defer tx.Rollback()
 	var pending int
 	var previous bool
-	if tx.QueryRow(`SELECT (SELECT COUNT(*) FROM revisions WHERE pending=1)+(SELECT COUNT(*) FROM deletions WHERE pending=1)`).Scan(&pending) != nil || tx.QueryRow(`SELECT version,pending FROM local_device_state WHERE id=1`).Scan(&out.Version, &previous) != nil {
+	if tx.QueryRow(pendingWorkQuery).Scan(&pending) != nil || tx.QueryRow(`SELECT version,pending FROM local_device_state WHERE id=1`).Scan(&out.Version, &previous) != nil {
 		return out, ErrStore
 	}
 	out.Pending = pending > 0

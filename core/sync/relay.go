@@ -70,6 +70,9 @@ func (s *Store) saveRelay(state syncwire.RelayState) error {
 		return ErrStore
 	}
 	if old != state.Epoch {
+		if _, e = tx.Exec(`UPDATE content_policy SET metadata_cursor=0,version=0,enabled=0,content_version=0;DELETE FROM metadata_receipts`); e != nil {
+			return ErrStore
+		}
 		if _, e = tx.Exec(`UPDATE local_state SET cursor=0 WHERE singleton=1`); e != nil {
 			return ErrStore
 		}

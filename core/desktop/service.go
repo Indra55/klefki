@@ -43,6 +43,7 @@ type Config struct {
 	DeviceAliases       map[string]map[string]string   `json:"deviceAliases,omitempty"`
 }
 type State struct {
+	TrashPolicy   vs.TrashPolicy      `json:"trashPolicy"`
 	Config        Config              `json:"config"`
 	Unlocked      bool                `json:"unlocked"`
 	Generation    uint64              `json:"generation"`
@@ -196,6 +197,7 @@ func (s *Service) State() State {
 	st.SyncInfo = s.syncInfo
 	st.DeviceAliases = map[string]string{}
 	if x := s.session; x != nil {
+		st.TrashPolicy, _ = x.store.TrashPolicy()
 		st.Unlocked = true
 		st.AccountID = x.account.ID.String()
 		st.RecoveryOnly = x.recovery
@@ -443,6 +445,10 @@ func Code(e error) string {
 		return "DELETION_UPDATE_REQUIRED"
 	case errors.Is(e, vs.ErrRelayUnsupported):
 		return "RELAY_UNSUPPORTED"
+	case errors.Is(e, vs.ErrContentUnavailable):
+		return "CONTENT_UNAVAILABLE"
+	case errors.Is(e, vs.ErrContentUnsupported):
+		return "UPDATE_REQUIRED"
 	case errors.Is(e, vs.ErrRelayWaiting):
 		return "RELAY_WAITING"
 	case errors.Is(e, vc.ErrInvalid):
@@ -453,7 +459,7 @@ func Code(e error) string {
 	switch e.Error() {
 	case "SEMANTIC_UNAVAILABLE", "SEMANTIC_MODEL_INVALID", "SEMANTIC_CORRECTION_CONFLICT", "SEMANTIC_DISABLED", "SEARCH_REBUILD_REQUIRED", "SEARCH_LIMIT", "SEARCH_INDEX_INVALID", "SEARCH_EXTRACTION_FAILED", "SEARCH_TOOL_UNAVAILABLE":
 		return e.Error()
-	case "SYNC_DOWNLOAD_BUSY", "SYNC_DOWNLOAD_PENDING", "SYNC_DOWNLOAD_INCOMPLETE", "SYNC_DOWNLOAD_SOURCE_CHANGED", "SYNC_CONNECT_REQUIRED", "UNLOCK_FAILED", "PREVIEW_UNSUPPORTED", "IMPORT_PARTIAL", "RECOVERY_LOCAL_ONLY", "FINGERPRINT_UNAVAILABLE", "FINGERPRINT_FAILED", "FINGERPRINT_DISABLED", "FINGERPRINT_MISSING", "FINGERPRINT_PASSWORD_REQUIRED", "FINGERPRINT_KEYRING", "FINGERPRINT_BUSY", "FINGERPRINT_CANCELED":
+	case "CONTENT_NOT_LOCAL", "SYNC_DOWNLOAD_BUSY", "SYNC_DOWNLOAD_PENDING", "SYNC_DOWNLOAD_INCOMPLETE", "SYNC_DOWNLOAD_SOURCE_CHANGED", "SYNC_CONNECT_REQUIRED", "UNLOCK_FAILED", "PREVIEW_UNSUPPORTED", "IMPORT_PARTIAL", "RECOVERY_LOCAL_ONLY", "FINGERPRINT_UNAVAILABLE", "FINGERPRINT_FAILED", "FINGERPRINT_DISABLED", "FINGERPRINT_MISSING", "FINGERPRINT_PASSWORD_REQUIRED", "FINGERPRINT_KEYRING", "FINGERPRINT_BUSY", "FINGERPRINT_CANCELED":
 		return e.Error()
 	}
 	return "OPERATION_FAILED"

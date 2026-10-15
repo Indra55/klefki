@@ -3,7 +3,6 @@ package sync
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -83,6 +82,7 @@ func (r *Remote) request(ctx context.Context, method, path, token string, body a
 		return nil, ErrInvalid
 	}
 	req.Header.Set("X-Klefki-Deletion", "1")
+	req.Header.Set("X-Klefki-Content", "1")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 		r.deviceMu.RLock()
@@ -104,6 +104,11 @@ func (r *Remote) request(ctx context.Context, method, path, token string, body a
 	if e != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
+		}
+		if guard, ok := ctx.Value(contentGuardKey{}).(func() error); ok {
+			if e := guard(); e != nil {
+				return nil, e
+			}
 		}
 		return nil, errors.Join(ErrRemote, e)
 	}
@@ -282,179 +287,82 @@ func (c *Client) Sync(ctx context.Context) error {
 }
 
 func (c *Client) syncLocked(ctx context.Context) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
-	if e := c.Store.bind(c.Remote.base); e != nil {
+	local, e := c.Store.RelayState()
+	if e != nil {
 		return e
 	}
+	c.Remote.deviceMu.Lock()
+	c.Remote.device = local.Device
+	c.Remote.deviceMu.Unlock()
+	for {
+		settings, err := c.Settings(ctx)
+		if err != nil {
+			return err
+		}
+		if !settings.SelectiveContent {
+			return ErrContentUnsupported
+		}
+		err = c.syncSelective(ctx, settings)
+		if !errors.Is(err, errContentReplan) {
+			return err
+		}
+	}
+}
+
+func (c *Client) finishTrashSync(ctx context.Context) error {
 	if e := c.syncDeletions(ctx); e != nil {
 		return e
 	}
-	var seedErr error
-	if e := c.prepareRelay(ctx, true); e != nil {
-		var he *HTTPError
-		if !errors.As(e, &he) || he.Status != 507 {
+	if c.Store.DeletionSupported() {
+		if e := c.Store.InitializeTrash(c.Master, time.Now()); e != nil {
 			return e
 		}
-		seedErr = e
-	}
-	for seedErr == nil {
-		rev, e := c.Store.nextPending()
-		if e == sql.ErrNoRows {
-			break
-		}
-		if e != nil {
-			return ErrStore
-		}
-		if e = c.push(ctx, rev); e != nil {
-			return e
-		}
-		if e = c.Store.uploaded(rev.ID); e != nil {
-			return e
-		}
-	}
-	for {
-		cursor, e := c.Store.Cursor()
+		expired, e := c.Store.ExpiredTrash(c.Master, time.Now())
 		if e != nil {
 			return e
 		}
-		b, e := c.request(ctx, "GET", "/v1/sync/changes?after="+strconv.FormatInt(cursor, 10), nil, syncwire.MaxPageBytes)
-		if e != nil {
-			return e
-		}
-		var page syncwire.Page
-		if parseJSON(b, &page) != nil || len(page.Changes) > syncwire.PageSize {
-			return ErrInvalid
-		}
-		origins := map[string]syncwire.Provenance{}
-		if len(page.Changes) > 0 {
-			origins = c.provenance(ctx, cursor)
-		}
-		for _, change := range page.Changes {
-			if change.Sequence <= cursor {
-				return ErrInvalid
-			}
-			if deleted, e := c.Store.Deleted(change.Revision.Object); e != nil {
-				return e
-			} else if deleted {
-				if e = c.Store.advanceDeleted(change.Sequence); e != nil {
-					return e
-				}
-				cursor = change.Sequence
-				continue
-			}
-			if len(change.Revision.Metadata) == 0 {
-				local, e := c.Store.localRevision(change.Revision.ID)
-				if e != nil {
-					if errors.Is(e, ErrRelayWaiting) {
-						if _, ackErr := c.request(ctx, "PUT", "/v1/sync/cursor", syncwire.Cursor{Sequence: cursor}, 1024); ackErr != nil {
-							return ackErr
-						}
-					}
-					return e
-				}
-				if local.Object != change.Revision.Object || local.Base != change.Revision.Base {
-					return ErrInvalid
-				}
-				change.Revision = local
-			}
-			if existing, e := c.Store.acceptExisting(change); e != nil {
-				return e
-			} else if existing {
-				cursor = change.Sequence
-				continue
-			}
-			m, _, key, err := c.Store.unlock(c.Master, change.Revision)
-			vc.Wipe(key[:])
-			if err != nil {
-				return err
-			}
-			origin := origins[change.Revision.ID]
-			c.report(syncwire.Progress{Phase: "downloading", Revision: change.Revision.ID, Name: m.Name, Direction: "download", Source: origin.Origin, Publisher: origin.Publisher, TotalBytes: m.Size, Chunks: m.ChunkCount})
-			e = c.Store.applyTracked(ctx, c.Master, change, origin.Origin, func(done, chunk uint64, reused bool) {
-				p := c.progressSnapshot()
-				if reused {
-					p.ReusedBytes += min(uint64(vc.ChunkSize), m.Size-(chunk-1)*vc.ChunkSize)
-				}
-				p.DoneBytes, p.Chunk = done, chunk
-				if chunk == m.ChunkCount {
-					p.Phase = "committing"
-				}
-				c.report(p)
-			}, func(fetchCtx context.Context, file string, index uint64) ([]byte, error) {
-				return c.request(fetchCtx, "GET", "/v1/blobs/"+file+"/chunks/"+strconv.FormatUint(index, 10), nil, vc.ChunkSize+87)
-			})
+		for _, p := range expired {
+			heads, e := c.Store.Heads(c.Master)
 			if e != nil {
 				return e
 			}
-			cursor = change.Sequence
-			c.phase("complete")
+			targets := OrderDeletionTargets(heads, p.Targets)
+			for start := 0; start < len(targets); start += 256 {
+				batch := targets[start:min(start+256, len(targets))]
+				if _, e = c.request(ctx, "POST", "/v1/sync/deletions", syncwire.DeletionBatch{Deletions: batch}, 1024); e != nil {
+					var he *HTTPError
+					if errors.As(e, &he) && he.Status == 409 {
+						break
+					}
+					return e
+				}
+				local := make([]syncwire.Deletion, len(batch))
+				copy(local, batch)
+				for i := range local {
+					local[i].Heads = nil
+				}
+				if e = c.Store.Erase(local, false); e != nil {
+					return e
+				}
+			}
 		}
-		// Acknowledgement follows the durable local transaction, including all chunks.
-		c.report(syncwire.Progress{Phase: "acknowledging"})
-		if _, e = c.request(ctx, "PUT", "/v1/sync/cursor", syncwire.Cursor{Sequence: cursor}, 1024); e != nil {
+
+		if e = c.Store.PruneDeleted(c.Master); e != nil {
 			return e
 		}
-		if len(page.Changes) == 0 {
-			if seedErr != nil {
-				return seedErr
-			}
-			if e := c.syncDeletions(ctx); e != nil {
+		if len(expired) > 0 {
+			if e = c.Store.Compact(); e != nil {
 				return e
 			}
-			if c.Store.DeletionSupported() {
-				if e := c.Store.InitializeTrash(c.Master, time.Now()); e != nil {
-					return e
-				}
-				expired, e := c.Store.ExpiredTrash(c.Master, time.Now())
-				if e != nil {
-					return e
-				}
-				for _, p := range expired {
-					heads, e := c.Store.Heads(c.Master)
-					if e != nil {
-						return e
-					}
-					targets := OrderDeletionTargets(heads, p.Targets)
-					for start := 0; start < len(targets); start += 256 {
-						batch := targets[start:min(start+256, len(targets))]
-						if _, e = c.request(ctx, "POST", "/v1/sync/deletions", syncwire.DeletionBatch{Deletions: batch}, 1024); e != nil {
-							var he *HTTPError
-							if errors.As(e, &he) && he.Status == 409 {
-								break
-							}
-							return e
-						}
-						local := make([]syncwire.Deletion, len(batch))
-						copy(local, batch)
-						for i := range local {
-							local[i].Heads = nil
-						}
-						if e = c.Store.Erase(local, false); e != nil {
-							return e
-						}
-					}
-				}
-
-				if e = c.Store.PruneDeleted(c.Master); e != nil {
-					return e
-				}
-				if len(expired) > 0 {
-					if e = c.Store.Compact(); e != nil {
-						return e
-					}
-				}
-				if pending, e := c.Store.deletionRecords(true); e != nil {
-					return e
-				} else if len(pending) > 0 || len(expired) > 0 {
-					return c.syncDeletions(ctx)
-				}
-				return nil
-			}
-			return nil
 		}
+		if pending, e := c.Store.deletionRecords(true); e != nil {
+			return e
+		} else if len(pending) > 0 || len(expired) > 0 {
+			return c.syncDeletions(ctx)
+		}
+		return nil
 	}
+	return nil
 }
 func (c *Client) push(ctx context.Context, rev syncwire.Revision) error {
 	m, file, key, e := c.Store.unlock(c.Master, rev)

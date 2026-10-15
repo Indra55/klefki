@@ -70,7 +70,9 @@ export async function pruneDeleted(store:Store,key:Uint8Array) {
  for(let changed=true;changed;){changed=false;for(const x of all){if(ids.has(x.revision.object))continue;
   const {metadata,key:fk}=unlockRevision(key,store.account.account,x.revision);if(fk)c.wipe(fk);
   let remove=!parents.has(x.revision.id)&&!!metadata.parent&&ids.has(metadata.parent);
-  if(internal({metadata,revision:x.revision,conflict:false})){c.check((metadata.size||0)<=64*1024*1024);const bytes=await store.export(key,x.revision);try{try{remove ||= references(c.strictJSON(c.decode(bytes)),ids);}catch{remove=true;}}finally{c.wipe(bytes);}}
+  const isInternal=internal({metadata,revision:x.revision,conflict:false});
+  if(isInternal&&x.deferred)remove=true;
+  if(isInternal&&!x.deferred){c.check((metadata.size||0)<=64*1024*1024);const bytes=await store.export(key,x.revision);try{try{remove ||= references(c.strictJSON(c.decode(bytes)),ids);}catch{remove=true;}}finally{c.wipe(bytes);}}
   if(remove){ids.add(x.revision.object);if(metadata.file_id)ids.add(metadata.file_id);targets.set(x.revision.object,{object:x.revision.object,folder:metadata.type==='folder',files:[]});changed=true;}
  }}
  if(targets.size)await erase(store,[...targets.values()],true);

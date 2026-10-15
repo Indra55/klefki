@@ -1,3 +1,4 @@
+import {trashPolicy,setTrashOverride,setTrashDefault,ensureContent} from './selective-sync.ts';
 import '@fontsource/inter/latin-400.css';
 import '@fontsource/inter/latin-500.css';
 import './style.css';
@@ -343,7 +344,7 @@ async function syncNow(register = false, background = false, reconnect = false) 
         catch(e){if(!(e instanceof HTTPError)||e.status!==401||await s.state('sync-mode')!=='temporary-relay')throw e;await connectRemote();await sync(s,key,remote!);}
         if(g!==generation)return;
         lastSync=Date.now();syncInfo={...syncInfo,phase:'synced',waitingFor:undefined};syncState='Synced';
-        message('Synced. All local changes are saved on the server.');
+        message('Synced. Active documents and library updates are saved on the server.');
         if(await s.state('sync-mode')==='temporary-relay'){
             const status=await remote!.json<{queued:number}>('GET','/v1/sync/settings',undefined,1024);
             syncState=status.queued?'Waiting for linked devices':'Synced';syncInfo={...syncInfo,phase:status.queued?'waiting':'synced',waitingFor:status.queued?'receipts':undefined};
@@ -356,6 +357,7 @@ async function syncNow(register = false, background = false, reconnect = false) 
         if(phase==='auth')remote=undefined;
         message(e instanceof RelayWaiting?e.message:phase==='auth'?'Sign-in expired. Reconnect or register this store in Settings.':phase==='full'?'Relay storage is full. Sync the other linked devices to free space.':'Could not complete sync. Your local changes are kept.');
         if(syncInfo.progress)syncActivity=addActivity(syncActivity,{...syncInfo.progress,phase,updatedAt:Date.now()});
+        await refresh();
     } finally {
         c.wipe(key);
         if(g===generation){syncRunning=false;syncInfo={...syncInfo,running:false};renderSync();lastDeviceCheck=0;deviceReportRequested=true;void monitorSync();if(refreshRequested)void syncNow(false,false,true);else if(syncRequested){try{const pending=(await s.all()).some(x=>x.pending)||(await deletionRecords(s,true)).length>0;if(g===generation){if(registerRequested||pending)scheduleSync();else syncRequested=false;}}catch{}}}
@@ -391,6 +393,9 @@ async function library() {
     status.id = 'status'; status.setAttribute('role', 'status'); root.append(status);
     if (settings) {
         root.append(settingsPage({
+            trashPolicy:await trashPolicy(s),
+            setTrashOverride:async value=>{await setTrashOverride(s,value);await library();scheduleSync();},
+            setTrashDefault:async enabled=>{try{if(!remote)await connectRemote();await setTrashDefault(s,remote!,enabled);await library();scheduleSync();}catch(e){message(e instanceof Error?e.message:'Could not update Trash sync.');}},
             pause:()=>void setSyncPaused(!syncPaused), section: settings, account: account!.account, pending, mode, selectedMode:syncModeDraft?.selected||mode, selectMode:selected=>{syncModeDraft={base:mode,selected};}, devices, device, syncInfo,aliases,rename:saveAlias,
             changeSection: showSettings, back: () => { settings = null; syncModeDraft=undefined; void library(); },
             sync: register => void syncNow(register), exportAccount: () => download(c.accountBytes(account!), 'account.klefki'),
@@ -483,6 +488,7 @@ async function library() {
             meta.append(node('span',tags.join(' · ') || (h.metadata.type === 'folder' ? 'Folder' : h.metadata.name.split('.').pop()?.toUpperCase())));
             if (h.metadata.type === 'file') meta.append(node('span','·','meta-dot'), node('span',formatSize(h.metadata.size!)));
             if(trashed(h)){const at=trashDates(heads).get(h.revision.id)||0;meta.append(node('span','·','meta-dot'),node('span',at?'Deletes '+new Date(at+retention).toLocaleDateString():'Countdown starts after sync'));}
+            if(h.contentMissing)meta.append(node('span','·','meta-dot'),node('span','Not stored on this device'));
             if (h.metadata.favorite) meta.append(icon('star',12,true)); open.append(title,meta); row.append(open);
             const actions = node('div', undefined, 'row-actions');
             if (trashed(h)) actions.append(button('Restore', () => restoreDocument(h), 'quiet'));
@@ -504,7 +510,7 @@ async function library() {
         if (!visible.length) {
             const empty = node('div',undefined,'empty'); empty.append(icon('search',25),node('h2',filter ? 'Nothing matches yet.' : view === 'Trash' ? 'Your trash is empty.' : view === 'Favorites' ? 'Keep the important ones close.' : tag ? 'A place for ' + tag.toLowerCase() + '.' : 'A little room for what matters.'),node('p',filter ? 'Try another name, tag, or indexed word.' : view === 'Trash' ? 'Restore documents within 30 days, or permanently delete them sooner.' : view === 'Favorites' ? 'Star a document to find it here.' : 'Add your first document, or drop files anywhere in this window.')); list.append(empty);
         }
-        footer.hidden = !visible.length; footer.replaceChildren(document.createTextNode(visible.length + (visible.length === 1 ? ' item' : ' items')),node('span','Stored encrypted · available offline'));
+        footer.hidden = !visible.length; footer.replaceChildren(document.createTextNode(visible.length + (visible.length === 1 ? ' item' : ' items')),node('span',visible.some(h=>h.contentMissing)?'Stored encrypted · some file contents are not on this device':'Stored encrypted · available offline'));
     }
     async function searchRows() {
         const sequence = ++searchSequence, query = filter; ranked = []; renderRows();
@@ -539,6 +545,7 @@ async function addFiles(files: File[]) {
     }
 }
 function exportDocument(h: Head) {
+    if(h.contentMissing){message('Enable Trash sync in Settings to export this file on this device.');return;}
     void operation(async (key,g) => { const bytes = await store!.export(key,h.revision); try { if (g === generation) download(bytes,h.metadata.name); } finally { c.wipe(bytes); } });
 }
 function shareDocument(h: Head) {
@@ -574,6 +581,11 @@ function trashDocument(h: Head) {
 }
 function restoreDocument(h: Head) {
     void operation(async (key,g) => {
+        const selected=new Set([h.revision.object]);
+        for(let changed=true;changed;){changed=false;for(const child of heads)if(child.metadata.parent&&selected.has(child.metadata.parent)&&!selected.has(child.revision.object)){selected.add(child.revision.object);changed=true;}}
+        for(const child of heads)if(selected.has(child.revision.object)&&child.metadata.type==='file'&&!await store!.contentAvailable(key,child.revision)){
+            if(!remote)await connectRemote();await ensureContent(store!,key,remote!,child.revision);
+        }
         let destination: string | null = null;
         if(h.metadata.trashed_at&&heads.some(folder=>isTrashRoot(folder)&&folder.revision.object===h.metadata.parent)){destination=h.metadata.trash_previous_parent||null;}
         else if (heads.some(folder => isTrashRoot(folder) && folder.revision.object === h.metadata.parent) && h.revision.base) {
@@ -661,6 +673,7 @@ function editDialog(h: Head) {
     d.showModal();
 }
 async function openDocument(h: Head) {
+    if(h.contentMissing){message('Enable Trash sync in Settings to preview this file on this device.');return;}
     await operation(async (key,g) => {
         const bytes = await store!.export(key,h.revision);
         if (g !== generation) { c.wipe(bytes); return; }

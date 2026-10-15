@@ -89,7 +89,11 @@ func (s *Store) Check(master vc.Key) ([]Revision, error) {
 			vc.Wipe(key[:])
 			return nil, e
 		}
-		if m.Type == "file" {
+		var deferred bool
+		if tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM deferred_content WHERE revision=?)`, r.ID).Scan(&deferred) != nil {
+			return nil, ErrStore
+		}
+		if m.Type == "file" && !deferred {
 			var count uint64
 			if tx.QueryRow(`SELECT COUNT(*) FROM chunks WHERE file=?`, file.String()).Scan(&count) != nil || count != m.ChunkCount {
 				vc.Wipe(key[:])
@@ -114,7 +118,7 @@ func (s *Store) Check(master vc.Key) ([]Revision, error) {
 			files[file.String()] = count
 		}
 		vc.Wipe(key[:])
-		revisions = append(revisions, Revision{Head: Head{Object: r.Object, Revision: r.ID, Metadata: m}, Base: r.Base})
+		revisions = append(revisions, Revision{Head: Head{Object: r.Object, Revision: r.ID, Metadata: m}, Base: r.Base, ContentMissing: deferred})
 	}
 	var total, expected uint64
 	for _, count := range files {

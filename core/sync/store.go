@@ -137,6 +137,9 @@ func openStore(path string, account vc.ID, existing bool) (*Store, error) {
  INSERT OR IGNORE INTO local_device_state VALUES(1,0,0);`); e != nil {
 		return fail()
 	}
+	if e = store.migrateContent(); e != nil {
+		return fail()
+	}
 	success = true
 	return store, nil
 }
@@ -146,7 +149,7 @@ func (s *Store) Close() error {
 }
 func (s *Store) Pending() (int, error) {
 	var n int
-	if s.db.QueryRow(`SELECT (SELECT COUNT(*) FROM revisions WHERE pending=1)+(SELECT COUNT(*) FROM deletions WHERE pending=1)`).Scan(&n) != nil {
+	if s.db.QueryRow(pendingWorkQuery).Scan(&n) != nil {
 		return 0, ErrStore
 	}
 	return n, nil
@@ -293,6 +296,23 @@ func (w *chunkWriter) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 func (s *Store) Heads(master vc.Key) ([]Head, error) {
+	heads, e := s.allHeads(master)
+	if e != nil {
+		return nil, e
+	}
+	out := []Head{}
+	for _, h := range heads {
+		var hidden bool
+		if s.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM deferred_content WHERE revision=? AND trash=0)`, h.Revision).Scan(&hidden) != nil {
+			return nil, ErrStore
+		}
+		if !hidden {
+			out = append(out, h)
+		}
+	}
+	return out, nil
+}
+func (s *Store) allHeads(master vc.Key) ([]Head, error) {
 	defer vc.Wipe(master[:])
 	rows, e := s.db.Query(`SELECT r.id,r.object,r.metadata FROM revisions r WHERE NOT EXISTS(SELECT 1 FROM revisions child WHERE child.base=r.id) ORDER BY r.object,r.id`)
 	if e != nil {
@@ -465,7 +485,7 @@ func (s *Store) applyTracked(ctx context.Context, master vc.Key, c syncwire.Chan
 	// Stage authenticated ciphertext before opening the local write transaction.
 	// Network delays must not hold the database connection or hide the library.
 	var staged *os.File
-	if m.Type == "file" {
+	if m.Type == "file" && ctx.Value(metadataOnlyKey{}) != true {
 		staged, e = os.CreateTemp("", "klefki-sync-*")
 		if e != nil {
 			return ErrStore
@@ -519,18 +539,30 @@ func (s *Store) applyTracked(ctx context.Context, master vc.Key, c syncwire.Chan
 	}
 	defer tx.Rollback()
 	var cursor int64
-	if tx.QueryRow(`SELECT cursor FROM local_state WHERE singleton=1`).Scan(&cursor) != nil {
+	query := `SELECT cursor FROM local_state WHERE singleton=1`
+	if ctx.Value(metadataOnlyKey{}) == true {
+		query = `SELECT metadata_cursor FROM content_policy WHERE id=1`
+	}
+	if tx.QueryRow(query).Scan(&cursor) != nil {
 		return ErrStore
 	}
-	if c.Sequence <= cursor {
+	if c.Sequence <= cursor && ctx.Value(hydrateKey{}) != true {
 		return ErrInvalid
 	}
 	if deleted, e := deletedObject(tx, c.Revision.Object); e != nil {
 		return e
 	} else if deleted {
-		_, e = tx.Exec(`UPDATE local_state SET cursor=? WHERE singleton=1`, c.Sequence)
-		if e != nil {
-			return e
+		if ctx.Value(hydrateKey{}) == true {
+			return ErrContentUnavailable
+		}
+		if ctx.Value(metadataOnlyKey{}) == true {
+			if e = recordMetadataReceipt(tx, c); e != nil {
+				return e
+			}
+		} else {
+			if _, e = tx.Exec(`UPDATE local_state SET cursor=? WHERE singleton=1`, c.Sequence); e != nil {
+				return ErrStore
+			}
 		}
 		return tx.Commit()
 	}
@@ -592,8 +624,38 @@ func (s *Store) applyTracked(ctx context.Context, master vc.Key, c syncwire.Chan
 			return ErrStore
 		}
 	}
-	if _, e = tx.Exec(`UPDATE local_state SET cursor=? WHERE singleton=1`, c.Sequence); e != nil {
-		return ErrStore
+	if m.Type == "file" {
+		var count uint64
+		if tx.QueryRow(`SELECT COUNT(*) FROM chunks WHERE file=?`, file.String()).Scan(&count) != nil {
+			return ErrStore
+		}
+		if count != m.ChunkCount {
+			var declared bool
+			if tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM deferred_content WHERE revision=?)`, c.Revision.ID).Scan(&declared) != nil {
+				return ErrStore
+			}
+			if old.ID != "" && !declared {
+				return ErrInvalid
+			}
+			if _, e = tx.Exec(`INSERT OR IGNORE INTO deferred_content(revision) VALUES(?)`, c.Revision.ID); e != nil {
+				return ErrStore
+			}
+		} else {
+			if _, e = tx.Exec(`DELETE FROM deferred_content WHERE revision IN (SELECT id FROM revisions WHERE file_key=?)`, c.Revision.FileKey); e != nil {
+				return ErrStore
+			}
+		}
+	}
+	if ctx.Value(hydrateKey{}) != true {
+		if ctx.Value(metadataOnlyKey{}) == true {
+			if e = recordMetadataReceipt(tx, c); e != nil {
+				return e
+			}
+		} else {
+			if _, e = tx.Exec(`UPDATE local_state SET cursor=? WHERE singleton=1`, c.Sequence); e != nil {
+				return ErrStore
+			}
+		}
 	}
 	if tx.Commit() != nil {
 		return ErrStore

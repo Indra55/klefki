@@ -15,7 +15,7 @@ async function metadataState(page:Page,account:c.Account,credential:Uint8Array){
     return page.evaluate(async({id,credential})=>{
         const login=await fetch('/v1/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({account:id,credential})});
         const {token}=await login.json();
-        const headers={Authorization:'Bearer '+token};
+        const headers={Authorization:'Bearer '+token,'X-Klefki-Content':'1'};
         const settings=await (await fetch('/v1/sync/settings',{headers})).json();
         return settings as {mode:string;queued:number};
     },{id:account.account,credential:c.base64(credential)});
@@ -101,7 +101,7 @@ test('relay deletes delivered content, preserves offline edits, and bootstraps a
     }finally{await second.close();await third.close();c.wipe(fixture.master);c.wipe(keys.master);c.wipe(keys.credential);}
 });
 
-test('84 retained revisions use three requests and fall back on unsupported preparation',async({page})=>{
+test('84 retained revisions use bounded metadata requests and require compatible preparation',async({page})=>{
     await c.ready;const fixture=c.createAccount(password);
     try {
         await open(page,fixture.account);
@@ -124,10 +124,11 @@ test('84 retained revisions use three requests and fall back on unsupported prep
                 if(['/v1/sync/relay/prepare','/v1/sync/relay/device','/v1/sync/relay/need','/v1/sync/relay/need-batch','/v1/sync/changes','/v1/sync/cursor'].includes(path)||path.includes('/chunks/'))calls.push(path);
                 if(legacy&&path==='/v1/sync/relay/prepare')await route.fulfill({status:legacy,body:''});else await route.continue();
             });
-            const ack=page.waitForResponse(r=>r.url().includes('/v1/sync/cursor')&&r.request().method()==='PUT');
-            await syncNow(page);await ack;
+            const ack=legacy?undefined:page.waitForResponse(r=>r.url().includes('/v1/sync/cursor')&&r.request().method()==='PUT');
+            await syncNow(page);if(ack)await ack;
             await expect(page.getByRole('button',{name:'Sync status',exact:true})).not.toHaveAttribute('data-state','running');
-            expect(calls).toHaveLength(legacy?10:3);
+            expect(calls).toHaveLength(legacy?1:4);
+            if(legacy)await expect(page.getByRole('status')).toContainText('Could not complete sync');
             expect(calls.some(p=>p.includes('/chunks/'))).toBe(false);
             await page.unroute('**/v1/**');await page.keyboard.press('Escape');
         }

@@ -148,10 +148,17 @@ func (s *Server) putRevision(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	if file := revisionFile(rev); file != "" && r.Header.Get("X-Klefki-Content") != "1" {
+		if _, e = tx.Exec(`INSERT OR IGNORE INTO content_available VALUES(?,?)`, account, file); e != nil {
+			fail(w, 500)
+			return
+		}
+	}
 	if tx.Commit() != nil {
 		fail(w, 500)
 		return
 	}
+
 	if file := revisionFile(rev); file != "" {
 		if _, e = s.db.Exec(`DELETE FROM relay_uploads WHERE account=? AND file=?`, account, file); e != nil {
 			fail(w, 500)
@@ -180,13 +187,25 @@ func (s *Server) changes(w http.ResponseWriter, r *http.Request) {
 		fail(w, 409)
 		return
 	}
-	rows, e := s.db.QueryContext(r.Context(), `SELECT sequence,revision,object,base,metadata,file_key FROM changes WHERE account=? AND sequence>? ORDER BY sequence LIMIT ?`, who(r).account, after, syncwire.PageSize)
+	through := maxSeq
+	if value := r.URL.Query().Get("through"); value != "" {
+		var err error
+		through, err = strconv.ParseInt(value, 10, 64)
+		if err != nil || through < after || through > maxSeq {
+			fail(w, 400)
+			return
+		}
+	}
+	rows, e := s.db.QueryContext(r.Context(), `SELECT sequence,revision,object,base,metadata,file_key FROM changes WHERE account=? AND sequence>? AND sequence<=? ORDER BY sequence LIMIT ?`, who(r).account, after, through, syncwire.PageSize)
 	if e != nil {
 		fail(w, 500)
 		return
 	}
 	defer rows.Close()
 	out := syncwire.Page{Changes: []syncwire.Change{}}
+	if r.Header.Get("X-Klefki-Content") == "1" {
+		out.Latest = through
+	}
 	for rows.Next() {
 		var c syncwire.Change
 		if rows.Scan(&c.Sequence, &c.Revision.ID, &c.Revision.Object, &c.Revision.Base, &c.Revision.Metadata, &c.Revision.FileKey) != nil {
@@ -200,6 +219,13 @@ func (s *Server) changes(w http.ResponseWriter, r *http.Request) {
 	}
 	if rows.Err() != nil {
 		fail(w, 500)
+		return
+	}
+	if r.Header.Get("X-Klefki-Content") == "1" {
+		reply(w, 200, struct {
+			Changes []syncwire.Change `json:"changes"`
+			Latest  int64             `json:"latest"`
+		}{out.Changes, through})
 		return
 	}
 	reply(w, 200, out)

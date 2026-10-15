@@ -239,12 +239,14 @@ func (a *App) Cancel(op string) { a.service.Cancel(op) }
 func (a *App) Connect(address string, register bool) error {
 	return safe(a.service.Connect(address, register))
 }
-func (a *App) SyncNow()                         { a.service.SyncNow() }
-func (a *App) RefreshSync()                     { a.service.RefreshSync() }
-func (a *App) FreshDownload() error             { return safe(a.service.FreshDownload()) }
-func (a *App) SetSyncPaused(paused bool) error  { return safe(a.service.SetSyncPaused(paused)) }
-func (a *App) SetSyncMode(mode string) error    { return safe(a.service.SetSyncMode(mode)) }
-func (a *App) ForgetSyncDevice(id string) error { return safe(a.service.ForgetSyncDevice(id)) }
+func (a *App) SyncNow()                            { a.service.SyncNow() }
+func (a *App) RefreshSync()                        { a.service.RefreshSync() }
+func (a *App) FreshDownload() error                { return safe(a.service.FreshDownload()) }
+func (a *App) SetSyncPaused(paused bool) error     { return safe(a.service.SetSyncPaused(paused)) }
+func (a *App) SetTrashOverride(value string) error { return safe(a.service.SetTrashOverride(value)) }
+func (a *App) SetTrashDefault(enabled bool) error  { return safe(a.service.SetTrashDefault(enabled)) }
+func (a *App) SetSyncMode(mode string) error       { return safe(a.service.SetSyncMode(mode)) }
+func (a *App) ForgetSyncDevice(id string) error    { return safe(a.service.ForgetSyncDevice(id)) }
 
 type PreviewInfo struct {
 	URL        string `json:"url"`

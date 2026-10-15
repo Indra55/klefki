@@ -38,3 +38,25 @@ describe('fresh download confirmation',()=>{
     expect(screen.getByRole('button',{name:'Download a fresh copy'})).toBeDisabled();
   });
 });
+
+describe('Trash sync settings',()=>{
+ afterEach(cleanup);
+ it('defaults off and saves a device override separately from the vault default',async()=>{
+  const SetTrashOverride=vi.fn(async()=>{}),SetTrashDefault=vi.fn(async()=>{});
+  window.go={main:{App:{SetTrashOverride,SetTrashDefault} as any}};
+  const refresh=show();
+  expect(screen.getByLabelText('Sync Trash for this vault')).toHaveValue('false');
+  expect(screen.getByLabelText('Sync Trash on this device')).toHaveValue('follow-vault');
+  await userEvent.selectOptions(screen.getByLabelText('Sync Trash on this device'),'on');
+  expect(SetTrashOverride).toHaveBeenCalledWith('on');expect(SetTrashDefault).not.toHaveBeenCalled();
+  await userEvent.selectOptions(screen.getByLabelText('Sync Trash for this vault'),'true');
+  expect(SetTrashDefault).toHaveBeenCalledWith(true);expect(refresh).toHaveBeenCalledTimes(2);
+ });
+ it('shows the effective policy when the device overrides the vault',()=>{
+  window.go={main:{App:{} as any}};
+  show({...state,trashPolicy:{override:'off',default:true,effective:false,supported:true,version:2}});
+  expect(screen.getByLabelText('Sync Trash for this vault')).toHaveValue('true');
+  expect(screen.getByLabelText('Sync Trash on this device')).toHaveValue('off');
+  expect(screen.getByText(/Trash file sync is off on this device/)).toBeVisible();
+ });
+});

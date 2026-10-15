@@ -327,6 +327,9 @@ func TestDeletionSnapshotAndStaleConfirmation(t *testing.T) {
 func TestAutomaticDeletionRejectsAStaleHeadSet(t *testing.T) {
 	h := setup(t)
 	a, ca := h.device(t, "cas-a", true)
+	if err := ca.SetTrashDefault(context.Background(), true); err != nil {
+		t.Fatal(err)
+	}
 	b, cb := h.device(t, "cas-b", false)
 	object, _ := vc.RandomID()
 	revision := add(t, a, h.master, object.String(), "", "restore.txt", "restore me")
@@ -349,6 +352,7 @@ func TestAutomaticDeletionRejectsAStaleHeadSet(t *testing.T) {
 	req, _ := http.NewRequest("POST", h.web.URL+"/v1/sync/deletions", bytes.NewReader(body))
 	req.Header.Set("Authorization", "Bearer "+ca.Session.Token)
 	req.Header.Set("X-Klefki-Deletion", "1")
+	req.Header.Set("X-Klefki-Content", "1")
 	res, e := h.web.Client().Do(req)
 	if e != nil {
 		t.Fatal(e)
@@ -398,6 +402,9 @@ func TestServerDeletionCleanupResumesAfterRestart(t *testing.T) {
 	}
 	h := setup(t)
 	s, c := h.device(t, "gc-retry", true)
+	if err := c.SetTrashDefault(context.Background(), true); err != nil {
+		t.Fatal(err)
+	}
 	object, _ := vc.RandomID()
 	revision := add(t, s, h.master, object.String(), "", "gc.txt", "GC retry bytes")
 	trashed := trashFixture(t, s, h.master, revision, time.Now().UnixMilli())
@@ -418,6 +425,7 @@ func TestServerDeletionCleanupResumesAfterRestart(t *testing.T) {
 	req, _ := http.NewRequest("POST", h.web.URL+"/v1/sync/deletions", bytes.NewReader(data))
 	req.Header.Set("Authorization", "Bearer "+c.Session.Token)
 	req.Header.Set("X-Klefki-Deletion", "1")
+	req.Header.Set("X-Klefki-Content", "1")
 	res, e := h.web.Client().Do(req)
 	if e != nil {
 		t.Fatal(e)
@@ -479,6 +487,7 @@ func TestDeletionPreservesChunksReferencedByAnotherObject(t *testing.T) {
 	req, _ := http.NewRequest("PUT", h.web.URL+"/v1/sync/revisions/"+wire.ID, bytes.NewReader(data))
 	req.Header.Set("Authorization", "Bearer "+c.Session.Token)
 	req.Header.Set("X-Klefki-Deletion", "1")
+	req.Header.Set("X-Klefki-Content", "1")
 	res, e := h.web.Client().Do(req)
 	if e != nil {
 		t.Fatal(e)
