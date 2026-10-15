@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 430" role="img" aria-labelledby="title desc">
+<title id="title">The private word catalog is encrypted and synced as a document</title><desc id="desc">Visible document heads: Exclude trash and sidecars; Extract + count terms: Name / tags / document text; Validate staleness: Same revisions before publish; Encrypted index sidecar: Ordinary chunks and revision; Unlocked local query: Stop words / evidence gate; Rank candidates: BM25-style term weighting</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#6e8079" stroke-width="1.5"/></marker></defs>
+<rect width="840" height="430" rx="16" fill="#f6f8f4"/>
+<style>text{font-family:system-ui,sans-serif}.title{font-size:18px;font-weight:650;fill:#22332c}.label{font-size:14px;font-weight:650;fill:#22332c}.detail{font-size:12px;fill:#53665d}.edge{font-size:11px;fill:#53665d;paint-order:stroke;stroke:#f6f8f4;stroke-width:7px;stroke-linejoin:round}</style>
+<text class="title" x="28" y="34">The private word catalog is encrypted and synced as a document</text>
+<path d="M250,124 L310,124" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M530,124 L590,124" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M700,163 C700,216.5 700,216.5 700,270" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M590,309 L530,309" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M310,309 L250,309" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<rect x="30" y="85" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="46" y="114">Visible document heads</text>
+<text class="detail" x="46" y="134">Exclude trash and sidecars</text>
+<rect x="310" y="85" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="326" y="114">Extract + count terms</text>
+<text class="detail" x="326" y="134">Name / tags / document text</text>
+<rect x="590" y="85" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="606" y="114">Validate staleness</text>
+<text class="detail" x="606" y="134">Same revisions before publish</text>
+<rect x="590" y="270" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="606" y="299">Encrypted index sidecar</text>
+<text class="detail" x="606" y="319">Ordinary chunks and revision</text>
+<rect x="310" y="270" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="326" y="299">Unlocked local query</text>
+<text class="detail" x="326" y="319">Stop words / evidence gate</text>
+<rect x="30" y="270" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="46" y="299">Rank candidates</text>
+<text class="detail" x="46" y="319">BM25-style term weighting</text>
+<text class="detail" x="28" y="390">The server transports the index. It does not perform plaintext document search.</text>
+</svg>

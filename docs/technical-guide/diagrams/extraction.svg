@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 535" role="img" aria-labelledby="title desc">
+<title id="title">Local extraction converts supported content into text</title><desc id="desc">UTF-8 text: Validate size / Unicode / NUL; PNG / JPEG: Decode -&gt; canonical PNG; PDF: Private staging / Poppler; Tesseract OCR: Images or rendered pages; Bounded extracted text: Merge / deduplicate terms</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#6e8079" stroke-width="1.5"/></marker></defs>
+<rect width="840" height="535" rx="16" fill="#f6f8f4"/>
+<style>text{font-family:system-ui,sans-serif}.title{font-size:18px;font-weight:650;fill:#22332c}.label{font-size:14px;font-weight:650;fill:#22332c}.detail{font-size:12px;fill:#53665d}.edge{font-size:11px;fill:#53665d;paint-order:stroke;stroke:#f6f8f4;stroke-width:7px;stroke-linejoin:round}</style>
+<text class="title" x="28" y="34">Local extraction converts supported content into text</text>
+<path d="M420,148 C420,191.5 560,191.5 560,235" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M700,148 C700,191.5 560,191.5 560,235" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<text class="edge" text-anchor="middle" x="630.0" y="183.5">scan / mixed content</text>
+<path d="M140,148 C140,269.0 420,269.0 420,390" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M700,148 C700,269.0 420,269.0 420,390" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<text class="edge" text-anchor="middle" x="560.0" y="261.0">selectable text</text>
+<path d="M560,313 C560,351.5 420,351.5 420,390" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<rect x="30" y="70" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="46" y="99">UTF-8 text</text>
+<text class="detail" x="46" y="119">Validate size / Unicode / NUL</text>
+<rect x="310" y="70" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="326" y="99">PNG / JPEG</text>
+<text class="detail" x="326" y="119">Decode -&gt; canonical PNG</text>
+<rect x="590" y="70" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="606" y="99">PDF</text>
+<text class="detail" x="606" y="119">Private staging / Poppler</text>
+<rect x="450" y="235" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="466" y="264">Tesseract OCR</text>
+<text class="detail" x="466" y="284">Images or rendered pages</text>
+<rect x="310" y="390" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="326" y="419">Bounded extracted text</text>
+<text class="detail" x="326" y="439">Merge / deduplicate terms</text>
+<text class="detail" x="28" y="495">Text and staged PDFs are plaintext while processing on the trusted client.</text>
+</svg>

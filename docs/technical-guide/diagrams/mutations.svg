@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 430" role="img" aria-labelledby="title desc">
+<title id="title">Content import and metadata-only edits have different costs</title><desc id="desc">Read source bytes: Bill PDF / validate length; Fresh IDs and file key: Encrypt chunks + wrap key; Atomic local commit: Ciphertext + pending revision; Later rename / move: Encrypt new metadata only; Child revision: Reuse unchanged content chunks; Future sync: Publish immutable editions</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#6e8079" stroke-width="1.5"/></marker></defs>
+<rect width="840" height="430" rx="16" fill="#f6f8f4"/>
+<style>text{font-family:system-ui,sans-serif}.title{font-size:18px;font-weight:650;fill:#22332c}.label{font-size:14px;font-weight:650;fill:#22332c}.detail{font-size:12px;fill:#53665d}.edge{font-size:11px;fill:#53665d;paint-order:stroke;stroke:#f6f8f4;stroke-width:7px;stroke-linejoin:round}</style>
+<text class="title" x="28" y="34">Content import and metadata-only edits have different costs</text>
+<path d="M250,124 L310,124" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M530,124 L590,124" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M700,163 C700,216.5 700,216.5 700,270" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M590,309 L530,309" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M310,309 L250,309" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<rect x="30" y="85" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="46" y="114">Read source bytes</text>
+<text class="detail" x="46" y="134">Bill PDF / validate length</text>
+<rect x="310" y="85" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="326" y="114">Fresh IDs and file key</text>
+<text class="detail" x="326" y="134">Encrypt chunks + wrap key</text>
+<rect x="590" y="85" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="606" y="114">Atomic local commit</text>
+<text class="detail" x="606" y="134">Ciphertext + pending revision</text>
+<rect x="590" y="270" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="606" y="299">Later rename / move</text>
+<text class="detail" x="606" y="319">Encrypt new metadata only</text>
+<rect x="310" y="270" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="326" y="299">Child revision</text>
+<text class="detail" x="326" y="319">Reuse unchanged content chunks</text>
+<rect x="30" y="270" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="46" y="299">Future sync</text>
+<text class="detail" x="46" y="319">Publish immutable editions</text>
+<text class="detail" x="28" y="390">A changed content stream requires a fresh file key. A metadata edit can reuse content.</text>
+</svg>

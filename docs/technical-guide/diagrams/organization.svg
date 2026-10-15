@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 430" role="img" aria-labelledby="title desc">
+<title id="title">Analysis and accepted edits have separate lifetimes</title><desc id="desc">Current indexed documents: Text / vectors / revisions; Generate suggestions: Labels / tags / field patterns; Check uncertainty: Score and runner-up margin; Review / correct: Human interpretation; Recheck stale plan: Generation and current heads; Persist encrypted edits: Tags / correction sidecars</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#6e8079" stroke-width="1.5"/></marker></defs>
+<rect width="840" height="430" rx="16" fill="#f6f8f4"/>
+<style>text{font-family:system-ui,sans-serif}.title{font-size:18px;font-weight:650;fill:#22332c}.label{font-size:14px;font-weight:650;fill:#22332c}.detail{font-size:12px;fill:#53665d}.edge{font-size:11px;fill:#53665d;paint-order:stroke;stroke:#f6f8f4;stroke-width:7px;stroke-linejoin:round}</style>
+<text class="title" x="28" y="34">Analysis and accepted edits have separate lifetimes</text>
+<path d="M250,124 L310,124" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M530,124 L590,124" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M700,163 C700,216.5 700,216.5 700,270" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M590,309 L530,309" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M310,309 L250,309" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<rect x="30" y="85" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="46" y="114">Current indexed documents</text>
+<text class="detail" x="46" y="134">Text / vectors / revisions</text>
+<rect x="310" y="85" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="326" y="114">Generate suggestions</text>
+<text class="detail" x="326" y="134">Labels / tags / field patterns</text>
+<rect x="590" y="85" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="606" y="114">Check uncertainty</text>
+<text class="detail" x="606" y="134">Score and runner-up margin</text>
+<rect x="590" y="270" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="606" y="299">Review / correct</text>
+<text class="detail" x="606" y="319">Human interpretation</text>
+<rect x="310" y="270" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="326" y="299">Recheck stale plan</text>
+<text class="detail" x="326" y="319">Generation and current heads</text>
+<rect x="30" y="270" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="46" y="299">Persist encrypted edits</text>
+<text class="detail" x="46" y="319">Tags / correction sidecars</text>
+<text class="detail" x="28" y="390">Replacing content changes file identity; old corrections must not silently describe new bytes.</text>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 390" role="img" aria-labelledby="title desc">
+<title id="title">Process initialization is separate from account unlock</title><desc id="desc">Start process: Flags / config / runtime; Server.Open: Schema / blobs / routes; Load account.v1: Descriptor and sealed keys; Unlock locally: Password or recovery; Unlocked session: Keys / store / cancellation</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#6e8079" stroke-width="1.5"/></marker></defs>
+<rect width="840" height="390" rx="16" fill="#f6f8f4"/>
+<style>text{font-family:system-ui,sans-serif}.title{font-size:18px;font-weight:650;fill:#22332c}.label{font-size:14px;font-weight:650;fill:#22332c}.detail{font-size:12px;fill:#53665d}.edge{font-size:11px;fill:#53665d;paint-order:stroke;stroke:#f6f8f4;stroke-width:7px;stroke-linejoin:round}</style>
+<text class="title" x="28" y="34">Process initialization is separate from account unlock</text>
+<path d="M140,148 C140,186.5 140,186.5 140,225" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<text class="edge" text-anchor="middle" x="140.0" y="178.5">server path</text>
+<path d="M250,109 L310,109" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<text class="edge" text-anchor="middle" x="280.0" y="101.0">client path</text>
+<path d="M420,148 C420,186.5 420,186.5 420,225" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M530,264 L590,264" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<rect x="30" y="70" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="46" y="99">Start process</text>
+<text class="detail" x="46" y="119">Flags / config / runtime</text>
+<rect x="30" y="225" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="46" y="254">Server.Open</text>
+<text class="detail" x="46" y="274">Schema / blobs / routes</text>
+<rect x="310" y="70" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="326" y="99">Load account.v1</text>
+<text class="detail" x="326" y="119">Descriptor and sealed keys</text>
+<rect x="310" y="225" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="326" y="254">Unlock locally</text>
+<text class="detail" x="326" y="274">Password or recovery</text>
+<rect x="590" y="225" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="606" y="254">Unlocked session</text>
+<text class="detail" x="606" y="274">Keys / store / cancellation</text>
+<text class="detail" x="28" y="350">Starting the server never unwraps a client master key.</text>
+</svg>

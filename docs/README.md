@@ -18,6 +18,8 @@
 
 ## Running a server and understanding the design
 
+- [Inside the vault: technical guide](technical-guide/index.html): 18 source-led chapters with offline diagrams, examples, and official references. Open the HTML file directly; [Markdown sources and rebuild instructions](technical-guide/README.md).
+- [Technical video script](media/klefki-technical-video/script.md): ten-minute narration, visual cues, source references, and recording prerequisites; no recording is included.
 - [Server API and deployment](server-api.md): TLS, Docker, authentication, and blob storage.
 - [Sync protocol](sync-protocol.md): offline queues, retries, device cursors, and conflict copies.
 - [Temporary relay and Render](temporary-relay.md): optional delivery cleanup, device enrollment, queue limits, and free-host recovery.

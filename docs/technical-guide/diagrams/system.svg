@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 520" role="img" aria-labelledby="title desc">
+<title id="title">Clients hold keys; the server transports ciphertext</title><desc id="desc">Go CLI: Local commands and recovery; Desktop process: Native runtime and session; Browser client: Independent TypeScript core; Shared Go core: Crypto / SQLite / search; Browser store: Crypto / IndexedDB / sync; Ciphertext server: Sessions / log / blobs</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#6e8079" stroke-width="1.5"/></marker></defs>
+<rect width="840" height="520" rx="16" fill="#f6f8f4"/>
+<style>text{font-family:system-ui,sans-serif}.title{font-size:18px;font-weight:650;fill:#22332c}.label{font-size:14px;font-weight:650;fill:#22332c}.detail{font-size:12px;fill:#53665d}.edge{font-size:11px;fill:#53665d;paint-order:stroke;stroke:#f6f8f4;stroke-width:7px;stroke-linejoin:round}</style>
+<text class="title" x="28" y="34">Clients hold keys; the server transports ciphertext</text>
+<path d="M140,148 C140,186.5 280,186.5 280,225" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M420,148 C420,186.5 280,186.5 280,225" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M700,148 C700,186.5 700,186.5 700,225" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M280,303 C280,341.5 420,341.5 420,380" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<text class="edge" text-anchor="middle" x="350.0" y="333.5">encrypted records</text>
+<path d="M700,303 C700,341.5 420,341.5 420,380" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<text class="edge" text-anchor="middle" x="560.0" y="333.5">encrypted records</text>
+<rect x="30" y="70" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="46" y="99">Go CLI</text>
+<text class="detail" x="46" y="119">Local commands and recovery</text>
+<rect x="310" y="70" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="326" y="99">Desktop process</text>
+<text class="detail" x="326" y="119">Native runtime and session</text>
+<rect x="590" y="70" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="606" y="99">Browser client</text>
+<text class="detail" x="606" y="119">Independent TypeScript core</text>
+<rect x="170" y="225" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="186" y="254">Shared Go core</text>
+<text class="detail" x="186" y="274">Crypto / SQLite / search</text>
+<rect x="590" y="225" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="606" y="254">Browser store</text>
+<text class="detail" x="606" y="274">Crypto / IndexedDB / sync</text>
+<rect x="310" y="380" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="326" y="409">Ciphertext server</text>
+<text class="detail" x="326" y="429">Sessions / log / blobs</text>
+<text class="detail" x="28" y="480">Plaintext processing occurs on unlocked clients. The server does not receive document keys.</text>
+</svg>

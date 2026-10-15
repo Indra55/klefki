@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 660" role="img" aria-labelledby="title desc">
+<title id="title">Password-derived access and randomly generated document keys</title><desc id="desc">Password + salt: Argon2id: 64-byte output; KEK: first 32 bytes: Opens password wrapper; Auth: last 32 bytes: HMAC -&gt; server credential; Random master key: Metadata and key wrappers; Random recovery key: Alternative master wrapper; Random file key: Encrypts one content stream; Content chunks: Fresh nonces; bound context</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#6e8079" stroke-width="1.5"/></marker></defs>
+<rect width="840" height="660" rx="16" fill="#f6f8f4"/>
+<style>text{font-family:system-ui,sans-serif}.title{font-size:18px;font-weight:650;fill:#22332c}.label{font-size:14px;font-weight:650;fill:#22332c}.detail{font-size:12px;fill:#53665d}.edge{font-size:11px;fill:#53665d;paint-order:stroke;stroke:#f6f8f4;stroke-width:7px;stroke-linejoin:round}</style>
+<text class="title" x="28" y="34">Password-derived access and randomly generated document keys</text>
+<path d="M420,143 C420,176.5 140,176.5 140,210" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M420,143 C420,176.5 700,176.5 700,210" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M140,288 C140,321.5 140,321.5 140,355" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<text class="edge" text-anchor="middle" x="140.0" y="313.5">unwrap</text>
+<path d="M310,394 L250,394" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<text class="edge" text-anchor="middle" x="280.0" y="386.0">unwrap</text>
+<path d="M140,433 C140,466.5 140,466.5 140,500" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<text class="edge" text-anchor="middle" x="140.0" y="458.5">unwrap</text>
+<path d="M250,539 L310,539" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<text class="edge" text-anchor="middle" x="280.0" y="531.0">AEAD</text>
+<rect x="310" y="65" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="326" y="94">Password + salt</text>
+<text class="detail" x="326" y="114">Argon2id: 64-byte output</text>
+<rect x="30" y="210" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="46" y="239">KEK: first 32 bytes</text>
+<text class="detail" x="46" y="259">Opens password wrapper</text>
+<rect x="590" y="210" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="606" y="239">Auth: last 32 bytes</text>
+<text class="detail" x="606" y="259">HMAC -&gt; server credential</text>
+<rect x="30" y="355" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="46" y="384">Random master key</text>
+<text class="detail" x="46" y="404">Metadata and key wrappers</text>
+<rect x="310" y="355" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="326" y="384">Random recovery key</text>
+<text class="detail" x="326" y="404">Alternative master wrapper</text>
+<rect x="30" y="500" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="46" y="529">Random file key</text>
+<text class="detail" x="46" y="549">Encrypts one content stream</text>
+<rect x="310" y="500" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="326" y="529">Content chunks</text>
+<text class="detail" x="326" y="549">Fresh nonces; bound context</text>
+<text class="detail" x="28" y="620">The server credential authorizes access. It is separate from the document master key.</text>
+</svg>

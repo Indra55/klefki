@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 525" role="img" aria-labelledby="title desc">
+<title id="title">AEAD checks both the payload and its expected context</title><desc id="desc">Public header / AAD: Account / purpose / object; Private payload: Metadata, key, or chunk; Secret key + nonce: Correct key for record kind; XChaCha20-Poly1305: Ciphertext + authentication tag; Client verification: Check context and completeness</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="none" stroke="#6e8079" stroke-width="1.5"/></marker></defs>
+<rect width="840" height="525" rx="16" fill="#f6f8f4"/>
+<style>text{font-family:system-ui,sans-serif}.title{font-size:18px;font-weight:650;fill:#22332c}.label{font-size:14px;font-weight:650;fill:#22332c}.detail{font-size:12px;fill:#53665d}.edge{font-size:11px;fill:#53665d;paint-order:stroke;stroke:#f6f8f4;stroke-width:7px;stroke-linejoin:round}</style>
+<text class="title" x="28" y="34">AEAD checks both the payload and its expected context</text>
+<path d="M140,158 C140,194.0 420,194.0 420,230" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M420,158 C420,194.0 420,194.0 420,230" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M700,158 C700,194.0 420,194.0 420,230" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<path d="M420,308 C420,344.0 420,344.0 420,380" fill="none" stroke="#6e8079" stroke-width="1.7" marker-end="url(#arrow)"/>
+<rect x="30" y="80" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="46" y="109">Public header / AAD</text>
+<text class="detail" x="46" y="129">Account / purpose / object</text>
+<rect x="310" y="80" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="326" y="109">Private payload</text>
+<text class="detail" x="326" y="129">Metadata, key, or chunk</text>
+<rect x="590" y="80" width="220" height="78" rx="10" fill="#ffffff" stroke="#cad6cc"/>
+<text class="label" x="606" y="109">Secret key + nonce</text>
+<text class="detail" x="606" y="129">Correct key for record kind</text>
+<rect x="310" y="230" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="326" y="259">XChaCha20-Poly1305</text>
+<text class="detail" x="326" y="279">Ciphertext + authentication tag</text>
+<rect x="310" y="380" width="220" height="78" rx="10" fill="#e3ece4" stroke="#cad6cc"/>
+<text class="label" x="326" y="409">Client verification</text>
+<text class="detail" x="326" y="429">Check context and completeness</text>
+<text class="detail" x="28" y="485">A valid chunk tag does not establish that all expected chunks arrived.</text>
+</svg>

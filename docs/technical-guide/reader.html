@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Klefki · Inside the vault</title>
+  <!-- GUIDE_CSS -->
+</head>
+<body>
+  <a class="skip" href="#reading">Skip to chapter</a>
+  <aside class="sidebar" aria-label="Book navigation">
+    <a href="#00-map" class="brand">KLEFKI <span>Technical field guide</span></a>
+    <h2>Inside the vault.</h2>
+    <p class="intro">From keys and ciphertext to local search and durable sync.</p>
+    <label class="search-label" for="search">Search the book</label>
+    <input id="search" type="search" placeholder="Try: cursor, Argon2id, OCR" autocomplete="off">
+    <p id="search-status" class="muted" role="status"></p>
+    <nav id="chapter-list" aria-label="Chapters"></nav>
+    <p class="snapshot">Source review · 16 Oct 2026<br>Base d043423 + working changes</p>
+  </aside>
+  <div class="workspace">
+    <header class="toolbar">
+      <button id="menu" type="button" aria-expanded="false" aria-label="Toggle chapter navigation">Chapters</button>
+      <span id="chapter-meta" class="muted"></span>
+      <div class="tools">
+        <button id="font" type="button" aria-label="Change reading text size">Aa</button>
+        <button id="theme" type="button">Dark</button>
+        <button id="print" type="button">Print</button>
+      </div>
+    </header>
+    <main id="reading" tabindex="-1">
+      <div class="reading-grid">
+        <div>
+          <noscript><p>This book is available below in full. Enable JavaScript for chapter navigation and search.</p></noscript>
+          <div id="articles"><!-- GUIDE_CHAPTERS --></div>
+          <footer class="chapter-footer">
+            <button id="previous" type="button">Previous</button>
+            <button id="mark-read" type="button" aria-pressed="false">Mark as read</button>
+            <button id="next" type="button">Next</button>
+          </footer>
+        </div>
+        <aside class="outline" aria-label="Current chapter sections">
+          <p class="eyebrow">IN THIS CHAPTER</p>
+          <nav id="section-list"></nav>
+          <a id="markdown-link" href="chapters/00-map.md">Markdown source ↗</a>
+        </aside>
+      </div>
+    </main>
+    <footer class="book-footer">An offline, source-led guide. External references open online only when selected.</footer>
+  </div>
+  <dialog id="diagram-dialog" aria-label="Enlarged diagram">
+    <button id="close-diagram" type="button" autofocus>Close diagram</button>
+    <img id="large-diagram" alt="">
+  </dialog>
+  <!-- GUIDE_DATA -->
+  <!-- GUIDE_JS -->
+</body>
+</html>
