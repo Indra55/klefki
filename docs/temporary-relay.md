@@ -20,6 +20,14 @@ removes document chunks when no undelivered revision or active upload needs them
 The first device alone never triggers cleanup. Local copies and revision history
 remain on your devices until [permanent deletion](trash.md).
 
+Devices do not need simultaneous uptime: the source uploads first, and the
+receiver can save its copy later while the source is closed. If the source has
+not finished uploading, another device can show **reported changes waiting to
+upload** after a small device-state report reaches the server. Reopen the source
+to finish its upload, then sync the receiver. A source that never contacts the
+server after an offline edit cannot announce that work. See
+[saved device reports](sync-status.md) for status meanings and compatibility.
+
 An offline device holds deliveries in the queue. **Forget device** removes an
 unused local store from that roster; it does not erase its downloaded data or
 revoke login access. The forgotten store needs a fresh store to join again.

@@ -70,6 +70,20 @@ export class Store {
         }
     }
     async state<T>(key: string): Promise<T | undefined> { return this.transaction(['state'], 'readonly', tx => req(tx.objectStore('state').get(key))); }
+    async deviceState(minimum=0) {
+        return this.transaction(['state','revisions','deletions'],'readwrite',async tx => {
+            const state=tx.objectStore('state');
+            const revisions=await req(tx.objectStore('revisions').getAll()) as Stored[];
+            const deletions=await req(tx.objectStore('deletions').getAll()) as {pending:boolean}[];
+            const pending=revisions.some(x=>x.pending)||deletions.some(x=>x.pending);
+            const previous=await req(state.get('device-state')) as {version:number;pending:boolean}|undefined;
+            const version=!previous||previous.pending!==pending||previous.version<minimum?Math.max((previous?.version||0)+1,minimum):previous.version;
+            c.check(Number.isSafeInteger(version)&&version>0);
+            const report={version,pending};
+            if(!previous||previous.version!==version)state.put(report,'device-state');
+            return report;
+        });
+    }
     async relayState() {
         return this.transaction(['state'],'readwrite',async tx => {
             const state=tx.objectStore('state'), device=await req(state.get('relay-device')) || c.id();

@@ -18,7 +18,7 @@ internal scrolling. Wider browser and desktop windows keep the corner panel.
 | --- | --- |
 | Green | Up to date with server, with no known waiting changes. |
 | Amber | Local changes waiting to upload. |
-| Purple | Changes waiting to download, another device needed to supply content, or linked devices awaiting receipt. |
+| Purple | Changes waiting to download, another device needed to supply content, linked devices awaiting receipt, or reported local changes on another device. |
 | Blue | Checking, transferring, saving, or retrying. |
 | Red | Server unavailable, timeout, sign-in required, relay full, or sync error. |
 | Gray | Paused, offline, local-only, locked, or unknown status. |
@@ -34,6 +34,25 @@ connected** means a recent heartbeat reached the server, while **Not recently
 seen** means live presence has expired or the server has restarted. It does not
 assert a direct connection between devices. Status older than 45 seconds loses
 its receipt certainty until refreshed.
+
+A device can also report **changes waiting to upload** before document upload
+finishes. Another client shows a purple indicator and asks you to reopen the
+source device. The last report and its server timestamp remain visible after
+that device disconnects or live presence expires. This describes local work
+reported by that source, separately from changes already saved on the relay.
+After upload, its warning clears and any remaining receipt wait is shown instead.
+When the server cannot be checked, cached reports are labelled last known.
+
+Reports contain only a boolean, a version, and a server timestamp, with one
+record per enrolled device. They include pending revisions and permanent
+deletions. Unchanged reports cause no recurring requests or server writes;
+other devices read them through the existing 30-second checks, or five seconds
+with details open. Local edits request a report promptly; failed reports retry
+through the existing monitor.
+Reports do not start full sync passes on receivers. Pausing also pauses reporting.
+A source that edits entirely offline or closes before its report succeeds cannot
+advertise that work until it reconnects. Reports survive server restart only
+when the database survives; complete server data loss removes them too.
 
 Device nicknames are editable in the activity panel or Sync & devices settings.
 They are local preferences scoped to the account and server. They are not sent
@@ -118,6 +137,8 @@ Historical revisions without attribution show Source unknown.
 | --- | --- |
 | `POST /v1/sync/presence` | Stable `device`, `clientKind`, `phase`, optional opaque `revision` and `direction`, and `doneBytes`/`totalBytes`. No document names or nicknames. Device must already be registered and match `X-Klefki-Device`. Returns 204. |
 | `GET /v1/sync/status` | `{epoch, latestSequence, devices}` with device type, reported phase/progress, last contact, durable acknowledged sequence, and outstanding account change count. |
+| `GET /v1/sync/status?deviceState=1` | Opt-in response adds `deviceStateSupported: true` and optional per-device `deviceState: {version, pending, reportedAt}`. Omitted reports mean unknown. The original status response keeps its old shape. |
+| `POST /v1/sync/device-state` | `{device, version, pending}`; enrolled device must match `X-Klefki-Device`. Returns the saved `{version, pending, reportedAt}`. Newer versions replace the record; identical retries return it without writing; stale or conflicting versions return 409. |
 | `GET /v1/sync/provenance?after=N` | `{changes}` of at most 16 records containing sequence, revision ID, original device when known, and latest publishing device. |
 
 Revision publication optionally supplies `X-Klefki-Origin-Device`. The original
@@ -127,11 +148,46 @@ provenance. Receipt counts use actual account changes rather than sequence
 subtraction, since sequence numbers can have gaps. A changed server epoch
 replaces cached receipt state; live presence clears on restart.
 
+Device-state versions are positive safe integers (at most 9007199254740991).
+Clients snapshot pending state and persist report versions transactionally,
+reconcile versions against the server after restoring an older local backup,
+and republish missing reports following server recovery. Reports are advisory
+bookkeeping, not evidence of cryptographic receipt or a document backup.
+
 Older clients continue using the existing sync wire shapes. A new client against
-an older server continues syncing and displays Device status unavailable when
+an older server continues syncing; without the device-state capability it sends
+no new reports. It displays Device status unavailable when
 the additive endpoints are absent. To expose full device activity on a hosted
 server, deploy the updated server and web build together. Existing installed
 PWAs receive the changed assets through the existing service-worker update flow.
+
+## Saved device reports acceptance — 2026-10-15
+
+- [x] `go test -race ./server ./core/sync ./core/desktop` and
+  `go vet ./server ./core/sync ./core/desktop` passed. Additional focused race
+  tests passed after adding interrupted-report and complete-server-loss cases.
+  Regressions cover source-only upload followed by receiver-only download,
+  failed document upload with successful desktop reporting, permanent deletions,
+  report retry, restored local backup versions, restart persistence, forgotten
+  devices, stale/conflicting updates, isolation and legacy status responses.
+- [x] All 44 desktop frontend tests and 45 web crypto checks passed. UI checks
+  cover offline source warnings, separate server receipts and last-known state.
+- [x] Eleven distinct Chromium cases passed across the regression run and
+  focused rerun: relay delivery without overlapping device uptime, saved source
+  warnings across closure/reopen, warning clearance after upload, idle request
+  counts, existing relay recovery/batching, transfer activity and pause/resume.
+  The PWA reporting branch used an explicit `display-mode` fixture because
+  Chromium's media emulation does not override that feature. This is not proof
+  of physical installed-PWA behavior.
+- [x] The report request counter remained unchanged through idle monitoring;
+  duplicate server reports preserved both `total_changes()` and the saved
+  timestamp. Each account/device has one report row, removed when forgotten.
+- [x] Web/PWA and desktop frontend production builds passed; the ONNX-enabled
+  native executable was rebuilt at `desktop/build/bin/klefki-desktop`.
+- [ ] Hosted deployment, physical installed-PWA acceptance, installation of the
+  rebuilt desktop executable and native-window acceptance remain separate checks.
+  The original missed-sync account was not inspected; local tests establish
+  receiver-independent delivery and the warning behavior.
 
 ## Indicator and refresh acceptance — 2026-10-13
 

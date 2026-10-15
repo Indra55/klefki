@@ -91,7 +91,7 @@ test('compact indicator opens a centered menu with stable paginated activity',as
     await panel.getByRole('button',{name:'Close',exact:true}).click();await trigger.click();
     await expect(panel.getByText('Page 1 of 2',{exact:true})).toBeVisible();
     await page.context().setOffline(true);await expect(trigger).toHaveAttribute('data-state','neutral');await expect(panel).toContainText('Network unavailable');
-    await page.route('**/v1/sync/status',route=>route.fulfill({status:503,body:'Unavailable'}));
+    await page.route('**/v1/sync/status*',route=>route.fulfill({status:503,body:'Unavailable'}));
     await page.context().setOffline(false);await expect(trigger).toHaveAttribute('data-state','error');await expect(panel).toContainText('Server unreachable');
   }finally{await page.context().setOffline(false);c.wipe(created.master);}
 });
@@ -99,7 +99,7 @@ test('compact indicator opens a centered menu with stable paginated activity',as
 test('unsupported device status does not stop sync and offline work stays queued',async({page})=>{
   await c.ready;const created=c.createAccount(password);
   try{
-    await page.route('**/v1/sync/status',route=>route.fulfill({status:404,body:'Not Found'}));await page.route('**/v1/sync/provenance?*',route=>route.fulfill({status:404,body:'Not Found'}));
+    await page.route('**/v1/sync/status*',route=>route.fulfill({status:404,body:'Not Found'}));await page.route('**/v1/sync/provenance?*',route=>route.fulfill({status:404,body:'Not Found'}));
     await open(page,created.account);await openSettings(page,'Sync & devices');await page.getByRole('button',{name:'Register this store on server',exact:true}).click();await expect(page.getByRole('status')).toContainText('Synced.');
     await backToLibrary(page);await page.getByRole('button',{name:'Sync status',exact:true}).click();const panel=page.getByRole('dialog',{name:'Sync activity'});await expect(panel).toContainText('Device status unavailable');await panel.getByRole('button',{name:'Close',exact:true}).click();
     await page.context().setOffline(true);await upload(page,{name:'offline-status.txt',mimeType:'text/plain',buffer:Buffer.from('offline pending')});await expect(page.locator('article')).toContainText('offline-status.txt');

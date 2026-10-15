@@ -111,3 +111,23 @@ describe('sync visibility',()=>{
     expect(screen.getByText('Page 1 of 3')).toBeVisible();
   });
 });
+
+it('retains an offline source warning and distinguishes it from server receipts',async()=>{
+  state.pending=0;
+  const now=Date.now();
+  state.syncInfo={...idleSync(),phase:'synced',statusAvailable:true,lastDeviceCheck:now,peers:{epoch:self,latestSequence:0,deviceStateSupported:true,devices:[{device:phone,clientKind:'pwa',phase:'unknown',lastSeen:now-120000,sequence:0,outstanding:0,doneBytes:0,totalBytes:0,deviceState:{version:2,pending:true,reportedAt:now-120000}}]}};
+  const user=userEvent.setup();
+  const props={state,activity:[],open:true,onOpen:vi.fn(),onSettings:vi.fn(),onRefresh:vi.fn(async()=>{})};
+  const rendered=render(<SyncStatus {...props}/>);
+  expect(screen.getByRole('button',{name:'Sync status'})).toHaveAttribute('data-state','waiting');
+  expect(screen.getByText('My phone reported changes waiting to upload',{selector:'p'})).toBeVisible();
+  expect(screen.getByText(/Reopen this device to finish syncing/)).toBeVisible();
+  expect(screen.getByText('Not recently seen')).toBeVisible();
+  expect(screen.getByText('Received latest server changes')).toBeVisible();
+  expect(screen.getByText(/Pending-state report/)).toBeVisible();
+  const stale={...state,syncInfo:{...state.syncInfo!,statusAvailable:false}};
+  rendered.rerender(<SyncStatus {...props} state={stale}/>);
+  expect(screen.getByRole('button',{name:'Sync status'})).toHaveAttribute('data-state','neutral');
+  expect(screen.getByText(/Last known report: changes waiting to upload/)).toBeVisible();
+  await user.click(screen.getByRole('button',{name:'Close sync activity'}));
+});

@@ -1,5 +1,5 @@
 import {node,button} from './ui.ts';
-import {idleSync,syncLabel,syncIndicator,syncLegend,activityPage,phaseLabel,deviceName,transferDetail,receipt,presence,waitingDevices,bytes,TransferRate,type SyncInfo,type SyncActivity} from '../../ui/sync-status.ts';
+import {idleSync,syncLabel,syncIndicator,syncLegend,activityPage,phaseLabel,deviceName,transferDetail,receipt,presence,devicePendingDetail,waitingDevices,bytes,TransferRate,type SyncInfo,type SyncActivity,type DeviceStatus} from '../../ui/sync-status.ts';
 
 type Data = {info:SyncInfo;pending:number;server:string;aliases:Record<string,string>;self:string;activity:SyncActivity[];lastSync:number;devices:string[]};
 type Actions = {pause:()=>void;refresh:()=>void;settings:()=>void;panel:(open:boolean)=>void;alias:(id:string,name:string)=>Promise<void>};
@@ -82,10 +82,12 @@ export class SyncView {
     // Keep an unfinished nickname edit and its keyboard focus across progress ticks.
     if(!this.deviceList.contains(document.activeElement)){
       this.deviceList.replaceChildren();
-      const devices=peers.length?peers:this.data.devices.map(device=>({device,clientKind:'',phase:'unknown',lastSeen:0,sequence:0,outstanding:0,doneBytes:0,totalBytes:0}));
+      const devices:DeviceStatus[]=peers.length?peers:this.data.devices.map(device=>({device,clientKind:'',phase:'unknown',lastSeen:0,sequence:0,outstanding:0,doneBytes:0,totalBytes:0}));
       for(const d of devices){
         const row=node('div',undefined,'sync-device'),heading=node('div',undefined,'sync-device-heading'),name=deviceName(d.device,aliases,devices,self);
         heading.append(node('strong',name+(d.device===self&&name!=='This device'?' · This device':'')),node('small',presence(d,now,info.lastDeviceCheck)));row.append(heading,node('p',receipt(d,info.statusAvailable&&now-info.lastDeviceCheck<45000)));
+        const pendingDetail=devicePendingDetail(d,info.statusAvailable&&now-info.lastDeviceCheck<45000);if(pendingDetail)row.append(node('p',pendingDetail));
+        if(d.deviceState)row.append(node('small','Pending-state report '+new Date(d.deviceState.reportedAt).toLocaleString()));
         if(d.lastSeen)row.append(node('small','Last contact '+new Date(d.lastSeen).toLocaleString()));
         if(info.statusAvailable&&d.phase!=='unknown'&&d.totalBytes)row.append(node('p',`${bytes(d.doneBytes)} of ${bytes(d.totalBytes)} · ${phaseLabel(d.phase)}`));
         const form=node('form'),input=node('input'),save=node('button','Save','quiet');input.setAttribute('aria-label',`Nickname for device ${d.device.slice(0,8)}`);input.placeholder=name;input.value=aliases[d.device]||'';input.maxLength=64;save.type='submit';save.disabled=true;input.oninput=()=>{save.disabled=input.value.trim()===(aliases[d.device]||'')};form.append(input,save);
