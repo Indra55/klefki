@@ -35,6 +35,8 @@ type Config struct {
 	StorePath           string                         `json:"storePath"`
 	Server              string                         `json:"server"`
 	SyncPaused          bool                           `json:"syncPaused,omitempty"`
+	FreshDownload       *FreshDownloadState            `json:"freshDownload,omitempty"`
+	PreviousStorePath   string                         `json:"previousStorePath,omitempty"`
 	FingerprintAccounts []string                       `json:"fingerprintAccounts,omitempty"`
 	Preferences         Preferences                    `json:"preferences"`
 	Semantic            map[string]SemanticPreferences `json:"semantic,omitempty"`
@@ -349,6 +351,8 @@ func (s *Service) Select(accountPath, storePath string, copyAccount bool) error 
 	s.config.AccountPath = accountPath
 	s.config.StorePath = storePath
 	s.config.Server = ""
+	s.config.FreshDownload = nil
+	s.config.PreviousStorePath = ""
 	s.lastSync = ""
 	return s.save()
 }
@@ -449,7 +453,7 @@ func Code(e error) string {
 	switch e.Error() {
 	case "SEMANTIC_UNAVAILABLE", "SEMANTIC_MODEL_INVALID", "SEMANTIC_CORRECTION_CONFLICT", "SEMANTIC_DISABLED", "SEARCH_REBUILD_REQUIRED", "SEARCH_LIMIT", "SEARCH_INDEX_INVALID", "SEARCH_EXTRACTION_FAILED", "SEARCH_TOOL_UNAVAILABLE":
 		return e.Error()
-	case "SYNC_CONNECT_REQUIRED", "UNLOCK_FAILED", "PREVIEW_UNSUPPORTED", "IMPORT_PARTIAL", "RECOVERY_LOCAL_ONLY", "FINGERPRINT_UNAVAILABLE", "FINGERPRINT_FAILED", "FINGERPRINT_DISABLED", "FINGERPRINT_MISSING", "FINGERPRINT_PASSWORD_REQUIRED", "FINGERPRINT_KEYRING", "FINGERPRINT_BUSY", "FINGERPRINT_CANCELED":
+	case "SYNC_DOWNLOAD_BUSY", "SYNC_DOWNLOAD_PENDING", "SYNC_DOWNLOAD_INCOMPLETE", "SYNC_DOWNLOAD_SOURCE_CHANGED", "SYNC_CONNECT_REQUIRED", "UNLOCK_FAILED", "PREVIEW_UNSUPPORTED", "IMPORT_PARTIAL", "RECOVERY_LOCAL_ONLY", "FINGERPRINT_UNAVAILABLE", "FINGERPRINT_FAILED", "FINGERPRINT_DISABLED", "FINGERPRINT_MISSING", "FINGERPRINT_PASSWORD_REQUIRED", "FINGERPRINT_KEYRING", "FINGERPRINT_BUSY", "FINGERPRINT_CANCELED":
 		return e.Error()
 	}
 	return "OPERATION_FAILED"

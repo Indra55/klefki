@@ -263,8 +263,12 @@ func (s *Service) startSession(ctx context.Context, cfg Config, a vc.Account, ma
 	s.syncState = "Local only"
 	s.syncInfo = SyncInfo{Phase: "local", Paused: s.config.SyncPaused}
 	x := s.session
+	x.network.Add(1)
 	s.mu.Unlock()
 	go s.SyncNow()
-	go s.monitorSync(x)
+	go func() {
+		defer x.network.Done()
+		s.monitorSync(x)
+	}()
 	return nil
 }

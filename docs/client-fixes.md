@@ -12,8 +12,8 @@ unrelated documentation work stays intact.
 | 3 | Add a per-device sync pause/resume control for bulk local uploads | Fixed and validated |
 | 4 | Keep mobile three-dot menus fully inside the viewport | Fixed and validated |
 | 5 | Make passkey unlock available on supported web browsers too | Fixed and validated |
-| 6 | Replace the app icon with an original minimalist key-inspired design | Queued |
-| 7 | Diagnose stale Linux desktop sync and add an explicit fresh-download option | Queued |
+| 6 | Replace the app icon with an original minimalist key-inspired design | Fixed and validated |
+| 7 | Diagnose stale Linux desktop sync and add an explicit fresh-download option | Recovery validated; original failure unverified |
 
 ## 1. Document editor closes by itself
 
@@ -106,13 +106,42 @@ unrelated documentation work stays intact.
   keys, native-window interaction and installed-phone PWA acceptance remain
   separate checks. See [passkey setup](passkey-web.md).
 
-## Acceptance for queued tasks
+## 6. Original application icon
 
-6. Use original artwork with a key/keyring motif, then update desktop and PWA
-   icons, including install and maskable variants.
-7. Inspect the current sync failure before resetting anything. Offer a clear,
-   explicit local replacement flow that preserves account access and obtains a
-   complete authenticated copy. Temporary relay may require another current
-   device online because delivered ciphertext can be removed from the server;
-   do not assume the server contains a full backup or select a source by its
-   timestamp alone.
+- Replaced the application artwork with an original charcoal and ivory key mark.
+  The SVG is the source for desktop, PWA, favicon and Apple touch assets;
+  `python3 scripts/build-icons.py` regenerates the PNGs using `rsvg-convert`.
+- PWA install icons now have separate regular and opaque maskable variants.
+  The key fits inside the maskable safe circle. Apple touch artwork is full
+  bleed; regular desktop/PWA icons retain transparent rounded corners.
+- Validation: image formats, dimensions, transparency, maskable safe area,
+  manifest/favicon/installer references and deterministic regeneration passed.
+  Web production and native Linux builds passed. The native window now embeds
+  the same icon. Installed launcher/native-window appearance
+  and physical PWA icon refresh require a separate walkthrough.
+
+## 7. Safe fresh-download recovery
+
+- Added an explicit confirmation in desktop Settings > Sync & devices. The
+  operation logs in again, downloads into a separate encrypted store, verifies
+  every record/chunk and checks known local history before selecting the copy
+  and locking. The original store and encrypted account file remain intact;
+  password/recovery access and the automatic-sync pause preference are retained.
+- Pending local edits, active sync and recovery-only unlock block the operation.
+  Failed or cancelled downloads keep the original selected. Retrying reuses one
+  staging store/device; missing relay data requires an existing current device
+  to supply it. No source is selected by its timestamp.
+- Seven backend safety cases passed with race detection: verified replacement,
+  pending-work refusal, relay waiting/retry/peer recovery, lock cancellation,
+  initial settings-save failure, missing-known-history refusal and final
+  settings-save rollback. The full desktop backend race suite, root Go vet,
+  native-module tests, all 47 desktop UI tests and the Linux build passed.
+  Three desktop frontend browser cases passed for Settings, menus and sync
+  controls across narrow layouts; those use a fixture bridge, not a native window.
+- The existing refresh path was also checked: it renews expired sessions while
+  retaining store identity and receives remote changes. Synthetic failures and
+  recovery were reproduced; the original user's stale Linux account failure
+  was not inspected or reproduced. That diagnosis and native-window/hosted
+  acceptance remain open. No real vault was reset or replaced during this work.
+- Verification covers server data and known local history, not unknown changes
+  on unavailable devices. See [fresh-download use and limits](sync-status.md#download-a-fresh-desktop-copy).

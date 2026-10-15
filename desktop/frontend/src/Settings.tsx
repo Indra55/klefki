@@ -33,6 +33,7 @@ export function Settings({ state, section, onSectionChange, scan, onScanStart, o
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [confirmDownload, setConfirmDownload] = useState(false);
   const [fingerprintAction, setFingerprintAction] = useState<'enable' | 'disable' | null>(null);
   const [fingerprintResult, setFingerprintResult] = useState<FingerprintAnimation>('idle');
   const heading = useRef<HTMLHeadingElement>(null);
@@ -144,6 +145,23 @@ export function Settings({ state, section, onSectionChange, scan, onScanStart, o
             <button className="secondary" disabled={busy || state.recoveryOnly}>{busy ? 'Connecting…' : state.config.server ? 'Reconnect' : 'Connect server'}</button>
           </form>
           {state.recoveryOnly && <p className="muted small">Unlock with your password to sync. Recovery access is local.</p>}
+          <section className="settings-section">
+            <h3>Download a fresh copy</h3>
+            <p className="muted small">Download and verify a separate copy, then lock Klefki to reopen it. Your account file and current local store stay on this device. Local changes must finish syncing first.</p>
+            <p className="muted small">With temporary relay, keep a current linked device online and syncing. Failed attempts keep your library selected and resume the same encrypted download. Checks server data against your known local history. Another device may still hold newer files.</p>
+            {state.config.previousStorePath && <p className="settings-hint">Previous local store retained at: {state.config.previousStorePath}</p>}
+            {state.config.freshDownload && <p className="settings-hint">Unfinished encrypted download: {state.config.freshDownload.path}</p>}
+            {!confirmDownload ? <button className="secondary" disabled={busy || state.recoveryOnly || !state.config.server || syncInfo(state).running || state.pending > 0} onClick={() => setConfirmDownload(true)}>{state.config.freshDownload ? 'Resume fresh download' : 'Download a fresh copy'}</button> : <div>
+              <p>Keep the current store at {state.config.storePath} and switch only after the download verifies? Klefki will lock when it is ready.</p>
+              <button className="secondary" disabled={busy} onClick={() => void (async () => {
+                setBusy(true); setError(''); setMessage('');
+                try { await api().FreshDownload(); await onRefresh(); }
+                catch (e) { setError(errorMessage(e)); await onRefresh(); }
+                finally { setBusy(false); setConfirmDownload(false); }
+              })()}>{busy ? 'Downloading and verifying…' : 'Verify and use fresh copy'}</button>
+              <button className="quiet" disabled={busy} onClick={() => setConfirmDownload(false)}>Cancel</button>
+            </div>}
+          </section>
           <section className="settings-section">
             <h3>Server storage</h3>
             <div className="preference-row"><div><label htmlFor="sync-mode">Sync mode</label><p>Shared by every device linked to this account.</p></div>

@@ -124,6 +124,34 @@ concurrent edits or prevent conflict copies when different devices edit the
 same document. Resume devices after finishing their batches and allow changes
 to arrive before editing shared documents again.
 
+## Download a fresh desktop copy
+
+If **Refresh sync** does not resolve a stale library, desktop Settings >
+Sync & devices offers **Download a fresh copy**. Finish syncing local changes
+first. Confirm **Verify and use fresh copy** to download into a separate private
+directory; the current account file and local store remain intact. This explicit
+download can run while automatic sync is paused and preserves that preference.
+
+Klefki logs in again, authenticates the downloaded records and chunks, and checks
+that every known local revision is present or its object has a server deletion
+fence. It switches the selected store only after verification and saving the
+new selection succeed, then locks. Unlock normally to open the verified copy.
+Settings shows the previous store path for recovery; the encrypted account file,
+password, recovery code and configured server stay unchanged.
+
+With temporary relay, keep a current linked device online and syncing to supply
+data the server no longer retains. A failed attempt keeps the original selected
+and saves one unfinished encrypted download. **Resume fresh download** retries
+that same store/device. Locking cancels the attempt without switching stores.
+Recovery-only unlock and an active sync cannot start a fresh download.
+
+Verification covers the server feed and known local history. It cannot establish
+that an unavailable device has no newer files or detect history missing from all
+available copies. It also authenticates the original store before starting, so
+this is not a repair for corrupt local ciphertext. Synthetic relay waiting,
+peer recovery, missing history, cancellation and settings-save failures are
+covered by tests; the original reported Linux sync failure remains unverified.
+
 ## Transport and compatibility
 
 The encrypted envelopes, chunk size, immutable revision bodies, and existing
@@ -160,6 +188,18 @@ no new reports. It displays Device status unavailable when
 the additive endpoints are absent. To expose full device activity on a hosted
 server, deploy the updated server and web build together. Existing installed
 PWAs receive the changed assets through the existing service-worker update flow.
+
+## Main integration verification — 2026-10-16
+
+- Integrated the device-pending branch into `main` as `d043423`, preserving
+  document-sharing cleanup when the web vault locks.
+- `go test -race ./server ./core/sync ./core/desktop`, all 44 desktop UI tests
+  and all 45 shared web crypto checks passed. The web production build passed.
+- All eleven Chromium device-state, sync-status and sharing cases passed against
+  the rebuilt web app, including pending reports across source closure, no idle
+  writes, upload clearance, receiver-independent delivery and share cleanup.
+- This verifies local integration. Hosted deployment, native-window behavior,
+  real passkeys and physical installed-PWA acceptance remain separate checks.
 
 ## Saved device reports acceptance — 2026-10-15
 
