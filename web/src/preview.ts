@@ -4,7 +4,7 @@ import type { PDFDocumentProxy, RenderTask, PDFDocumentLoadingTask } from 'pdfjs
 const active = new Set<() => void>();
 export function closePreviews() { for (const close of active) close(); }
 
-export async function showPreview(name: string, bytes: Uint8Array, closed: () => void, download: () => void) {
+export async function showPreview(name: string, bytes: Uint8Array, closed: () => void, download: () => void, share: () => void) {
     const dialog = node('dialog', undefined, 'modal wide preview');
     dialog.setAttribute('aria-label', name);
     const header = node('header'), title = node('h2', name);
@@ -25,7 +25,7 @@ export async function showPreview(name: string, bytes: Uint8Array, closed: () =>
     dialog.onclose = cleanup;
     const observer = new MutationObserver(() => { if (!dialog.isConnected) { cleanup(); observer.disconnect(); } });
     active.add(cleanup);
-    controls.append(iconButton('Export', 'download', download));
+    controls.append(iconButton('Share', 'share', share), iconButton('Export', 'download', download));
     const root = globalThis.document.querySelector('#app')!;
     root.append(dialog); dialog.showModal(); observer.observe(root, {childList: true, subtree: true});
     const pdf = /\.pdf$/i.test(name), image = /\.(png|jpe?g|gif|webp)$/i.test(name), text = /\.(txt|md|csv|json)$/i.test(name);

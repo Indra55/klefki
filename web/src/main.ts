@@ -5,6 +5,7 @@ import { node, button, field, icon, iconButton, menu, preferences } from './ui.t
 import {folderImage,folderIconPicker} from './folder-icons.ts';
 import { settingsPage, type Section } from './settings.ts';
 import { showPreview, closePreviews } from './preview.ts';
+import { showShare, closeShares } from './share.ts';
 import * as c from './crypto.ts';
 import {trashDates,retention,previewDeletion,deleteTrash,cleanupTrash,expiredTrash,deletionRecords} from './trash.ts';
 import { Store, unlockRevision, type Head } from './store.ts';
@@ -86,7 +87,7 @@ async function monitorSync(){
         if(g===generation)renderSync();
     } finally {if(g===generation)monitorBusy=false;}
 }
-function download(bytes: Uint8Array, name: string, type = 'application/octet-stream') { const url = URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type })); urls.add(url); const a = node('a'); a.href = url; a.download = name; a.click(); setTimeout(() => { URL.revokeObjectURL(url); urls.delete(url); }, 10000); }
+function download(bytes: Uint8Array | Blob, name: string, type = 'application/octet-stream') { const url = URL.createObjectURL(bytes instanceof Blob ? bytes : new Blob([bytes as Uint8Array<ArrayBuffer>], { type })); urls.add(url); const a = node('a'); a.href = url; a.download = name; a.click(); setTimeout(() => { URL.revokeObjectURL(url); urls.delete(url); }, 10000); }
 function message(text: string) {
     feedback = text;
     const status = document.querySelector('#status'); if (status) status.textContent = text;
@@ -114,7 +115,7 @@ function shell() {
     }
     root.prepend(header); if (waitingUpdate?.waiting) offerUpdate(root); app.append(root); return root;
 }
-function lock() { syncModeDraft=undefined;syncView.clear();window.clearTimeout(syncTimer);syncInfo=idleSync();syncActivity=[];aliases={};syncDevice='';linkedDevices=[];lastSync=0;syncPaused=pauseSaving=syncRunning=syncRequested=registerRequested=refreshRequested=monitorBusy=false;lastPresence=lastDeviceCheck=pendingChanges=0;closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
+function lock() { syncModeDraft=undefined;syncView.clear();window.clearTimeout(syncTimer);syncInfo=idleSync();syncActivity=[];aliases={};syncDevice='';linkedDevices=[];lastSync=0;syncPaused=pauseSaving=syncRunning=syncRequested=registerRequested=refreshRequested=monitorBusy=false;lastPresence=lastDeviceCheck=pendingChanges=0;closeShares();closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
     c.wipe(master); if (credential)
     c.wipe(credential); master = credential = undefined; heads = []; store?.close(); store = undefined; release?.(); release = undefined; busy = false; parent = null; filter = ''; favorites = false; view = 'All documents'; tag = ''; settings = null; feedback = ''; syncState = 'Local only'; for (const url of urls)
     URL.revokeObjectURL(url); urls.clear(); for (const b of previews)
@@ -300,7 +301,7 @@ function locked() {
 function recoveryDialog(code: string) { const dialog = node('dialog',undefined,'modal'); dialog.append(node('h2', 'Save your recovery code'), node('p', 'Store this separately from your private space. It is shown once and is needed if you lose your password.'), node('code', code)); dialog.append(button('Download recovery code', () => download(c.utf8(code + '\n'), 'klefki-recovery.txt', 'text/plain')), button('I have saved it', () => { dialog.close(); dialog.remove(); })); app.append(dialog); dialog.showModal(); dialog.oncancel = e => e.preventDefault(); }
 async function refresh() { if (!store || !master)
     return; const g = generation, next = await store.heads(master); if (g !== generation)
-    return; if(heads.some(h=>!next.some(n=>n.revision.id===h.revision.id))){closePreviews();semantic.clearPrivate();}heads = next; await library(); }
+    return; if(heads.some(h=>!next.some(n=>n.revision.id===h.revision.id))){closeShares();closePreviews();semantic.clearPrivate();}heads = next; await library(); }
 async function connectRemote(register=false){
     const s=store!,g=generation,r=new Remote(location.origin,controller!.signal);
     await s.bind(r.origin);
@@ -484,6 +485,7 @@ async function library() {
             }
             const choices: {label: string; run: () => void; danger?: boolean}[] = [];
             if (h.metadata.type === 'file') choices.push({label:'Export',run: () => exportDocument(h)});
+            if (h.metadata.type === 'file' && !trashed(h)) choices.push({label:'Share',run: () => shareDocument(h)});
             if (trashed(h)) choices.push({label:'Restore',run: () => restoreDocument(h)},{label:'Delete permanently',run:()=>confirmDeletion(h.revision.id),danger:true});
             else {
                 choices.push({label:'Edit details & move',run: () => editDialog(h)}, {label:h.metadata.favorite ? 'Remove from favorites' : 'Add to favorites',run: () => toggleFavorite(h)});
@@ -532,6 +534,13 @@ async function addFiles(files: File[]) {
 function exportDocument(h: Head) {
     void operation(async (key,g) => { const bytes = await store!.export(key,h.revision); try { if (g === generation) download(bytes,h.metadata.name); } finally { c.wipe(bytes); } });
 }
+function shareDocument(h: Head) {
+    void operation(async (key,g) => {
+        const bytes = await store!.export(key,h.revision);
+        try { if (g === generation) { showShare(h.metadata.name,bytes,file => download(file,file.name)); message(''); } }
+        finally { c.wipe(bytes); }
+    });
+}
 function toggleFavorite(h: Head) {
     void operation(async (key,g) => { await store!.edit(key,h.revision,{...h.metadata,favorite:!h.metadata.favorite}); if (g === generation) { await refresh(); message('Changes saved locally.'); } });
 }
@@ -575,7 +584,7 @@ function confirmDeletion(revision:string) {
  const dialog=node('dialog',undefined,'modal'),actions=node('div',undefined,'form-actions');
  dialog.setAttribute('aria-label',revision?'Delete permanently?':'Empty Trash?');
  dialog.append(node('h2',revision?'Delete permanently?':'Empty Trash?'),node('p',`Permanently delete ${preview.count} ${preview.count===1?'document or folder':'documents and folders'}, including folder contents, all historical versions and conflict copies, across your linked devices. This cannot be undone. Offline devices apply deletion when they sync.`));
- const cancel=button('Cancel',()=>dialog.close(),'quiet'),remove=button('Delete permanently',()=>{remove.disabled=cancel.disabled=true;void operation(async(key,current)=>{c.check(current===g&&store===s);await deleteTrash(s,key,preview);closePreviews();semantic.clearPrivate();dialog.close();await refresh();message('Permanently deleted. Changes sync when connected.');}).finally(()=>{remove.disabled=cancel.disabled=false;});},'primary');
+ const cancel=button('Cancel',()=>dialog.close(),'quiet'),remove=button('Delete permanently',()=>{remove.disabled=cancel.disabled=true;void operation(async(key,current)=>{c.check(current===g&&store===s);await deleteTrash(s,key,preview);closeShares();closePreviews();semantic.clearPrivate();dialog.close();await refresh();message('Permanently deleted. Changes sync when connected.');}).finally(()=>{remove.disabled=cancel.disabled=false;});},'primary');
  actions.append(cancel,remove);dialog.append(actions);dialog.onclose=()=>dialog.remove();app.append(dialog);dialog.showModal();
 }
 function folderDialog() {
@@ -650,7 +659,7 @@ async function openDocument(h: Head) {
         if (g !== generation) { c.wipe(bytes); return; }
         previews.add(bytes);
         try {
-            await showPreview(h.metadata.name,bytes,() => { c.wipe(bytes); previews.delete(bytes); },() => download(bytes,h.metadata.name));
+            await showPreview(h.metadata.name,bytes,() => { c.wipe(bytes); previews.delete(bytes); },() => download(bytes,h.metadata.name),() => showShare(h.metadata.name,bytes,file => download(file,file.name)));
         } catch { c.wipe(bytes); previews.delete(bytes); throw Error('Preview unavailable'); }
         if (g === generation) message('');
     });

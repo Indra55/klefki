@@ -69,6 +69,37 @@ Unsupported formats offer export. Lock closes previews and clears their bytes.
 The PWA caches the PDF worker and Inter fonts with its shell; API responses and
 private plaintext are never added to that cache.
 
+### Share documents
+
+Unlock Klefki, then choose a document's **Actions → Share**, or **Share** in its
+preview. Tap **Choose app** to open the system share sheet. Any compatible app
+offered by the operating system can receive the file; Klefki has no app allowlist.
+The file retains its name and bytes, with a MIME type inferred from its extension.
+Unknown extensions use `application/octet-stream`. Sharing uses a locally
+decrypted copy, without creating a public link or uploading plaintext to Klefki's
+server, and works offline for locally available documents.
+
+The share sheet requires a supported browser on HTTPS (loopback is suitable for
+development). Klefki checks file-sharing support for the actual file. Unsupported
+files or browsers offer **Export** instead. Cancellation and sharing errors allow
+retry; they never automatically download the document. Preparing the file before
+the **Choose app** click preserves the browser's required user activation.
+
+Closing the dialog or locking drops the prepared file reference. Row-action
+decryption buffers are wiped after preparation; previews retain theirs until
+closed or locked. Browser-managed `File` copies cannot be reliably wiped.
+Lock cannot withdraw a copy already handed to the
+operating system or another app. This feature starts in Klefki; appearing inside
+another app's attachment picker still requires native integration.
+
+Verification on 2026-10-15: the production web build, six sharing browser tests,
+and seven menu/PWA parity regressions passed. Sharing tests exercise real encrypted
+imports and decryption, file names/types/bytes, offline preview sharing, retry,
+explicit export fallback, and lock cleanup. `navigator.share` and `canShare` are
+stubbed in Chromium; physical phone share sheets and receiving apps remain
+unverified. See the [Web Share API guide](https://web.dev/articles/web-share)
+for browser capability requirements.
+
 After a deployment, existing browser tabs and installed PWA windows may keep the
 previous worker until all of them close. Close and reopen them once to pick up
 this UI. Subsequent updates show **Update and reopen**, which locks before
