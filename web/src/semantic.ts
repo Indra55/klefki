@@ -43,6 +43,16 @@ export type Preferences = { enabled: boolean; cutoff: number; margin: number; mo
 export const defaults: Preferences = { enabled: false, cutoff: 0.5, margin: 0.01 };
 export const cacheName = "klefki-model-" + manifest.fingerprint;
 export const downloadBytes = manifest.assets.reduce((n, a) => n + a.size, 0);
+const installedURL = "/models/setup-complete";
+const installedAssets = JSON.stringify(manifest.assets.map(a => a.sha256));
+export async function modelInstalled() {
+  if (!await caches.has(cacheName)) return false;
+  const cache = await caches.open(cacheName);
+  const marker = await cache.match(installedURL);
+  if (!marker || await marker.text() !== installedAssets) return false;
+  const urls = new Set((await cache.keys()).map(request => request.url));
+  return manifest.assets.every(a => urls.has(new URL(a.url, location.origin).href));
+}
 export function preferences(account: string): Preferences {
   try {
     const p = JSON.parse(
@@ -490,7 +500,14 @@ export async function setup(
     done += a.size;
     onProgress(done, downloadBytes);
   }
-  await embed("Local model setup verification.");
+  try {
+    await embed("Local model setup verification.");
+  } catch (error) {
+    clearPrivate();
+    throw error;
+  }
+  if (signal.aborted) throw Error("CANCELED");
+  await cache.put(installedURL, new Response(installedAssets));
 }
 type Hit = { revision: string; object: string; name: string; score: number };
 function rank(hits: Hit[]) {
