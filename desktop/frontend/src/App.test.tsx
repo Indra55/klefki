@@ -84,6 +84,32 @@ describe('library',()=>{
   expect(visibleItems(items,'Favorites',null,'','','name')).toEqual([child]);
   expect(visibleItems(items,'Trash',null,'','','name')).toEqual([trash]);
  });
+ it('searches names and tags across folders and view filters',()=>{
+  const nested={...item,object:'nested',revision:'nested-rev',parent:'other-folder',name:'Nested passport.txt',tags:[]};
+  const tagged={...item,object:'tagged',revision:'tagged-rev',parent:'deep-folder',name:'Travel.txt',tags:['passport']};
+  const trash={...nested,revision:'trash-rev',trashed:true};
+  for(const view of ['All documents','Folders','Favorites']){
+   expect(visibleItems([item,nested,tagged,trash],view,'current-folder','Money','  PASSPORT  ','name')).toEqual([nested,item,tagged]);
+  }
+  expect(visibleItems([nested,trash],'Trash',null,'','passport','name')).toEqual([trash]);
+  expect(visibleItems([nested],'Folders','current-folder','','   ','name')).toEqual([]);
+ });
+ it('shows indexed text matches outside the current folder and restores browsing on clear',async()=>{
+  const folder={...item,object:'family',revision:'family-rev',name:'Family',type:'folder' as const};
+  const child={...item,object:'child',revision:'child-rev',parent:folder.object,name:'Inside.txt'};
+  const match={...item,object:'match',revision:'match-rev',parent:'other-folder',name:'Notes.txt'};
+  const bridge=window.go!.main.App;
+  bridge.List=vi.fn(async()=>({generation:1,items:[folder,child,match]}));
+  bridge.Search=vi.fn(async()=>({generation:1,hits:[{object:match.object,revision:match.revision,name:match.name,score:1}]}));
+  render(<App/>);await userEvent.click(await screen.findByText('Family'));
+  expect(screen.getByText('Inside.txt')).toBeVisible();
+  await userEvent.type(screen.getByLabelText('Search your documents'),'nebula');
+  expect(await screen.findByText('Notes.txt')).toBeVisible();
+  expect(screen.queryByText('Inside.txt')).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button',{name:'Clear search'}));
+  expect(screen.getByText('Inside.txt')).toBeVisible();
+  expect(screen.queryByText('Notes.txt')).not.toBeInTheDocument();
+ });
  it('opens nested folders and returns to an ancestor or All in one click',async()=>{
   const folder={...item,object:'family',revision:'family-rev',name:'Family',type:'folder' as const};
   const nested={...folder,object:'nested',revision:'nested-rev',name:'Hitanshu',parent:folder.object};
@@ -157,7 +183,7 @@ describe('library',()=>{
   await userEvent.click(screen.getByRole('button',{name:'Sync & devices'}));
   expect(screen.getByLabelText('Sync mode')).toHaveValue('persistent');
   await userEvent.selectOptions(screen.getByLabelText('Sync mode'),'temporary-relay');
-  expect(screen.getByText(/Offline devices keep deliveries queued/)).toBeVisible();
+  expect(screen.getByText(/Devices can exclude Trash contents/)).toBeVisible();
   await userEvent.click(screen.getByRole('button',{name:'Apply sync mode'}));
   expect(await screen.findByText('Sync mode updated for this account.')).toBeVisible();
   expect(bridge.SetSyncMode).toHaveBeenCalledWith('temporary-relay');

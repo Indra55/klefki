@@ -500,7 +500,8 @@ async function library() {
     let ranked: string[] = [], searchSequence = 0;
     function renderRows() {
         list.replaceChildren(); clear.hidden = !filter;
-        const visible = heads.filter(h => !semantic.internal(h) && !isTrashRoot(h) && (view === 'Trash' ? trashed(h) : !trashed(h)) && (view !== 'Favorites' || h.metadata.favorite) && (view !== 'All documents' || h.metadata.parent === null) && (view !== 'Folders' || h.metadata.parent === parent) && (!tag || h.metadata.tags.includes(tag) || categoryByRevision.get(h.revision.id) === tag) && (!filter || ranked.includes(h.revision.id) || (h.metadata.name + ' ' + h.metadata.tags.join(' ')).toLocaleLowerCase().includes(filter.toLocaleLowerCase())));
+        const query = filter.trim().toLocaleLowerCase();
+        const visible = heads.filter(h => !semantic.internal(h) && !isTrashRoot(h) && (view === 'Trash' ? trashed(h) : !trashed(h)) && (!!query || ((view !== 'Favorites' || h.metadata.favorite) && (view !== 'All documents' || h.metadata.parent === null) && (view !== 'Folders' || h.metadata.parent === parent) && (!tag || h.metadata.tags.includes(tag) || categoryByRevision.get(h.revision.id) === tag))) && (!query || ranked.includes(h.revision.id) || (h.metadata.name + ' ' + h.metadata.tags.join(' ')).toLocaleLowerCase().includes(query)));
         visible.sort((a,b) => {
             if (ranked.length) { const ai = ranked.indexOf(a.revision.id), bi = ranked.indexOf(b.revision.id); const rank = (ai < 0 ? Infinity : ai) - (bi < 0 ? Infinity : bi); if (rank) return rank; }
             return (sort === 'size' ? (b.metadata.size || 0) - (a.metadata.size || 0) : sort === 'type' ? a.metadata.type.localeCompare(b.metadata.type) : 0) || a.metadata.name.localeCompare(b.metadata.name);

@@ -36,4 +36,10 @@ export const messages:Record<string,string>={CONTENT_UNAVAILABLE:"File contents 
 export function errorMessage(e:unknown){const code=String(e instanceof Error?e.message:e);return messages[code]??messages.OPERATION_FAILED}
 export { categories } from '../../../ui/categories';
 export function size(n:number){if(n<1024)return `${n} B`;if(n<1048576)return `${(n/1024).toFixed(0)} KB`;return `${(n/1048576).toFixed(1)} MB`}
-export function visibleItems(items:Item[],view:string,folder:string|null,tag:string,query:string,sort:string){const q=query.trim().toLocaleLowerCase();return items.filter(i=>!i.trashRoot&&(view==='Trash'?i.trashed:!i.trashed)&&(view!=='Favorites'||i.favorite)&&(view!=='All documents'||i.parent===null)&&(view!=='Folders'||i.parent===folder)&&(!tag||i.tags.includes(tag)||i.category===tag)&&(!q||`${i.name} ${i.tags.join(' ')}`.toLocaleLowerCase().includes(q))).sort((a,b)=>sort==='size'?b.size-a.size||a.name.localeCompare(b.name):sort==='type'?a.type.localeCompare(b.type)||a.name.localeCompare(b.name):a.name.localeCompare(b.name))}
+export function visibleItems(items:Item[],view:string,folder:string|null,tag:string,query:string,sort:string,contentHits:string[]=[]){
+ const q=query.trim().toLocaleLowerCase();
+ return items.filter(i=>!i.trashRoot&&(view==='Trash'?i.trashed:!i.trashed)&&(!!q||((view!=='Favorites'||i.favorite)&&(view!=='All documents'||i.parent===null)&&(view!=='Folders'||i.parent===folder)&&(!tag||i.tags.includes(tag)||i.category===tag)))&&(!q||contentHits.includes(i.revision)||`${i.name} ${i.tags.join(' ')}`.toLocaleLowerCase().includes(q))).sort((a,b)=>{
+  if(q&&contentHits.length){const ai=contentHits.indexOf(a.revision),bi=contentHits.indexOf(b.revision),rank=(ai<0?Infinity:ai)-(bi<0?Infinity:bi);if(rank)return rank}
+  return sort==='size'?b.size-a.size||a.name.localeCompare(b.name):sort==='type'?a.type.localeCompare(b.type)||a.name.localeCompare(b.name):a.name.localeCompare(b.name);
+ });
+}

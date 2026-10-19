@@ -73,8 +73,7 @@ export default function App(){
  function trash(item:Item){void run(async()=>{const id=await api().Trash(item.revision);setNotice({text:`“${item.name}” moved to Trash.`,undo:id});setEdit(null);await refresh()})}
  function restore(item:Item){void run(async()=>{const result=await api().Restore(item.revision);setNotice({text:result.atRoot?'Restored to the library. The original folder is unavailable.':'Document restored.'});await refresh()})}
  const tags=[...categories,...Array.from(new Set(items.filter(i=>!i.trashed).flatMap(i=>i.tags))).filter(t=>!categories.includes(t)&&!t.startsWith('klefki:system:')).sort()];
- const metadataMatches=visibleItems(items,view,folder,tag,query,sort);
- const shown=query.trim()&&contentHits.length?visibleItems(items,view,folder,tag,'',sort).filter(i=>contentHits.includes(i.revision)||metadataMatches.some(m=>m.revision===i.revision)).sort((a,b)=>{const ai=contentHits.indexOf(a.revision),bi=contentHits.indexOf(b.revision);return (ai<0?Infinity:ai)-(bi<0?Infinity:bi)}):metadataMatches;
+ const shown=visibleItems(items,view,folder,tag,query,sort,contentHits);
  const currentFolder=items.find(i=>i.object===folder&&i.type==='folder');
  const crumbs:Item[]=[];let ancestor=currentFolder;const seen=new Set<string>();while(ancestor&&!seen.has(ancestor.object)){seen.add(ancestor.object);crumbs.unshift(ancestor);ancestor=items.find(i=>i.object===ancestor?.parent&&i.type==='folder')}
  if(!state)return <main className="setup"><div className="brand">Klefki</div><h1>Your documents.<br/><span className="muted">Your space.</span></h1><p role="status">{error||'Opening Klefki…'}</p></main>;

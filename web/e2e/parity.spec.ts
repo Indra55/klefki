@@ -86,6 +86,58 @@ test('nested folders show direct children and breadcrumbs return to All at mobil
     await expect(page.getByRole('button',{name:'Open Hitanshu',exact:true})).toHaveCount(0);
     await expect(page.getByRole('button',{name:'Open inside.txt',exact:true})).toHaveCount(0);
 });
+test('search finds documents across all folders and restores the current folder when cleared, including offline', async ({page,context}) => {
+    await create(page);
+    const add = async (name:string) => {
+        await upload(page,{name,mimeType:'text/plain',buffer:Buffer.from('public global search fixture')});
+        await expect(page.getByRole('button',{name:'Open '+name,exact:true})).toBeVisible();
+    };
+    const folder = async (name:string) => {
+        await page.getByRole('button',{name:'New folder',exact:true}).click();
+        await page.getByLabel('Folder name').fill(name);
+        await page.getByRole('button',{name:'Create folder',exact:true}).click();
+        await page.getByRole('button',{name:'Open '+name,exact:true}).click();
+    };
+    await add('invoice-trash.txt');
+    await documentAction(page,'invoice-trash.txt','Move to Trash');
+    await add('invoice-root.txt');
+    await folder('Family');await folder('Nested');await add('invoice-deep.txt');
+    const crumbs=page.getByRole('navigation',{name:'Folder breadcrumb'});
+    await crumbs.getByRole('button',{name:'All',exact:true}).click();
+    await folder('Other');await add('local.txt');
+    const search=page.getByRole('searchbox',{name:'Search names and tags'});
+    const matches=async()=>{
+        await expect(page.getByRole('button',{name:'Open invoice-root.txt',exact:true})).toBeVisible();
+        await expect(page.getByRole('button',{name:'Open invoice-deep.txt',exact:true})).toBeVisible();
+        await expect(page.getByRole('button',{name:'Open invoice-trash.txt',exact:true})).toHaveCount(0);
+        await expect(page.getByRole('button',{name:'Open local.txt',exact:true})).toHaveCount(0);
+    };
+    await page.getByRole('navigation',{name:'Document categories'}).getByRole('button',{name:'Money',exact:true}).click();
+    await search.fill('  INVOICE  ');await matches();
+    await page.getByRole('button',{name:'Clear search',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Open invoice-deep.txt',exact:true})).toHaveCount(0);
+    await page.getByRole('navigation',{name:'Document categories'}).getByRole('button',{name:'All',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Open local.txt',exact:true})).toBeVisible();
+    await search.fill('Nested');await page.getByRole('button',{name:'Open Nested',exact:true}).click();
+    await expect(search).toHaveValue('');
+    await expect(crumbs.getByText('Nested',{exact:true})).toHaveAttribute('aria-current','page');
+    await expect(page.getByRole('button',{name:'Open invoice-deep.txt',exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'View',exact:true}).click();
+    await page.getByRole('menuitem',{name:'Favorites',exact:true}).click();
+    await search.fill('invoice');await matches();
+    await page.evaluate(async()=>{await navigator.serviceWorker.ready;});
+    await expect.poll(()=>page.evaluate(()=>!!navigator.serviceWorker.controller)).toBe(true);
+    await context.setOffline(true);await page.reload();
+    await page.getByLabel('Password',{exact:true}).fill(password);
+    await page.getByRole('button',{name:'Unlock Klefki',exact:true}).click();
+    await page.getByRole('button',{name:'Open Other',exact:true}).click();
+    await search.fill('invoice');await matches();
+    await page.getByRole('button',{name:'Clear search',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Open local.txt',exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Open invoice-root.txt',exact:true})).toHaveCount(0);
+    await crumbs.getByRole('button',{name:'All',exact:true}).click();
+    await search.fill('invoice');await matches();
+});
 test('dedicated settings persist appearance, spacing, sort and idle lock across offline PWA reload', async ({page,context}) => {
     await page.setViewportSize({width:900,height:920});
     await create(page);
