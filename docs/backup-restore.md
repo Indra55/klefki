@@ -116,7 +116,9 @@ they do not describe such a backup as containing every file. Plaintext export
 omits deferred contents and identifies them in its manifest. Restored stores
 can request them again, provided a server or another device still retains them.
 Sync web changes to a desktop/CLI store before backing them up. M6 supplies CLI
-operations; desktop/web backup buttons are not included.
+operations; desktop backup buttons are not included. The PWA has a separate
+[encrypted folder backup and restore workflow](pwa-offline-backup.md), with a
+browser-specific container that is not interchangeable with this SQLite backup.
 
 Reproduce clean-environment acceptance with:
 

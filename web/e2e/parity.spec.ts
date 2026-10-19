@@ -96,9 +96,13 @@ test('dedicated settings persist appearance, spacing, sort and idle lock across 
     await expect(page.getByRole('heading',{name:'Settings',exact:true})).toBeVisible();
     await expect(page.locator('.library')).toHaveCount(0);
     await page.screenshot({path:'/tmp/klefki-web-settings.png'});
-    await page.getByLabel('Color theme',{exact:true}).selectOption('light');
-    await page.getByLabel('Document spacing',{exact:true}).selectOption('compact');
-    await page.getByLabel('Default sort order',{exact:true}).selectOption('size');
+    // Change multiple preferences before the asynchronous settings repaint.
+    await page.locator('.settings-panel').evaluate(panel=>{
+        for(const [key,value] of [['theme','light'],['density','compact'],['defaultSort','size']]){
+            const select=panel.querySelector<HTMLSelectElement>('#preference-'+key)!;
+            select.value=value;select.dispatchEvent(new Event('change',{bubbles:true}));
+        }
+    });
     await openSettings(page,'Privacy & lock');
     await page.getByLabel('Lock after inactivity',{exact:true}).selectOption('1');
     await backToLibrary(page);
@@ -148,6 +152,14 @@ test('mobile layout keeps library and settings within the viewport', async ({bro
         await openSettings(page,'Appearance');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await expect(page.getByLabel('Color theme',{exact:true})).toBeVisible();
+        await openSettings(page,'Offline & backup');
+        for(const width of [320,390,600]){
+            await page.setViewportSize({width,height:844});
+            expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+            await expect(page.locator('[data-storage-protection]')).not.toBeEmpty();
+            await expect(page.locator('[data-backup-status]')).toContainText('No backup folder selected.');
+        }
+        await page.screenshot({path:'/tmp/klefki-pwa-offline-settings.png',fullPage:true});
     } finally { await context.close(); }
 });
 

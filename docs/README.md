@@ -14,6 +14,7 @@
 | [Semantic search](m8-status.md) | Optional models, hybrid search, and reviewable suggestions |
 | [Organize files](organization.md) | Match tags by meaning and review new tags for unmatched files |
 | [Linux fingerprint unlock](fingerprint-linux.md) | Reader setup, keyring behavior, and security limits |
+| [PWA offline storage and folder backup](pwa-offline-backup.md) | Storage protection, automatic encrypted folder copies, and recovery without another device |
 | [PWA passkey unlock](passkey-web.md) | Fingerprint, face, or PIN convenience unlock, PRF setup, and browser/device limits |
 
 ## Running a server and understanding the design

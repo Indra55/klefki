@@ -74,6 +74,7 @@ export function preferences(account: string): Preferences {
 }
 export function savePreferences(account: string, p: Preferences) {
   localStorage.setItem("klefki-semantic-" + account, JSON.stringify({ ...p, modelFingerprint: manifest.fingerprint }));
+  window.dispatchEvent(new Event('klefki-preferences'));
 }
 export function internal(h: Head) {
   return h.metadata.tags.some((t) =>

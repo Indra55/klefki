@@ -58,7 +58,7 @@ tags, name/type/size sorting, favorites, folder breadcrumbs, and reversible tras
 Document actions and previews are available from the document row.
 
 **Settings** opens a dedicated page with Appearance, Privacy & lock, Sync &
-devices, and Search. Theme, spacing, default sort, and inactivity timeout are
+devices, Offline & backup, and Search. Theme, spacing, default sort, and inactivity timeout are
 saved on this browser. Passkey controls remain browser-specific. OCR/index
 building and automatic file organization run on desktop; sync brings the index
 and reviewed tags to web. Browser local search and suggestions remain optional.
@@ -123,8 +123,9 @@ origin binding, cursor, and browser appearance/lock preferences are persisted.
 Local storage remembers the wrapped
 account; IndexedDB holds the offline klefki. The worker caches only enumerated
 build assets, never `/v1`, plaintext downloads, credentials or account responses.
-An edit and its queue entry commit together. A pulled revision and cursor commit
-only after authenticating every chunk. Retries reuse existing ciphertext and
+An edit and its queue entry commit together. Authenticated metadata may arrive
+before file contents; incomplete documents stay visible. Required content receipts
+and delivery progress follow authenticated local chunk saves. Retries reuse existing ciphertext and
 skip already-uploaded chunks. Partial downloads are retried at revision granularity.
 
 Active unlock keys and bearer sessions stay in memory. Optional
@@ -152,7 +153,8 @@ JavaScript strings, browser downloads and runtime copies cannot be reliably wipe
   an offline text edit survives offline reload and syncs to Go.
 - Browser failure cases passed: two offline edits preserve both heads; an upload
   interrupted before revision publication survives reload/retry; tampered chunks
-  do not commit a revision or move the cursor; another tab is excluded until lock.
+  are not saved and do not advance the delivery cursor; authenticated document
+  metadata remains visible. Another tab is excluded until lock.
 - Web signup/registration, metadata-only editing, and five-minute automatic lock
   also passed. **Six browser acceptance cases passed** (five integration cases plus
   the signup/auto-lock case).
@@ -175,12 +177,22 @@ The cross-client proof exercises the real desktop Go import/preview service and
 sync store plus Chromium, not a new manual Wails UI walkthrough on both OSes.
 Firefox, Safari, mobile browsers, OS-level PWA installation, deployed HTTPS and
 power-loss durability were not tested. Browser quota/eviction can remove local
-copies; sync and the planned M6 backups remain necessary. A compromised origin
+copies. Requesting persistence protects against automatic eviction when granted;
+explicit clearing remains possible. Keep an independent encrypted backup using
+the PWA folder workflow or the desktop/CLI M6 workflow. A compromised origin
 can deliver malicious JavaScript, as covered by the existing threat model.
 
 Uploads, downloads and revision imports buffer a complete file's ciphertext;
 very large documents can exceed browser memory or quota. Argon2id runs on the
-main thread and can briefly pause the UI. No browser OCR, backup/export archive,
-PDF renderer, trash management, remote account recovery or background sync while
-locked is included. Desktop trash entries are hidden in the web listing.
+main thread and can briefly pause the UI. Browser OCR, recovery-code unlock,
+and background sync while locked are not included. PDF preview and Trash are
+available as described above. Folder backups update only while unlocked.
 No deployment or Git commit was performed.
+
+## Offline storage and folder recovery
+
+See [PWA offline storage and folder backup](pwa-offline-backup.md) for browser
+storage persistence, missing-content states, automatic encrypted folder copies,
+and verified restoration without a server or another device. Physical Android
+folder permission and hosted deployment acceptance remain separate from browser
+regressions.

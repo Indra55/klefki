@@ -86,16 +86,24 @@ test('interrupted uploads retain pending work and retry stored ciphertext', asyn
     await syncUI(page);
     await expect(page.getByRole('status')).toContainText('Synced.');
 });
-test('tampered download is rejected without committing the revision or cursor', async ({ page }) => {
+test('tampered contents are rejected while authenticated metadata stays visible without a delivery receipt', async ({ page }) => {
     await page.goto('/');
     await page.getByLabel('Open an encrypted account file').setInputFiles(join(dir, 'account.klefki'));
     await unlock(page);
     await page.route('**/v1/blobs/*/chunks/*', async (route) => { const response = await route.fetch(); const b = await response.body(); b[b.length - 1] ^= 1; await route.fulfill({ response, body: b }); });
     await syncUI(page);
     await expect(page.getByRole('status')).toContainText('Could not complete');
-    await expect(page.locator('article')).toHaveCount(0);
-    const cursor = await page.evaluate(async () => { const a = JSON.parse(localStorage.getItem('klefki-account')!); return new Promise<number>(resolve => { const r = indexedDB.open('klefki-v1-' + a.account); r.onsuccess = () => { const db = r.result, q = db.transaction('state').objectStore('state').get('cursor'); q.onsuccess = () => { db.close(); resolve(q.result || 0); }; }; }); });
-    expect(cursor).toBe(0);
+    await expect(page.locator('article')).toHaveCount(3);
+    await expect(page.getByText('Not stored on this device',{exact:true})).toHaveCount(3);
+    const local = await page.evaluate(async () => {
+        const a = JSON.parse(localStorage.getItem('klefki-account')!);
+        const db = await new Promise<IDBDatabase>((resolve,reject) => { const r=indexedDB.open('klefki-v1-'+a.account);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error); });
+        const tx=db.transaction(['state','chunks']);
+        const cursor=new Promise<number>(resolve=>{const q=tx.objectStore('state').get('cursor');q.onsuccess=()=>resolve(q.result||0);});
+        const chunks=new Promise<number>(resolve=>{const q=tx.objectStore('chunks').count();q.onsuccess=()=>resolve(q.result);});
+        const result={cursor:await cursor,chunks:await chunks};db.close();return result;
+    });
+    expect(local).toEqual({cursor:0,chunks:0});
     await page.unroute('**/v1/blobs/*/chunks/*');
     await syncUI(page);
     await expect(page.getByRole('status')).toContainText('Synced.');

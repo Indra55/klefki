@@ -7,6 +7,7 @@ export class HTTPError extends Error {
     constructor(readonly status: number, readonly after: number) { super('Klefki server returned ' + status); }
 }
 export class RelayWaiting extends Error { constructor(message='Waiting for another linked device to reconnect and supply documents.'){super(message);} }
+export class MissingServerAccount extends Error { constructor(){super('This account is missing from the server. Local documents are still available. Reconnect a device with the saved relay policy, or register this store in Settings.');} }
 export interface Session {
     token: string;
     device: string;
@@ -109,9 +110,10 @@ export class Remote {
         let s:Session, restored=false;
         try { s=await this.json<Session>('POST', signup ? '/v1/signup' : '/v1/login', signup ? { ...a, credential: c.base64(credential) } : { account: a.account, credential: c.base64(credential) }, 8192); }
         catch(e){
-            if (!(e instanceof HTTPError)||e.status!==401||!restore) throw e;
+            if (!(e instanceof HTTPError)||e.status!==401||signup) throw e;
             try { await this.request('GET','/v1/accounts/'+a.account,undefined,8192); throw e; }
             catch(lookup){ if (!(lookup instanceof HTTPError)||lookup.status!==404) throw e; }
+            if(!restore)throw new MissingServerAccount();
             try { s=await this.json<Session>('POST','/v1/signup',{...a,credential:c.base64(credential)},8192);restored=true; }
             catch(signupError){ if (!(signupError instanceof HTTPError)||signupError.status!==409) throw signupError; s=await this.json<Session>('POST','/v1/login',{account:a.account,credential:c.base64(credential)},8192); }
         }
@@ -126,6 +128,7 @@ export class Remote {
 export async function setSyncMode(store:Store,master:Uint8Array,remote:Remote,mode:string){
     c.check(mode==='persistent'||mode==='temporary-relay');
     await remote.request('PUT','/v1/sync/settings',{mode},1024);
+    await store.setState('sync-mode',mode);
     await sync(store,master,remote);
 }
 

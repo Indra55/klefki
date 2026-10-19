@@ -42,7 +42,7 @@ export class SyncView {
       this.pagination=node('nav',undefined,'sync-pagination');this.pagination.setAttribute('aria-label','Recent activity pages');
       this.previous=button('Previous',()=>{this.page--;this.render()},'quiet');this.next=button('Next',()=>{this.page++;this.render()},'quiet');this.pageLabel=node('span');this.pageLabel.setAttribute('aria-live','polite');this.pagination.append(this.previous,this.pageLabel,this.next);
       dialog.append(header,this.summary,this.transfer,controls,legend,node('h3','Linked devices'),this.deviceList,node('p','Nicknames are saved only on this device.'),node('h3','Recent activity'),this.history,this.pagination);
-      dialog.onclose=()=>{this.actions.panel(false);this.trigger?.setAttribute('aria-expanded','false');this.trigger?.focus()};
+      dialog.onclose=()=>{this.actions.panel(false);this.trigger?.setAttribute('aria-expanded','false');if(document.activeElement===document.body||dialog.contains(document.activeElement))this.trigger?.focus()};
       dialog.onclick=e=>{if(e.target===dialog){const rect=dialog.getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)dialog.close()}};
       document.body.append(dialog);this.dialog=dialog;
     }

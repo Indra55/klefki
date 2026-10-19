@@ -2,7 +2,7 @@ import {trashPolicy,setTrashOverride,setTrashDefault,ensureContent} from './sele
 import '@fontsource/inter/latin-400.css';
 import '@fontsource/inter/latin-500.css';
 import './style.css';
-import { node, button, field, icon, iconButton, menu, preferences } from './ui.ts';
+import { node, button, field, icon, iconButton, menu, preferences, applyPreferences } from './ui.ts';
 import {folderImage,folderIconPicker} from './folder-icons.ts';
 import { settingsPage, type Section } from './settings.ts';
 import { showPreview, closePreviews } from './preview.ts';
@@ -10,11 +10,19 @@ import { showShare, closeShares } from './share.ts';
 import * as c from './crypto.ts';
 import {trashDates,retention,previewDeletion,deleteTrash,cleanupTrash,expiredTrash,deletionRecords} from './trash.ts';
 import { Store, unlockRevision, type Head } from './store.ts';
+import {FolderBackup,folderSupported,pickFolder,folderPermission,backupAccount,snapshots,restoreSnapshot,activateRestoredStore,applyRestoredPreferences,type Directory} from './folder-backup.ts';
+import {protection,protectStorage,storageError,type Protection} from './offline-storage.ts';
 import * as semantic from './semantic.ts';
 import * as passkey from './passkey.ts';
-import { Remote, sync, needsSync, reportDeviceState, setSyncMode, HTTPError, RelayWaiting } from './sync.ts';
+import { Remote, sync, needsSync, reportDeviceState, setSyncMode, HTTPError, RelayWaiting, MissingServerAccount } from './sync.ts';
 import {SyncView} from './sync-ui.ts';
 import {idleSync,addActivity,validateStatus,syncLabel,deviceName,receipt,presence,devicePendingDetail,type SyncInfo,type SyncActivity,type ServerStatus} from '../../ui/sync-status.ts';
+let folderBackup:FolderBackup|undefined;
+let storageProtection:Protection='unavailable';
+let localRecovery=false;
+let renderGeneration=0;
+let lastLibraryState='';
+let restoreController:AbortController|undefined;
 const app = document.querySelector<HTMLDivElement>('#app')!;
 let account: c.Account | undefined, store: Store | undefined, master: Uint8Array | undefined, credential: Uint8Array | undefined, remote: Remote | undefined, controller: AbortController | undefined;
 let modelSetupController:AbortController|undefined;
@@ -31,6 +39,7 @@ let syncPaused=false,pauseSaving=false;
 let syncRunning=false,syncRequested=false,registerRequested=false,refreshRequested=false,syncTimer:number|undefined,monitorBusy=false,lastPresence=0,lastDeviceCheck=0;
 const syncView=new SyncView({refresh:()=>void syncNow(false,false,true),settings:()=>showSettings('sync'),panel:open=>{if(open){lastDeviceCheck=0;void monitorSync()}},alias:saveAlias,pause:()=>void setSyncPaused(!syncPaused)});
 function renderSync(){
+    for(const el of document.querySelectorAll<HTMLElement>('[data-sync-pending]'))el.textContent=pendingChanges?pendingChanges+' changes waiting to sync.':'No local changes waiting to sync.';
     syncInfo={...syncInfo,paused:syncPaused,...(syncPaused?{running:syncRunning}:{})};
     for(const el of document.querySelectorAll<HTMLButtonElement>('[data-sync-pause]')){el.textContent=syncPaused?'Resume sync':'Pause sync';el.disabled=pauseSaving;}
     for(const el of document.querySelectorAll<HTMLButtonElement>('[data-sync-start]'))el.disabled=syncPaused||syncRunning;
@@ -123,7 +132,7 @@ function shell() {
     }
     root.prepend(header); if (waitingUpdate?.waiting) offerUpdate(root); app.append(root); return root;
 }
-function lock() { syncModeDraft=undefined;syncView.clear();window.clearTimeout(syncTimer);syncInfo=idleSync();syncActivity=[];aliases={};syncDevice='';linkedDevices=[];lastSync=0;syncPaused=pauseSaving=syncRunning=syncRequested=registerRequested=refreshRequested=monitorBusy=false;lastPresence=lastDeviceCheck=lastDeviceReport=pendingChanges=0;deviceReportRequested=true;closeShares();closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
+function lock() { restoreController?.abort();restoreController=undefined; folderBackup?.stop();folderBackup=undefined;localRecovery=false;lastLibraryState=''; syncModeDraft=undefined;syncView.clear();window.clearTimeout(syncTimer);syncInfo=idleSync();syncActivity=[];aliases={};syncDevice='';linkedDevices=[];lastSync=0;syncPaused=pauseSaving=syncRunning=syncRequested=registerRequested=refreshRequested=monitorBusy=false;lastPresence=lastDeviceCheck=lastDeviceReport=pendingChanges=0;deviceReportRequested=true;closeShares();closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
     c.wipe(master); if (credential)
     c.wipe(credential); master = credential = undefined; heads = []; store?.close(); store = undefined; release?.(); release = undefined; busy = false; parent = null; filter = ''; favorites = false; view = 'All documents'; tag = ''; settings = null; feedback = ''; syncState = 'Local only'; for (const url of urls)
     URL.revokeObjectURL(url); urls.clear(); for (const b of previews)
@@ -142,8 +151,9 @@ async function operation(fn: (key: Uint8Array, g: number) => Promise<void>) {
     }
     catch (e) {
         if (g === generation)
-            message(e instanceof Error&&e.message==='DELETION_UPDATE_REQUIRED'?'Update your Klefki server and sync before permanently deleting documents.':e instanceof RelayWaiting ? e.message : e instanceof HTTPError ? (e.status === 401 ? 'Sign-in expired. Sync again to reconnect.' : e.status===507 ? 'Relay storage is full. Your local edits are kept; sync the other linked devices to free space.' : e.status===428 ? 'Update this client to sync this account.' : 'Server request failed. Your local edits are kept.') : 'Could not complete this action. Check your connection or klefki data.');
+            message(e instanceof Error&&e.message==='DELETION_UPDATE_REQUIRED'?'Update your Klefki server and sync before permanently deleting documents.':e instanceof RelayWaiting ? e.message : e instanceof HTTPError ? (e.status === 401 ? 'Server authentication failed. Reconnect sync; local documents are still available.' : e.status===507 ? 'Relay storage is full. Your local edits are kept; sync the other linked devices to free space.' : e.status===428 ? 'Update this client to sync this account.' : 'Server request failed. Your local edits are kept.') : e instanceof DOMException ? storageError(e) : e instanceof MissingServerAccount ? e.message : 'Could not complete this action. Check your connection or klefki data.');
         if (e instanceof HTTPError && e.status === 401) remote = undefined;
+        if(g===generation)await refresh().catch(()=>{});
         if (g === generation && syncState === 'Syncing') syncStatus(e instanceof RelayWaiting ? 'Waiting for another device' : e instanceof HTTPError && e.status === 401 ? 'Authentication required' : 'Sync error');
     }
     finally {
@@ -172,6 +182,9 @@ async function enterKeys(target: c.Account, unlocked: passkey.Keys, g: number) {
         held = await claim(target);
         c.check(g === generation && account === target);
         opened = await Store.open(target);
+        await applyRestoredPreferences(opened);applyPreferences();sort=preferences().defaultSort;
+        localRecovery=await opened.state<boolean>('local-recovery')===true;
+        storageProtection=await protection();
         c.check(g === generation && account === target);
         const local=await opened.relayState(),savedAliases=await opened.state<Record<string,string>>('device-aliases')||{},savedPause=await opened.state<boolean>('sync-paused')===true;
         c.check(g===generation&&account===target);
@@ -183,9 +196,11 @@ async function enterKeys(target: c.Account, unlocked: passkey.Keys, g: number) {
         adopted = true;
         controller = new AbortController();
         localStorage.setItem('klefki-account', JSON.stringify(target));
+        folderBackup=new FolderBackup(opened,master,renderBackupStatus);
+        await folderBackup.start();
         await cleanupTrash(opened,master);
         await refresh();
-        if (g === generation) {lastActivity = Date.now();scheduleSync();}
+        if (g === generation) {lastActivity = Date.now();scheduleSync();void protectStorage().then(value=>{if(g===generation){storageProtection=value;renderBackupStatus();}});}
     }
     catch (e) {
         if (adopted && g === generation) lock();
@@ -210,8 +225,8 @@ function locked() {
             return; busy = true; go.disabled = true; const value = password.input.value; password.input.value = ''; message('Unlocking…'); try {
             await enter(value);
         }
-        catch {
-            message('Could not unlock. Check the password and close other tabs using this store.');
+        catch(error) {
+            message(error instanceof DOMException?storageError(error):'Could not unlock. Check the password and close other tabs using this store.');
         }
         finally {
             busy = false;
@@ -255,6 +270,7 @@ function locked() {
         };
     }
     card.append(form);
+    if(folderSupported())card.append(button('Restore from backup folder',()=>void chooseRestore()));
     if (account && passkey.configured(account)) {
         const target = account;
         const go = button('Unlock with passkey', () => void (async () => {
@@ -307,9 +323,17 @@ function locked() {
     root.append(card);
 }
 function recoveryDialog(code: string) { const dialog = node('dialog',undefined,'modal'); dialog.append(node('h2', 'Save your recovery code'), node('p', 'Store this separately from your private space. It is shown once and is needed if you lose your password.'), node('code', code)); dialog.append(button('Download recovery code', () => download(c.utf8(code + '\n'), 'klefki-recovery.txt', 'text/plain')), button('I have saved it', () => { dialog.close(); dialog.remove(); })); app.append(dialog); dialog.showModal(); dialog.oncancel = e => e.preventDefault(); }
-async function refresh() { if (!store || !master)
-    return; const g = generation, next = await store.heads(master); if (g !== generation)
-    return; if(heads.some(h=>!next.some(n=>n.revision.id===h.revision.id))){closeShares();closePreviews();semantic.clearPrivate();}heads = next; await library(); }
+async function refresh() {
+    if (!store || !master) return;
+    const g=generation,s=store,next=await s.offlineHeads(master);
+    const [mode,policy,devices,records,deletions]=await Promise.all([s.state('sync-mode'),trashPolicy(s),s.state('relay-devices'),s.all(),deletionRecords(s,true)]);
+    if(g!==generation||store!==s)return;
+    pendingChanges=records.filter(record=>record.pending).length+deletions.length;renderSync();
+    const state=JSON.stringify({heads:next,mode,policy,devices,localRecovery});
+    if(state===lastLibraryState)return;
+    if(heads.some(h=>!next.some(n=>n.revision.id===h.revision.id))){closeShares();closePreviews();semantic.clearPrivate();}
+    heads=next;lastLibraryState=state;await library();
+}
 async function connectRemote(register=false){
     const s=store!,g=generation,r=new Remote(location.origin,controller!.signal);
     await s.bind(r.origin);
@@ -341,8 +365,9 @@ async function syncNow(register = false, background = false, reconnect = false) 
             syncState='Syncing';syncInfo={...syncInfo,phase:'connecting',running:true,progress:undefined};renderSync();
         }
         try {await sync(s,key,remote!);}
-        catch(e){if(!(e instanceof HTTPError)||e.status!==401||await s.state('sync-mode')!=='temporary-relay')throw e;await connectRemote();await sync(s,key,remote!);}
+        catch(e){if(!(e instanceof HTTPError)||e.status!==401)throw e;await connectRemote();await sync(s,key,remote!);}
         if(g!==generation)return;
+        if(localRecovery){await s.setState('local-recovery',false);localRecovery=false;}
         lastSync=Date.now();syncInfo={...syncInfo,phase:'synced',waitingFor:undefined};syncState='Synced';
         message('Synced. Active documents and library updates are saved on the server.');
         if(await s.state('sync-mode')==='temporary-relay'){
@@ -355,7 +380,7 @@ async function syncNow(register = false, background = false, reconnect = false) 
         if(g!==generation)return;
         const phase=syncErrorPhase(e);syncInfo={...syncInfo,phase,waitingFor:e instanceof RelayWaiting?'source':undefined};syncState=phase==='auth'?'Authentication required':phase==='waiting'?'Waiting for another device':'Sync error';
         if(phase==='auth')remote=undefined;
-        message(e instanceof RelayWaiting?e.message:phase==='auth'?'Sign-in expired. Reconnect or register this store in Settings.':phase==='full'?'Relay storage is full. Sync the other linked devices to free space.':'Could not complete sync. Your local changes are kept.');
+        message(e instanceof RelayWaiting||e instanceof MissingServerAccount?e.message:phase==='auth'?'Server authentication failed. Local documents remain available; reconnect sync in Settings.':phase==='full'?'Relay storage is full. Sync the other linked devices to free space.':'Could not complete sync. Your local changes are kept.');
         if(syncInfo.progress)syncActivity=addActivity(syncActivity,{...syncInfo.progress,phase,updatedAt:Date.now()});
         await refresh();
     } finally {
@@ -368,10 +393,10 @@ function trashed(h: Head, seen = new Set<string>()): boolean { if (h.metadata.ta
     return false; seen.add(h.revision.object); return heads.some(p => p.revision.object === h.metadata.parent && trashed(p, seen)); }
 async function library() {
     if (!store || !master) return;
-    const g = generation, s = store;
+    const g = generation, s = store,render=++renderGeneration;
     const pending = (await s.all()).filter(x => x.pending).length+(await deletionRecords(s,true)).length;
     const prefs = semantic.preferences(account!.account);
-    const mode = await s.state<string>('sync-mode') || 'persistent';
+    const mode = await s.state<string>('sync-mode') || '';
     if(syncModeDraft?.base!==mode)syncModeDraft=undefined;
     const devices = await s.state<string[]>('relay-devices') || [], device = await s.state<string>('relay-device');
     pendingChanges=pending;linkedDevices=devices;syncDevice=device||syncDevice;renderSync();
@@ -387,13 +412,15 @@ async function library() {
         } catch { /* Names and tags remain searchable without a usable index. */ }
         finally { c.wipe(key); }
     }
-    if (g !== generation || store !== s) return;
+    const policy=await trashPolicy(s);
+    if (g !== generation || store !== s || render!==renderGeneration) return;
+    const openMenus=[...document.querySelectorAll<HTMLDetailsElement>('.dropdown[open]')].map(el=>({label:el.querySelector('summary')?.getAttribute('aria-label'),revision:el.closest<HTMLElement>('article')?.dataset.revision,focus:el.contains(document.activeElement)?document.activeElement?.textContent:undefined}));
     const root = shell();
     const status = node('p', feedback, 'status');
     status.id = 'status'; status.setAttribute('role', 'status'); root.append(status);
     if (settings) {
         root.append(settingsPage({
-            trashPolicy:await trashPolicy(s),
+            addStorage:addStorageSettings, trashPolicy:policy,
             setTrashOverride:async value=>{await setTrashOverride(s,value);await library();scheduleSync();},
             setTrashDefault:async enabled=>{try{if(!remote)await connectRemote();await setTrashDefault(s,remote!,enabled);await library();scheduleSync();}catch(e){message(e instanceof Error?e.message:'Could not update Trash sync.');}},
             pause:()=>void setSyncPaused(!syncPaused), section: settings, account: account!.account, pending, mode, selectedMode:syncModeDraft?.selected||mode, selectMode:selected=>{syncModeDraft={base:mode,selected};}, devices, device, syncInfo,aliases,rename:saveAlias,
@@ -415,7 +442,7 @@ async function library() {
             addPasskey: addPasskeySettings, addSemantic: panel => addSemanticSettings(panel, prefs),
             preferenceChanged: () => { sort = preferences().defaultSort; void library(); message('Preferences saved on this device.'); },
         }));
-        root.querySelector('.settings-panel')?.append(status);
+        root.querySelector('.settings-panel')?.append(status);renderBackupStatus();
         return;
     }
     const main = node('main', undefined, 'library'); main.dataset.density = preferences().density;
@@ -468,6 +495,8 @@ async function library() {
     if(view==='Trash'){const emptyTrash=button('Empty Trash',()=>confirmDeletion(''),'quiet');emptyTrash.disabled=busy||!heads.some(h=>trashed(h)&&!isTrashRoot(h));main.append(emptyTrash);}
     if (view === 'Trash') main.append(node('p','Documents are permanently deleted after 30 days. Automatic cleanup waits for sync when connected.','trash-note'));
     const list = node('div', undefined, 'documents'), footer = node('footer', undefined, 'list-footer'); list.setAttribute('aria-label','Documents'); main.append(list,footer); root.append(main);
+    if(localRecovery){const recovery=node('section',undefined,'settings-section');recovery.append(node('p','The local copy was not found. Sync is paused. Restore a backup folder, or resume sync to request copies from another device.'),button('Recovery options',()=>showSettings('storage')));main.prepend(recovery);}
+    else if(!folderBackup?.status.completed&&!localStorage.getItem('klefki-backup-prompt-dismissed')){const prompt=node('section',undefined,'settings-section');prompt.append(node('p','Keep an encrypted recovery copy outside browser storage.'),button('Set up offline backup',()=>showSettings('storage')),button('Later',()=>{localStorage.setItem('klefki-backup-prompt-dismissed','1');prompt.remove();},'quiet'));main.prepend(prompt);}
     let ranked: string[] = [], searchSequence = 0;
     function renderRows() {
         list.replaceChildren(); clear.hidden = !filter;
@@ -505,10 +534,10 @@ async function library() {
                 if (prefs.enabled && h.metadata.type === 'file') choices.push({label:'Suggestions',run: () => void analysisDialog(h)});
                 choices.push({label:'Move to Trash',run: () => trashDocument(h),danger:true});
             }
-            actions.append(menu('Actions for ' + h.metadata.name,choices,'more')); row.append(actions); list.append(row);
+            actions.append(menu('Actions for ' + h.metadata.name,choices,'more'));row.dataset.revision=h.revision.id; row.append(actions); list.append(row);
         }
         if (!visible.length) {
-            const empty = node('div',undefined,'empty'); empty.append(icon('search',25),node('h2',filter ? 'Nothing matches yet.' : view === 'Trash' ? 'Your trash is empty.' : view === 'Favorites' ? 'Keep the important ones close.' : tag ? 'A place for ' + tag.toLowerCase() + '.' : 'A little room for what matters.'),node('p',filter ? 'Try another name, tag, or indexed word.' : view === 'Trash' ? 'Restore documents within 30 days, or permanently delete them sooner.' : view === 'Favorites' ? 'Star a document to find it here.' : 'Add your first document, or drop files anywhere in this window.')); list.append(empty);
+            const empty = node('div',undefined,'empty'); empty.append(icon('search',25),node('h2',localRecovery ? 'Local copy unavailable.' : filter ? 'Nothing matches yet.' : view === 'Trash' ? 'Your trash is empty.' : view === 'Favorites' ? 'Keep the important ones close.' : tag ? 'A place for ' + tag.toLowerCase() + '.' : 'A little room for what matters.'),node('p',localRecovery ? 'Restore your backup folder, or reconnect a device holding your documents.' : filter ? 'Try another name, tag, or indexed word.' : view === 'Trash' ? 'Restore documents within 30 days, or permanently delete them sooner.' : view === 'Favorites' ? 'Star a document to find it here.' : 'Add your first document, or drop files anywhere in this window.')); list.append(empty);
         }
         footer.hidden = !visible.length; footer.replaceChildren(document.createTextNode(visible.length + (visible.length === 1 ? ' item' : ' items')),node('span',visible.some(h=>h.contentMissing)?'Stored encrypted · some file contents are not on this device':'Stored encrypted · available offline'));
     }
@@ -527,6 +556,7 @@ async function library() {
         finally { c.wipe(key); }
     }
     search.oninput = () => { filter = search.value; void searchRows(); }; void searchRows();
+    for(const details of root.querySelectorAll<HTMLDetailsElement>('.dropdown')){const previous=openMenus.find(menu=>menu.label===details.querySelector('summary')?.getAttribute('aria-label')&&menu.revision===details.closest<HTMLElement>('article')?.dataset.revision);if(previous){details.open=true;if(previous.focus)[...details.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find(item=>item.textContent===previous.focus)?.focus();}}
     main.ondragover = event => { event.preventDefault(); };
     main.ondrop = event => { event.preventDefault(); if (view !== 'Trash') void addFiles(Array.from(event.dataTransfer?.files || [])); };
 }
@@ -545,7 +575,7 @@ async function addFiles(files: File[]) {
     }
 }
 function exportDocument(h: Head) {
-    if(h.contentMissing){message('Enable Trash sync in Settings to export this file on this device.');return;}
+    if(h.contentMissing){message('This file is not stored on this device. Sync to download it, or restore a backup folder.');return;}
     void operation(async (key,g) => { const bytes = await store!.export(key,h.revision); try { if (g === generation) download(bytes,h.metadata.name); } finally { c.wipe(bytes); } });
 }
 function shareDocument(h: Head) {
@@ -673,7 +703,7 @@ function editDialog(h: Head) {
     d.showModal();
 }
 async function openDocument(h: Head) {
-    if(h.contentMissing){message('Enable Trash sync in Settings to preview this file on this device.');return;}
+    if(h.contentMissing){message('This file is not stored on this device. Sync to download it, or restore a backup folder.');return;}
     await operation(async (key,g) => {
         const bytes = await store!.export(key,h.revision);
         if (g !== generation) { c.wipe(bytes); return; }
@@ -684,6 +714,76 @@ async function openDocument(h: Head) {
         if (g === generation) message('');
     });
 }
+
+function renderBackupStatus(){
+    const labels:Record<Protection,string>={protected:'Protected against automatic browser eviction.',unprotected:'Browser storage protection was not granted. A folder backup is recommended.',unsupported:'This browser cannot request storage protection.',unavailable:'Could not check browser storage protection.'};
+    for(const el of document.querySelectorAll<HTMLElement>('[data-storage-protection]'))el.textContent=labels[storageProtection];
+    const state=folderBackup?.status;
+    const text=!state?.folder?'No backup folder selected.':`${state.folder}. ${state.completed?'Last completed: '+new Date(state.completed).toLocaleString()+'.':'No completed backup yet.'} ${state.incomplete?'Incomplete: some documents were not downloaded. ':''}${state.running?'Saving encrypted backup…':state.error|| (state.pending?'Changes waiting for backup.':'Backup is up to date.')}`;
+    for(const el of document.querySelectorAll<HTMLElement>('[data-backup-status]')){el.textContent=text;el.dataset.completed=String(state?.completed||0);}
+    for(const el of document.querySelectorAll<HTMLElement>('[data-backup-action]'))el.hidden=!state?.folder;
+}
+function addStorageSettings(panel:HTMLElement){
+    const localPanel=node('section',undefined,'settings-section'),browserPanel=node('section',undefined,'settings-section'),backupPanel=node('section',undefined,'settings-section');
+    panel.append(localPanel,browserPanel,backupPanel);
+    const available=heads.filter(h=>!semantic.internal(h)&&h.metadata.type==='file'),missing=available.filter(h=>h.contentMissing).length;
+    localPanel.append(node('h3','Documents on this device'),node('p',localRecovery?'Local storage was not found. Restore a folder backup or resume sync to request another copy.':`${available.length-missing} of ${available.length} files available offline.${missing?' Remaining files need a download or backup restore.':''}`));
+    const protectedText=node('p');protectedText.dataset.storageProtection='';browserPanel.append(node('h3','Browser storage protection'),protectedText,button('Protect browser storage',()=>void protectStorage(true).then(value=>{storageProtection=value;renderBackupStatus();})));
+    const status=node('p');status.dataset.backupStatus='';status.setAttribute('role','status');
+    backupPanel.append(node('h3','Encrypted folder backup'),status,node('p','Backups update while Klefki is open and unlocked. Keep the folder and your password. Clearing browser data does not clear this folder. A folder on this device cannot protect against losing the device.','settings-hint'));
+    if(folderSupported()){
+        backupPanel.append(button('Choose offline backup folder',()=>{
+            const selected=pickFolder(),manager=folderBackup,g=generation;
+            void selected.then(async folder=>{if(g!==generation)return;await manager?.choose(folder);}).catch(error=>{if(g===generation&&!(error instanceof DOMException&&error.name==='AbortError'))message(storageError(error));});
+        }),button('Restore from backup folder',()=>void chooseRestore()));
+        {
+            const actions=node('div');actions.dataset.backupAction='';backupPanel.append(actions);
+            actions.append(button('Back up now',()=>void folderBackup?.reconnect().catch(error=>message(storageError(error)))));
+            actions.append(button('Review incomplete backup',()=>{
+                const dialog=node('dialog',undefined,'modal');dialog.append(node('h2','Save an incomplete or empty backup?'),node('p','This may replace an older retained snapshot. Missing documents will not be recoverable from this new snapshot. Only continue if you have reviewed the local library.'),button('Save reviewed state',()=>{dialog.close();dialog.remove();void folderBackup?.run(true,true);}),button('Cancel',()=>{dialog.close();dialog.remove();}));app.append(dialog);dialog.showModal();
+            },'quiet'));
+        }
+    }else backupPanel.append(node('p','Automatic folder backup is unavailable in this browser. Use a browser supporting folder access or the existing desktop/CLI backup workflow.'));
+    renderBackupStatus();
+}
+async function chooseRestore(){
+    let dir:Directory;
+    try{dir=await pickFolder();}catch(error){if(!(error instanceof DOMException&&error.name==='AbortError'))message(storageError(error));return;}
+    let target:c.Account;
+    try{if(!await folderPermission(dir,true))throw Error('Folder access is required.');target=await backupAccount(dir);}
+    catch{message('Choose the account folder named klefki-… inside your backup location. It must contain account.klefki.');return;}
+    const pending=new AbortController(),g=generation;restoreController?.abort();restoreController=pending;
+    const dialog=node('dialog',undefined,'modal'),password=field('Backup password','password'),status=node('p','', 'status'),choices=node('select');choices.setAttribute('aria-label','Backup snapshot');choices.hidden=true;status.setAttribute('role','status');
+    let keys:ReturnType<typeof c.unlock>|undefined;
+    const cleanup=()=>{pending.abort();if(keys){c.wipe(keys.master);c.wipe(keys.credential);keys=undefined;}dialog.close();dialog.remove();if(restoreController===pending)restoreController=undefined;};
+    pending.signal.addEventListener('abort',()=>{if(keys){c.wipe(keys.master);c.wipe(keys.credential);keys=undefined;}dialog.close();dialog.remove();},{once:true});
+    const restore=button('Restore selected backup',()=>void (async()=>{
+        if(!keys||!choices.value)return;restore.disabled=true;load.disabled=true;status.textContent='Verifying and restoring the encrypted backup…';
+        let staged:Store|undefined,held:(()=>void)|undefined;const restoreKey=keys.master.slice();
+        try{
+            if(!master||account?.account!==target.account)held=await claim(target);
+            staged=await navigator.locks.request('klefki-backup-'+target.account,{signal:pending.signal},()=>restoreSnapshot(dir,target,restoreKey,choices.value,pending.signal));
+            c.check(g===generation);pending.signal.throwIfAborted();
+            activateRestoredStore(staged);staged.close();staged=undefined;
+            cleanup();lock();account=target;locked();message('Backup restored. Unlock to read your documents offline. Sync is paused until you resume it.');
+        }catch(error){staged?.close();status.textContent='Restore failed. The previous local store is kept. '+storageError(error);}
+        finally{held?.();c.wipe(restoreKey);restore.disabled=false;load.disabled=false;}
+    })());restore.hidden=true;
+    const load=button('Read backups',()=>void (async()=>{
+        load.disabled=true;status.textContent='Checking backups…';
+        try{
+            if(keys){c.wipe(keys.master);c.wipe(keys.credential);keys=undefined;}choices.hidden=restore.hidden=true;keys=c.unlock(target,password.input.value);password.input.value='';
+            const result=await snapshots(dir,keys.master,target,pending.signal);pending.signal.throwIfAborted();
+            choices.replaceChildren();for(const item of result.valid){const option=node('option',new Date(item.catalogue.created).toLocaleString()+(item.catalogue.incomplete?' · incomplete':''));option.value=item.name;choices.append(option);}
+            c.check(result.valid.length>0);choices.hidden=restore.hidden=false;
+            status.textContent=(result.invalid?'Some snapshots could not be verified. Select a valid snapshot. ':'')+'Restoring keeps the previous local store and pauses sync. Older snapshots may contain previously deleted documents.';
+        }catch(error){status.textContent='Could not read backups. Check the password or choose another folder. '+storageError(error);}
+        finally{load.disabled=false;}
+    })());
+    dialog.append(node('h2','Restore encrypted backup'),node('p','Account '+target.account),node('p','Restore without another device or document server. Select the latest completed snapshot, or an earlier copy if needed.'),password.wrap,load,choices,restore,status,button('Cancel',cleanup));
+    dialog.oncancel=e=>{e.preventDefault();cleanup();};app.append(dialog);dialog.showModal();
+}
+
 await c.ready;
 try {
     const saved = localStorage.getItem('klefki-account');

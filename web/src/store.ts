@@ -40,32 +40,49 @@ export function unlockRevision(master: Uint8Array, account: string, r: Revision)
         c.check(!r.file_key);
     return { metadata, key };
 }
-const req = <T>(r: IDBRequest<T>) => new Promise<T>((resolve, reject) => { r.onsuccess = () => resolve(r.result); r.onerror = () => reject(Error('Local klefki storage failed')); });
-const done = (tx: IDBTransaction) => new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onabort = tx.onerror = () => reject(Error('Local klefki transaction failed')); });
+const req = <T>(r: IDBRequest<T>) => new Promise<T>((resolve, reject) => { r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error || Error('Local klefki storage failed')); });
+const done = (tx: IDBTransaction) => new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onabort = tx.onerror = () => reject(tx.error || Error('Local klefki transaction failed')); });
+export const storeReference = (account: string) => 'klefki-store-' + account;
 export class Store {
     onChange?: () => void;
+    onMutation?: () => void;
+    created = false;
+    missing = false;
     private constructor(readonly db: IDBDatabase, readonly account: c.Account) { }
-    static async open(account: c.Account) {
+    static async open(account: c.Account, stagingName?: string) {
         c.validateAccount(account);
-        const r = indexedDB.open('klefki-v1-' + account.account, 2);
-        r.onupgradeneeded = () => { const db = r.result; if(!db.objectStoreNames.contains('state')){db.createObjectStore('state'); db.createObjectStore('revisions', { keyPath: 'revision.id' }); db.createObjectStore('chunks');} if(!db.objectStoreNames.contains('deletions'))db.createObjectStore('deletions',{keyPath:'object'}); };
+        const base = 'klefki-v1-' + account.account;
+        const saved = localStorage.getItem(storeReference(account.account));
+        const name = stagingName || saved || base;
+        c.check(name === base || new RegExp('^' + base + '-restore-[0-9a-f]{32}$').test(name));
+        let created = false;
+        const r = indexedDB.open(name, 2);
+        r.onupgradeneeded = event => { created = event.oldVersion === 0; const db = r.result; if(!db.objectStoreNames.contains('state')){db.createObjectStore('state'); db.createObjectStore('revisions', { keyPath: 'revision.id' }); db.createObjectStore('chunks');} if(!db.objectStoreNames.contains('deletions'))db.createObjectStore('deletions',{keyPath:'object'}); };
         const db = await req(r);
         db.onversionchange = () => db.close();
         const store = new Store(db, account);
+        store.created = created;
+        store.missing = !stagingName && created && (!!saved || localStorage.getItem('klefki-account') === JSON.stringify(account));
+        try {
         await store.transaction(['state'], 'readwrite', async (tx) => { const state = tx.objectStore('state'), old = await req(state.get('account')); if (old)
             c.check(old.account === account.account && old.descriptor === account.descriptor && old.password_wrapper === account.password_wrapper && old.recovery_wrapper === account.recovery_wrapper);
         else
             state.put(account, 'account');
             if(await req(state.get('sync-connected'))===undefined)state.put(!!await req(state.get('origin')),'sync-connected');
-            const device = await req(state.get('relay-device')); if (!device) state.put(c.id(),'relay-device'); });
+            const device = await req(state.get('relay-device')); if (!device) state.put(c.id(),'relay-device');
+            if (store.missing) { state.put(true, 'local-recovery'); state.put(true, 'sync-paused'); }
+        });
+        if (!stagingName) localStorage.setItem(storeReference(account.account), name);
         return store;
+        } catch(error) {db.close();throw error;}
     }
     close() { this.db.close(); }
-    async transaction<T>(names: string[], mode: IDBTransactionMode, fn: (tx: IDBTransaction) => Promise<T>): Promise<T> {
+    async transaction<T>(names: string[], mode: IDBTransactionMode, fn: (tx: IDBTransaction) => Promise<T>, notify = true): Promise<T> {
         const tx = this.db.transaction(names, mode), completed = done(tx);
         try {
             const result = await fn(tx);
             await completed;
+            if (mode === 'readwrite' && notify) this.onMutation?.();
             return result;
         }
         catch (e) {
@@ -82,7 +99,21 @@ export class Store {
     async contentAvailable(master:Uint8Array,r:Revision){
         const {metadata:m,key}=unlockRevision(master,this.account.account,r);if(key)c.wipe(key);
         if(m.type==='folder')return true;
-        try{await this.chunks(m.file_id!,m.chunk_count!);return true;}catch{return false;}
+        if(await this.state('invalid-content:'+m.file_id))return false;
+        for (let i=0;i<m.chunk_count!;i++) {
+            const chunk=await this.chunk(m.file_id!,i);
+            if (!(chunk instanceof Uint8Array) || chunk.length !== Math.min(c.CHUNK,m.size!-i*c.CHUNK)+87) {
+                if(chunk!==undefined)await this.setState('invalid-content:'+m.file_id,true);
+                return false;
+            }
+        }
+        return true;
+    }
+    async chunk(file:string,index:number):Promise<Uint8Array|undefined>{return this.transaction(['chunks'],'readonly',tx=>req(tx.objectStore('chunks').get(file+':'+index)));}
+    async offlineHeads(master:Uint8Array){
+        const heads=await this.heads(master,true);
+        for(const head of heads)head.contentMissing=!(await this.contentAvailable(master,head.revision));
+        return heads;
     }
     async contentFlags(id:string,change:Partial<Pick<Stored,'pending'|'deferred'|'wanted'|'explicit'|'trash'|'uploadPending'>>){
         await this.transaction(['revisions'],'readwrite',async tx=>{const store=tx.objectStore('revisions'),record=await req(store.get(id)) as Stored|undefined;c.check(record);store.put({...record,...change,pending:!!record.metadataPending||!!change.pending});});
@@ -114,7 +145,7 @@ export class Store {
         await this.transaction(['state'],'readwrite',async tx => {
             const state=tx.objectStore('state');
             c.check(devices.includes(await req(state.get('relay-device'))));
-            if (await req(state.get('relay-epoch'))!==epoch) {state.put(0,'cursor');state.put(0,'metadata-cursor');state.put(0,'trash-policy-version');state.put(0,'content-version');state.put(false,'trash-default');}
+            if (await req(state.get('relay-epoch'))!==epoch) {state.put(0,'cursor');state.put(0,'metadata-cursor');state.put(0,'trash-policy-version');state.put(0,'content-version');}
             state.put(epoch,'relay-epoch');state.put(mode,'sync-mode');state.put(devices,'relay-devices');
         });
     }
@@ -146,7 +177,9 @@ export class Store {
         out.push(b);
     } return out; }); }
     async export(master: Uint8Array, r: Revision) { const { metadata: m, key } = unlockRevision(master, this.account.account, r); c.check(key); try {
-        return c.decryptFile(key, this.account.account, m.file_id!, m.size!, await this.chunks(m.file_id!, m.chunk_count!));
+        const chunks=await this.chunks(m.file_id!,m.chunk_count!);
+        try{return c.decryptFile(key, this.account.account, m.file_id!, m.size!, chunks);}
+        catch(error){await this.setState('invalid-content:'+m.file_id,true);throw error;}
     }
     finally {
         c.wipe(key);
@@ -172,11 +205,14 @@ export class Store {
             for (let i = 0; i < chunks.length; i++) {
                 c.check(file);
                 const name = file + ':' + i, existing = await req(blobs.get(name));
-                if (existing)
+                if(existing && await req(state.get('invalid-content:'+file)) && deferred===false && !pending)
+                    blobs.put(chunks[i],name);
+                else if (existing)
                     c.check(existing instanceof Uint8Array && existing.length === chunks[i].length && existing.every((value, index) => value === chunks[i][index]));
                 else
                     blobs.add(chunks[i], name);
             }
+            if(file&&chunks.length&&deferred===false)state.delete('invalid-content:'+file);
             if (!old) {
                 const order = (await req(state.get('order')) || 0) + 1;
                 state.put(order, 'order');

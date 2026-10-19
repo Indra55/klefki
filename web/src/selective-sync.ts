@@ -10,8 +10,8 @@ type Change={sequence:number;revision:Revision};
 export const unavailable='File contents are unavailable. Reconnect a device holding this file and enable Trash sync or restore it there.';
 
 export async function trashPolicy(store:Store){
- const override=await store.state<TrashOverride>('trash-override')||'follow-vault',enabled=await store.state<boolean>('trash-default')||false;
- return {override,default:enabled,effective:override==='on'||override==='follow-vault'&&enabled};
+ const override=await store.state<TrashOverride>('trash-override')||'follow-vault',saved=await store.state<boolean>('trash-default'),enabled=saved===true;
+ return {override,known:saved!==undefined,default:enabled,effective:override==='on'||override==='follow-vault'&&enabled};
 }
 export async function setTrashOverride(store:Store,value:TrashOverride){
  c.check(['follow-vault','on','off'].includes(value));await store.setState('trash-override',value);

@@ -24,10 +24,11 @@ test('Trash content is off by default, device overrides win, and Restore fetches
  await c.ready;const fixture=c.createAccount(password),receiver=await browser.newContext(),other=await receiver.newPage();
  try{
   await open(page,fixture.account);await openSettings(page,'Sync & devices');
-  await expect(page.getByLabel('Sync Trash for this vault',{exact:true})).toHaveValue('false');
+  await expect(page.getByLabel('Sync Trash for this vault',{exact:true})).toHaveValue('');
   await expect(page.getByLabel('Sync Trash on this device',{exact:true})).toHaveValue('follow-vault');
   await page.getByRole('button',{name:'Register this store on server',exact:true}).click();
   await expect(page.getByRole('status')).toContainText('Synced.');
+  await expect(page.getByLabel('Sync Trash for this vault',{exact:true})).toHaveValue('false');
   await page.getByRole('button',{name:'Pause sync',exact:true}).click();
   await upload(page,{name:'recover.txt',mimeType:'text/plain',buffer:Buffer.from('recover these synthetic bytes')});
   await documentAction(page,'recover.txt','Move to Trash');

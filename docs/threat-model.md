@@ -47,7 +47,8 @@ monotonic history or anti-rollback checkpoint protocol is claimed.
   temporary files, crash dumps, swap, and user-created backups outside the klefki.
   Later clients must minimize these surfaces; M0 implements none of them.
 - Deletion, denial of service, server loss, and rollback. Encrypted backups and
-  tested restores are provided by [M6](backup-restore.md); replication alone is
+  tested restores are provided by [M6](backup-restore.md) and optional
+  [PWA folder backups](pwa-offline-backup.md); replication alone is
   not a backup. Existing rollback/deletion limitations still apply to backups.
 - Protection after a recovery code, password, or unlocked keys have been stolen.
   Server device revocation prevents future authorized server access, not access

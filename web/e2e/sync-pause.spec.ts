@@ -92,6 +92,8 @@ test('pausing during a sync finishes that cycle and suppresses a queued refresh'
   await page.evaluate(()=>{window.dispatchEvent(new Event('online'));document.dispatchEvent(new Event('visibilitychange'))});
   await expect(status(page)).toHaveAttribute('aria-description','Sync paused on this device');
   expect(changes).toBe(before);
+  // A close event can arrive after native focus restoration and a user's next action.
+  await panel.evaluate(element=>{const dialog=element as HTMLDialogElement,onclose=dialog.onclose!;dialog.onclose=event=>{setTimeout(()=>onclose.call(dialog,event),100);};});
   await panel.getByRole('button',{name:'Close',exact:true}).click();
   await expect(status(page)).toBeFocused();
   await expect(page.getByRole('button',{name:'Resume sync',exact:true})).toBeVisible();

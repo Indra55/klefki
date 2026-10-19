@@ -1,15 +1,16 @@
 import {syncLabel,deviceName,receipt,presence,type SyncInfo} from '../../ui/sync-status.ts';
 import { node, button, field, iconButton, preferences, savePreferences, type Preferences } from './ui.ts';
-export type Section = 'appearance' | 'privacy' | 'sync' | 'search';
+export type Section = 'appearance' | 'privacy' | 'sync' | 'search' | 'storage';
 export type SettingsActions = {
     pause:()=>void;syncInfo:SyncInfo;aliases:Record<string,string>;rename:(id:string,name:string)=>Promise<void>;
     section: Section; account: string; pending: number; mode: string; selectedMode: string; selectMode: (mode:string)=>void; devices: string[]; device?: string;
     changeSection: (section: Section) => void; back: () => void; sync: (register?: boolean) => void;
     exportAccount: () => void; setMode: (mode: string) => void; forget: (id: string) => void;
     addPasskey: (panel: HTMLElement) => void; addSemantic: (panel: HTMLElement) => void;
-    trashPolicy:{override:'follow-vault'|'on'|'off';default:boolean;effective:boolean};
+    trashPolicy:{known:boolean;override:'follow-vault'|'on'|'off';default:boolean;effective:boolean};
     setTrashOverride:(value:'follow-vault'|'on'|'off')=>Promise<void>;setTrashDefault:(enabled:boolean)=>Promise<void>;
     preferenceChanged: () => void;
+    addStorage: (panel:HTMLElement)=>void;
 };
 export function settingsPage(actions: SettingsActions) {
     const main = node('main', undefined, 'settings-page');
@@ -18,7 +19,7 @@ export function settingsPage(actions: SettingsActions) {
     heading.append(title, node('p', 'Make Klefki feel at home. Preferences are saved on this device.'));
     const layout = node('div', undefined, 'settings-layout'), nav = node('nav', undefined, 'settings-nav'), panel = node('div', undefined, 'settings-panel');
     nav.setAttribute('aria-label', 'Settings sections');
-    const sections = [ ['appearance', 'Appearance', 'palette'], ['privacy', 'Privacy & lock', 'lock'], ['sync', 'Sync & devices', 'cloud'], ['search', 'Search', 'search'] ] as const;
+    const sections = [ ['appearance', 'Appearance', 'palette'], ['privacy', 'Privacy & lock', 'lock'], ['sync', 'Sync & devices', 'cloud'], ['storage', 'Offline & backup', 'download'], ['search', 'Search', 'search'] ] as const;
     for (const [id, label, symbol] of sections) {
         const action = iconButton(label, symbol, () => actions.changeSection(id));
         if (id === actions.section) action.setAttribute('aria-current', 'page');
@@ -36,7 +37,8 @@ export function settingsPage(actions: SettingsActions) {
         select.value = String(current[key]);
         select.onchange = () => {
             const value = key === 'idleMinutes' ? Number(select.value) : select.value;
-            savePreferences({...current, [key]: value}); actions.preferenceChanged();
+            try { savePreferences({...preferences(), [key]: value}); actions.preferenceChanged(); }
+            catch {select.value=String(current[key]);const error=node('p','Could not save this preference. Browser storage is unavailable.','status');error.setAttribute('role','status');panel.append(error);}
         };
         copy.append(caption, node('p', description)); row.append(copy, select); panel.append(row);
     }
@@ -51,10 +53,14 @@ export function settingsPage(actions: SettingsActions) {
         preference('Lock after inactivity', 'Locking clears active keys and document previews.', 'idleMinutes', [1,5,15,30].map(n => [String(n), n === 1 ? '1 minute' : n + ' minutes']));
         panel.append(node('p', 'Lock immediately with Ctrl Shift L.', 'settings-hint')); actions.addPasskey(panel);
     }
+    if (actions.section === 'storage') {
+        panelHeading('Offline & backup','Keep documents available here and save an encrypted recovery copy outside browser storage.');
+        actions.addStorage(panel);
+    }
     if (actions.section === 'sync') {
         panelHeading('Sync & devices', 'Keep the same encrypted library on your devices. You can still work offline.');
         const state = node('div', undefined, 'connection-status'), copy = node('div');
-        const statusLabel=node('span',syncLabel(actions.syncInfo,actions.device||'',actions.aliases));statusLabel.id='settings-sync-label';copy.append(statusLabel, node('p', actions.pending ? actions.pending + ' changes waiting to sync.' : 'No local changes waiting to sync.'));
+        const statusLabel=node('span',syncLabel(actions.syncInfo,actions.device||'',actions.aliases));statusLabel.id='settings-sync-label';const pendingLabel=node('p',actions.pending?actions.pending+' changes waiting to sync.':'No local changes waiting to sync.');pendingLabel.dataset.syncPending='';copy.append(statusLabel,pendingLabel);
         const start=button('Sync now',()=>actions.sync(),'secondary');start.dataset.syncStart='';start.disabled=!!actions.syncInfo.paused||actions.syncInfo.running;
         const pause=button(actions.syncInfo.paused?'Resume sync':'Pause sync',actions.pause,'secondary');pause.dataset.syncPause='';
         state.append(copy,start,pause); panel.append(state,node('p','Pause syncing on this device while adding files. Local changes stay queued; an active sync finishes. Resume when the batch is ready. Concurrent edits on other devices can still create conflicts.','settings-hint'));
@@ -64,21 +70,23 @@ export function settingsPage(actions: SettingsActions) {
         const trash=node('section',undefined,'settings-section');trash.append(node('h3','Trash sync'),node('p','Active documents sync first. Trash listings and removal updates always sync. Turning this off keeps existing copies.','muted small'));
         function trashControl(label:string,id:string,value:string,choices:[string,string][],save:(value:string)=>Promise<void>){
             const row=node('div',undefined,'preference-row'),caption=node('label',label),select=node('select');select.id=id;caption.htmlFor=id;
+            if(value===''){const unknown=node('option','Unknown until connected');unknown.value='';unknown.disabled=true;select.append(unknown);}
             for(const [value,label] of choices){const option=node('option',label);option.value=value;select.append(option);}select.value=value;
             select.onchange=()=>{select.disabled=true;void save(select.value).finally(()=>{select.disabled=false});};row.append(caption,select);trash.append(row);
         }
         trash.append(node('p','The vault setting is the default for linked devices. This device can override it.','muted small'));
-        trashControl('Sync Trash for this vault','trash-vault',String(actions.trashPolicy.default),[['false','Off'],['true','On']],value=>actions.setTrashDefault(value==='true'));
+        trashControl('Sync Trash for this vault','trash-vault',actions.trashPolicy.known?String(actions.trashPolicy.default):'',[['false','Off'],['true','On']],value=>actions.setTrashDefault(value==='true'));
         trashControl('Sync Trash on this device','trash-device',actions.trashPolicy.override,[['follow-vault','Follow vault'],['on','On'],['off','Off']],value=>actions.setTrashOverride(value as 'follow-vault'|'on'|'off'));
-        trash.append(node('p',`Trash file sync is ${actions.trashPolicy.effective?'on':'off'} on this device. Restore can fetch a missing file when a source is available.`,'settings-hint'));panel.append(trash);
+        trash.append(node('p',!actions.trashPolicy.known&&actions.trashPolicy.override==='follow-vault'?'The vault Trash policy is unknown until connected.':`Trash file sync is ${actions.trashPolicy.effective?'on':'off'} on this device. Restore can fetch a missing file when a source is available.`,'settings-hint'));panel.append(trash);
         const storage = node('section', undefined, 'settings-section'), row = node('div', undefined, 'preference-row'), info = node('div'), caption = node('label', 'Sync mode'), select = node('select');
         select.id = 'sync-mode'; caption.htmlFor = select.id;
+        if(!actions.mode){const unknown=node('option','Unknown until connected');unknown.value='';unknown.disabled=true;select.append(unknown);}
         for (const [value,label] of [['persistent','Persistent storage'],['temporary-relay','Temporary relay']]) { const option = node('option',label); option.value = value; select.append(option); }
         select.value = actions.selectedMode;
         info.append(caption, node('p', 'Shared by every device linked to this account.')); row.append(info, select);
-        storage.append(node('h3', 'Server storage'), row, node('p', actions.mode === 'temporary-relay' ? 'The server removes deliveries after linked devices save the contents they need, with at least two devices required. Devices can exclude Trash contents. Keep a local backup. New devices need an existing device to reconnect.' : 'Keep encrypted documents on the server so devices can download them later.', 'muted small'));
-        const apply = button('Apply sync mode', () => actions.setMode(select.value), 'secondary'); apply.disabled = select.value === actions.mode;
-        select.onchange = () => { actions.selectMode(select.value); apply.disabled = select.value === actions.mode; };
+        storage.append(node('h3', 'Server storage'), row, node('p', !actions.mode ? 'Connect to learn the account policy. No mode change has been made.' : actions.mode === 'temporary-relay' ? 'The server removes deliveries after linked devices save the contents they need, with at least two devices required. Devices can exclude Trash contents. Keep a local backup. New devices need an existing device to reconnect.' : 'Keep encrypted documents on the server so devices can download them later.', 'muted small'));
+        const apply = button('Apply sync mode', () => actions.setMode(select.value), 'secondary'); apply.disabled = !select.value || select.value === actions.mode;
+        select.onchange = () => { actions.selectMode(select.value); apply.disabled = !select.value || select.value === actions.mode; };
         storage.append(apply, node('p', 'Free hosts can erase queued deliveries on restart. Existing devices retain their copies and supply them again when they reconnect.', 'muted small')); panel.append(storage);
         const device = node('section', undefined, 'settings-section');
         device.append(node('h3', 'Set up another device'), node('p', 'Save your encrypted account file, open it on the other device, and use your password and the same server.', 'muted small'), iconButton('Save encrypted account file', 'download', actions.exportAccount));

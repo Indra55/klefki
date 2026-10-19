@@ -141,6 +141,7 @@ export function applyPreferences() {
 }
 export function savePreferences(value: Preferences) {
     localStorage.setItem('klefki-appearance-v1', JSON.stringify(value)); applyPreferences();
+    window.dispatchEvent(new Event('klefki-preferences'));
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyPreferences);
 applyPreferences();
