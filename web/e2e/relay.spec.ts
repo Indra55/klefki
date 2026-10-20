@@ -83,6 +83,7 @@ test('relay deletes delivered content, preserves offline edits, and bootstraps a
         await expect(late.getByRole('status')).toContainText('another linked device');
         await syncNow(page);await expect(page.getByRole('status')).toContainText('Waiting for linked devices');
         await syncNow(late);await expect(late.getByRole('button',{name:'Open relay.txt',exact:true})).toBeVisible();
+        await expect(late.locator('article').filter({has:late.getByText('relay.txt',{exact:true})})).not.toContainText('Not stored on this device');
         await late.getByRole('button',{name:'Open relay.txt',exact:true}).click();
         await expect(late.locator('dialog pre')).toHaveText('private relay browser bytes');
         await late.getByRole('button',{name:'Close',exact:true}).click();
@@ -97,7 +98,9 @@ test('relay deletes delivered content, preserves offline edits, and bootstraps a
         await expect(page.getByRole('status')).toContainText('Waiting for linked devices');
         await syncNow(b);await expect(b.getByRole('button',{name:'Open offline-relay.txt',exact:true})).toBeVisible();
         await syncNow(late);await expect(late.getByRole('button',{name:'Open offline-relay.txt',exact:true})).toBeVisible();
-        expect((await metadataState(page,account,keys.credential)).queued).toBe(0);
+        await expect(b.locator('article').filter({has:b.getByText('offline-relay.txt',{exact:true})})).not.toContainText('Not stored on this device');
+        await expect(late.locator('article').filter({has:late.getByText('offline-relay.txt',{exact:true})})).not.toContainText('Not stored on this device');
+        await expect.poll(async()=>(await metadataState(page,account,keys.credential)).queued).toBe(0);
     }finally{await second.close();await third.close();c.wipe(fixture.master);c.wipe(keys.master);c.wipe(keys.credential);}
 });
 

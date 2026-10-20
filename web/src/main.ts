@@ -26,6 +26,7 @@ let folderBackup:FolderBackup|undefined;
 let storageProtection:Protection='unavailable';
 let localRecovery=false;
 let renderGeneration=0;
+let refreshGeneration=0;
 let lastLibraryState='';
 let restoreController:AbortController|undefined;
 const app = document.querySelector<HTMLDivElement>('#app')!;
@@ -78,7 +79,9 @@ async function setSyncPaused(paused:boolean){
 }
 function scheduleSync(){
     if(syncPaused)return;
-    syncRequested=true;window.clearTimeout(syncTimer);syncTimer=window.setTimeout(()=>{if(master)void syncNow()},1000);
+    syncRequested=true;window.clearTimeout(syncTimer);
+    if(document.visibilityState!=='visible'){if(master)void syncNow();return;}
+    syncTimer=window.setTimeout(()=>{if(master)void syncNow()},1000);
 }
 function syncErrorPhase(e:unknown){
     if(e instanceof RelayWaiting)return 'waiting';
@@ -333,11 +336,11 @@ function locked() {
 function recoveryDialog(code: string) { const dialog = node('dialog',undefined,'modal'); dialog.append(node('h2', 'Save your recovery code'), node('p', 'Store this separately from your private space. It is shown once and is needed if you lose your password.'), node('code', code)); dialog.append(button('Download recovery code', () => download(c.utf8(code + '\n'), 'klefki-recovery.txt', 'text/plain')), button('I have saved it', () => { dialog.close(); dialog.remove(); })); app.append(dialog); dialog.showModal(); dialog.oncancel = e => e.preventDefault(); }
 async function refresh() {
     if (!store || !master) return;
-    const g=generation,s=store,key=master.slice();
+    const id=++refreshGeneration,g=generation,s=store,key=master.slice();
     try{
         const next=await s.offlineHeads(key);
         const [mode,policy,devices,records,deletions,arrivals,failed]=await Promise.all([s.state('sync-mode'),trashPolicy(s),s.state('relay-devices'),s.all(),deletionRecords(s,true),incoming(s,key),workActivity(s,key)]);
-        if(g!==generation||store!==s)return;
+        if(id!==refreshGeneration||g!==generation||store!==s)return;
         incomingView.update(arrivals);syncActivity=failed.reduce(addActivity,syncActivity);pendingChanges=records.filter(record=>record.pending).length+deletions.length;renderSync();
         const state=JSON.stringify({heads:next,mode,policy,devices,localRecovery});
         if(state===lastLibraryState)return;
@@ -361,7 +364,7 @@ async function syncNow(register = false, background = false, reconnect = false) 
     if(!master||syncPaused)return;
     refreshRequested ||= reconnect;
     if(syncRunning){if(!background)syncRequested=true;if(register){syncRequested=true;registerRequested=true;}return;}
-    if(busy){if(!background||refreshRequested){syncRequested=true;registerRequested ||= register;}return;}
+    if(busy){syncRequested=true;registerRequested ||= register;return;}
     reconnect=refreshRequested;refreshRequested=false;
     if(reconnect){await retryFailed(store!);remote=undefined;background=false;syncInfo={...syncInfo,statusAvailable:false};}
     window.clearTimeout(syncTimer);syncRequested=false;register ||= registerRequested;registerRequested=false;
@@ -894,7 +897,7 @@ setInterval(() => { if (master && Date.now() - lastActivity > preferences().idle
     lock(); }, 1000);
 window.addEventListener('online',()=>{if(master)void syncNow()});
 window.addEventListener('offline',()=>{if(master){syncInfo={...syncInfo,phase:'offline',statusAvailable:false};renderSync();}});
-document.addEventListener('visibilitychange',()=>{if(!master)return;if(document.visibilityState==='visible'){lastPresence=lastDeviceCheck=0;void syncNow(false,true);void monitorSync();}else{window.clearTimeout(syncTimer);syncInfo={...syncInfo,statusAvailable:false};}});
+document.addEventListener('visibilitychange',()=>{if(!master)return;window.clearTimeout(syncTimer);if(document.visibilityState==='visible'){lastPresence=lastDeviceCheck=0;void monitorSync();}else syncInfo={...syncInfo,statusAvailable:false};void syncNow(false,true);});
 let lastAutomaticCheck=0;setInterval(()=>{if(master&&(remote?.workQueue!==false||Date.now()-lastAutomaticCheck>=60000)){lastAutomaticCheck=Date.now();void syncNow(false,true)}},5000);
 setInterval(()=>{if(master&&document.visibilityState==='visible'){renderSync();void monitorSync()}},1000);
 window.addEventListener('pagehide', lock);

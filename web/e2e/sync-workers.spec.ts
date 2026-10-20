@@ -1,6 +1,6 @@
 import {test,expect,type Page} from '@playwright/test';
 import * as c from '../src/crypto.ts';
-import {openSettings,backToLibrary,upload} from './ui.ts';
+import {openSettings,backToLibrary,upload,documentAction} from './ui.ts';
 const password='public sync worker fixture password';
 async function open(page:Page,account:c.Account){
  await page.goto('/');
@@ -54,4 +54,68 @@ test('unchanged checks avoid file inventory and identical metadata saves create 
   const before=await count();const row=page.locator('article').filter({has:page.getByText('unchanged.txt',{exact:true})});await row.getByRole('button',{name:'Actions for unchanged.txt',exact:true}).click();await page.getByRole('menuitem',{name:'Edit details & move',exact:true}).click();await page.getByRole('button',{name:'Save changes',exact:true}).click();
   expect(await count()).toBe(before);
  }finally{c.wipe(fixture.master);}
+});
+
+test('an older library read cannot hide a document that already arrived',async({page,browser})=>{
+ await c.ready;const fixture=c.createAccount(password),context=await browser.newContext(),receiver=await context.newPage();
+ try{
+  await open(page,fixture.account);await register(page);await open(receiver,fixture.account);
+  await expect(receiver.getByRole('button',{name:'Sync status',exact:true})).toHaveAttribute('data-state','synced');
+  await receiver.evaluate(()=>{
+   const original=IDBObjectStore.prototype.getAll,success=Object.getOwnPropertyDescriptor(IDBRequest.prototype,'onsuccess')!;let held=false;
+   IDBObjectStore.prototype.getAll=function(...args){
+    const request=original.apply(this,args);if(this.name!=='revisions')return request;
+    Object.defineProperty(request,'onsuccess',{set(handler){success.set!.call(request,function(event:Event){
+     if(!held&&request.result.length===1&&request.result[0].deferred){held=true;(window as any).oldLibraryReadHeld=true;(window as any).releaseOldLibraryRead=()=>handler.call(request,event);}
+     else handler.call(request,event);
+    });}});return request;
+   };
+  });
+  await upload(page,{name:'first-arrival.txt',mimeType:'text/plain',buffer:Buffer.from('first fixture')});
+  await expect.poll(()=>receiver.evaluate(()=>(window as any).oldLibraryReadHeld)).toBe(true);
+  await expect(receiver.getByRole('button',{name:'Open first-arrival.txt',exact:true})).toBeVisible();
+  await upload(page,{name:'scan_new.txt',mimeType:'text/plain',buffer:Buffer.from('latest fixture')});
+  const newest=receiver.getByRole('button',{name:'Open scan_new.txt',exact:true});await expect(newest).toBeVisible({timeout:20000});
+  await expect(receiver.locator('.incoming-toast')).toContainText('scan_new.txt is ready');
+  await expect(receiver.getByRole('button',{name:'Sync status',exact:true})).not.toHaveAttribute('data-state','running');
+  await receiver.evaluate(()=>(window as any).releaseOldLibraryRead());await receiver.waitForTimeout(750);
+  await expect(newest).toBeVisible();await newest.click();await expect(receiver.locator('dialog pre')).toHaveText('latest fixture');
+ }finally{await context.close();c.wipe(fixture.master);}
+});
+
+test('switching away flushes a queued upload without waiting for a background timer',async({page,browser})=>{
+ await c.ready;const fixture=c.createAccount(password),context=await browser.newContext(),receiver=await context.newPage();
+ try{
+  await page.addInitScript(()=>{
+   const timeout=window.setTimeout.bind(window),interval=window.setInterval.bind(window);
+   window.setTimeout=(handler,delay,...args)=>timeout(handler,delay===1000?600000:delay,...args);
+   window.setInterval=(handler,delay,...args)=>interval(handler,delay===5000?600000:delay,...args);
+  });
+  await open(page,fixture.account);await register(page);await open(receiver,fixture.account);
+  await expect(receiver.getByRole('button',{name:'Sync status',exact:true})).toHaveAttribute('data-state','synced');
+  await expect(page.getByRole('button',{name:'Sync status',exact:true})).toHaveAttribute('data-state','synced');
+  let uploads=0;page.on('request',request=>{if(request.method()==='PUT'&&request.url().includes('/chunks/'))uploads++;});
+  await upload(page,{name:'phone-handoff.txt',mimeType:'text/plain',buffer:Buffer.from('handoff fixture')});
+  await expect(page.getByRole('button',{name:'Open phone-handoff.txt',exact:true})).toBeVisible();
+  expect(uploads).toBe(0);
+  await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,get:()=> 'hidden'});document.dispatchEvent(new Event('visibilitychange'));});
+  await expect.poll(()=>uploads,{timeout:5000}).toBeGreaterThan(0);
+  await expect(receiver.getByRole('button',{name:'Open phone-handoff.txt',exact:true})).toBeVisible({timeout:15000});
+ }finally{await context.close();c.wipe(fixture.master);}
+});
+
+test('relay receivers show new documents and metadata moves without refresh',async({page,browser})=>{
+ await c.ready;const fixture=c.createAccount(password),context=await browser.newContext(),receiver=await context.newPage();
+ try{
+  await open(page,fixture.account);await register(page);await openSettings(page,'Sync & devices');
+  await page.getByLabel('Sync mode',{exact:true}).selectOption('temporary-relay');await page.getByRole('button',{name:'Apply sync mode',exact:true}).click();await expect(page.locator('#status')).toContainText('Sync mode updated');await backToLibrary(page);
+  await open(receiver,fixture.account);await expect(receiver.getByRole('button',{name:'Sync status',exact:true})).toHaveAttribute('data-state','synced');
+  await page.getByRole('button',{name:'New folder',exact:true}).click();await page.getByLabel('Folder name').fill('Destination');await page.getByRole('button',{name:'Create folder',exact:true}).click();
+  await expect(receiver.getByRole('button',{name:'Open Destination',exact:true})).toBeVisible({timeout:12000});
+  await upload(page,{name:'scan_new.txt',mimeType:'text/plain',buffer:Buffer.from('automatic metadata fixture')});await expect(receiver.getByRole('button',{name:'Open scan_new.txt',exact:true})).toBeVisible({timeout:12000});
+  await documentAction(page,'scan_new.txt','Edit details & move');await page.getByLabel('Name',{exact:true}).fill('renamed.txt');await page.getByLabel('Folder',{exact:true}).selectOption({label:'Destination'});await page.getByRole('button',{name:'Save changes',exact:true}).click();
+  await expect(receiver.getByRole('button',{name:'Open scan_new.txt',exact:true})).toHaveCount(0,{timeout:12000});await receiver.getByRole('button',{name:'Open Destination',exact:true}).click();
+  await expect(receiver.locator('article').filter({has:receiver.getByText('renamed.txt',{exact:true})})).not.toContainText('Not stored on this device');
+  await expect(receiver.getByRole('button',{name:'Open renamed.txt',exact:true})).toBeVisible();await receiver.getByRole('button',{name:'Open renamed.txt',exact:true}).click();await expect(receiver.locator('dialog pre')).toHaveText('automatic metadata fixture');
+ }finally{await context.close();c.wipe(fixture.master);}
 });

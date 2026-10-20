@@ -86,6 +86,31 @@ improvement removes repeated file-state work and isolates failures; these counts
 are not an end-to-end speed multiplier or a physical-device benchmark. A pass
 can still report waiting for the old file after the new document is available.
 
+## Browser/PWA refresh correction, 2026-10-20
+
+Overlapping library refreshes could finish out of order: an older IndexedDB read
+could hide a document already downloaded and announced by a newer refresh. Idle
+sync then had no remaining work to trigger another render. Only the latest
+refresh may now publish its results. A controlled stale-read browser regression
+failed before this correction and passed afterward, including opening the
+received file without reloading or manually syncing.
+
+Switching away also canceled the one-second upload debounce. Visibility changes
+now check for work immediately, local writes made while hidden bypass that
+debounce, and a check arriving during a local operation remains queued. A second
+regression delays the upload debounce and five-second source polling timer by
+ten minutes: switching away still starts the upload within five seconds and the
+other browser receives it automatically. This test failed before the correction.
+It simulates delayed timers; it does not prove execution after an OS suspends a
+physical phone.
+
+The production web build passed. All 11 Chromium cases across `sync-workers`,
+`sync-pause` and `relay` passed across the regression run and focused rerun.
+Coverage includes automatic relay folder creation, document arrival, rename and
+move, paused sync, failed older transfers, idle no-op checks and late-join relay
+receipts. Relay preview assertions now wait for that file's local contents, and
+cleanup assertions wait for delivery receipts rather than metadata visibility.
+
 ## Additive protocol and rollout
 
 `GET /v1/sync/settings` advertises `work_queue`. The new endpoints require the
