@@ -136,6 +136,10 @@ func Open(c Config) (*Server, error) {
 		db.Close()
 		return nil, e
 	}
+	if e = migrateWork(db); e != nil {
+		db.Close()
+		return nil, e
+	}
 	if e = migrateStatus(db); e != nil {
 		db.Close()
 		return nil, e
@@ -179,6 +183,9 @@ func Open(c Config) (*Server, error) {
 		r.Post("/v1/sync/content/activate", s.activateContent)
 		r.Post("/v1/sync/content/state", s.contentStates)
 		r.Post("/v1/sync/content", s.contentAction)
+		r.Get("/v1/sync/check", s.workCheck)
+		r.Get("/v1/sync/content/changes", s.contentChanges)
+		r.Put("/v1/sync/metadata-cursor", s.putMetadataCursor)
 		r.Post("/v1/sync/relay/device", s.relayDevice)
 		r.Post("/v1/sync/relay/need", s.relayNeed)
 		r.Post("/v1/sync/relay/prepare", s.relayPrepare)

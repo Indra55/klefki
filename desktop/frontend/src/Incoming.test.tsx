@@ -1,0 +1,22 @@
+import {cleanup,render,screen,waitFor} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import {afterEach,beforeEach,it,expect,vi} from 'vitest';
+import {Incoming} from './Incoming';
+import type {API,IncomingDocument} from './api';
+const event:IncomingDocument={revision:'fixture',name:'scan_new.txt',created:1,read:false};
+beforeEach(()=>{window.go={main:{App:{ReadIncoming:vi.fn(async()=>{}),NotifyIncoming:vi.fn(async()=>{})} as unknown as API}};vi.spyOn(document,'hasFocus').mockReturnValue(false);});
+afterEach(()=>{cleanup();vi.restoreAllMocks()});
+it('shows durable unread activity and groups incoming notifications with an Open action',async()=>{
+ const open=vi.fn(),refresh=vi.fn(async()=>{});
+ const view=render(<Incoming events={[event]} event={null} generation={1} onOpen={open} onRefresh={refresh}/>);
+ expect(screen.getByRole('button',{name:'Incoming documents, 1 unread'})).toBeVisible();
+ expect(document.querySelector('.incoming-toast')).toBeNull();
+ view.rerender(<Incoming events={[event]} event={event} generation={1} onOpen={open} onRefresh={refresh}/>);
+ await waitFor(()=>expect(document.querySelector('.incoming-toast')).toHaveTextContent('scan_new.txt is ready'));
+ expect(window.go!.main.App.NotifyIncoming).toHaveBeenCalledTimes(1);
+ await userEvent.click(screen.getByRole('button',{name:'Open'}));expect(open).toHaveBeenCalledWith('fixture');
+ await userEvent.click(screen.getByRole('button',{name:'Incoming documents, 1 unread'}));
+ expect(window.go!.main.App.ReadIncoming).toHaveBeenCalledTimes(1);
+ expect(screen.getByRole('dialog',{name:'Incoming documents'})).toHaveTextContent('scan_new.txt');
+ view.unmount();expect(document.querySelector('.incoming-toast')).toBeNull();
+});

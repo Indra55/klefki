@@ -4,7 +4,7 @@ import { Remote, RelayWaiting, provenance, push, chunkWindows, startProgress } f
 import {syncDeletions} from './trash.ts';
 
 export type TrashOverride='follow-vault'|'on'|'off';
-export type ContentSettings={mode:string;epoch:string;selective_content?:boolean;trash_default?:boolean;trash_policy_version?:number;deletion_sequence?:number;content_version?:number};
+export type ContentSettings={mode:string;epoch:string;selective_content?:boolean;work_queue?:boolean;trash_default?:boolean;trash_policy_version?:number;deletion_sequence?:number;content_version?:number};
 type ContentState={id:string;available:boolean;requested:boolean};
 type Change={sequence:number;revision:Revision};
 export const unavailable='File contents are unavailable. Reconnect a device holding this file and enable Trash sync or restore it there.';
@@ -15,6 +15,7 @@ export async function trashPolicy(store:Store){
 }
 export async function setTrashOverride(store:Store,value:TrashOverride){
  c.check(['follow-vault','on','off'].includes(value));await store.setState('trash-override',value);
+ await store.setState('work-reconcile',true);
 }
 export async function setTrashDefault(store:Store,remote:Remote,enabled:boolean){
  const settings=await remote.json<ContentSettings>('GET','/v1/sync/settings',undefined,1024);
@@ -52,7 +53,7 @@ async function states(remote:Remote,ids:string[]){
  }
  return result;
 }
-async function fetchContent(store:Store,master:Uint8Array,remote:Remote,r:Revision,guard?:()=>Promise<void>){
+export async function fetchContent(store:Store,master:Uint8Array,remote:Remote,r:Revision,guard?:()=>Promise<void>){
  const {metadata:m,key}=unlockRevision(master,store.account.account,r);c.check(key);
  const chunks:Uint8Array[]=[];remote.report(startProgress('downloading',r,m.name,'download',m.size!,m.chunk_count!,await store.origin(r.id)));
  try{

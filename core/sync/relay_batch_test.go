@@ -2,6 +2,7 @@ package sync_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -37,7 +38,20 @@ func TestRelayPreparationRequestCounts(t *testing.T) {
 					if legacy != 0 && (strings.HasSuffix(r.URL.Path, "/prepare") || strings.HasSuffix(r.URL.Path, "/need-batch")) {
 						return &http.Response{StatusCode: legacy, Body: io.NopCloser(strings.NewReader("")), Header: make(http.Header)}, nil
 					}
-					return transport.RoundTrip(r)
+					response, err := transport.RoundTrip(r)
+					if err == nil && legacy != 0 && r.URL.Path == "/v1/sync/settings" {
+						var settings map[string]any
+						raw, _ := io.ReadAll(response.Body)
+						response.Body.Close()
+						if json.Unmarshal(raw, &settings) == nil {
+							delete(settings, "work_queue")
+							raw, _ = json.Marshal(settings)
+						}
+						response.Body = io.NopCloser(strings.NewReader(string(raw)))
+						response.ContentLength = int64(len(raw))
+						response.Header.Set("Content-Length", fmt.Sprint(len(raw)))
+					}
+					return response, err
 				})}, false)
 				if legacy != 0 && count > 0 {
 					if err := c.Sync(context.Background()); !errors.Is(err, vs.ErrContentUnsupported) {
@@ -49,10 +63,7 @@ func TestRelayPreparationRequestCounts(t *testing.T) {
 					continue
 				}
 				syncNow(t, c)
-				expected := 7
-				if count > 0 {
-					expected += (count + 255) / 256
-				}
+				expected := 2
 				if legacy != 0 {
 					expected = 9
 				}

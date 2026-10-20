@@ -24,6 +24,10 @@ Trash file sync is optional and off by default, with a vault default and device
 overrides. Metadata acknowledgements and file-content receipts are separate.
 Clients register requested contents before advancing their delivery cursor;
 cleanup retains those files until authenticated local saves are acknowledged.
+With [incremental workers](sync-workers.md), metadata discovery has its own
+receipt. A failed file keeps its content request pinned while newer documents
+and metadata continue; the ordinary delivery cursor still advances only through
+verified or deliberately excluded records.
 Excluded Trash does not hold up active documents or count as a saved file copy.
 Enabling later may require an existing device to reconnect and supply contents
 again. See [Trash sync and recovery](trash.md#optional-trash-file-sync).

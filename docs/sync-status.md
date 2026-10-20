@@ -86,10 +86,22 @@ Local cursors, stable device identity, and nicknames are retained. Waiting for a
 source device to supply content clears only after sync can obtain that content;
 receipt polling alone cannot complete it.
 
-Clients sync on unlock, after local edits, on reconnect, on foreground return,
-and every 60 seconds while active. Local changes are debounced for one second;
-requests arriving during a running pass are coalesced. Web/PWA periodic work
-pauses while hidden or locked. Mobile background execution is not provided.
+Clients sync on unlock, after local edits, on reconnect and on foreground return.
+With the [incremental worker capability](sync-workers.md), small counter checks
+run every five seconds while unlocked, including during content transfers.
+Unchanged checks do not inventory document contents. Older compatible servers
+retain the 60-second automatic cadence. Local changes are debounced for one
+second; requests arriving during a running pass are coalesced. Lock stops sync.
+Browsers may suspend hidden pages, so background delivery is best effort.
+
+New remote documents create durable **Incoming documents** activity and one
+ready toast with Open after their contents are verified and saved. Initial
+bootstrap is quiet. The unread list survives restart; decrypted names clear on
+lock. Web/PWA users can explicitly enable generic system notifications from
+that list. Linux desktop uses `notify-send` when available. Other native
+platforms currently retain the toast and unread list. Desktop's existing lock
+on minimize also stops receiving until the vault is unlocked again. No
+closed-app push service is included.
 
 Desktop progress events bypass library reads and their work lock. Server device
 status endpoints bypass the relay transfer lock and have a separate rate budget.

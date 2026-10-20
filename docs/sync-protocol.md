@@ -10,6 +10,8 @@ This record describes the persistent-storage baseline. The optional
 cleanup, stable local-store identities, queue limits and ephemeral-host recovery.
 The additive [sync status extension](sync-status.md) provides live client progress,
 device presence, durable receipt counts, and opaque revision attribution.
+The [incremental worker extension](sync-workers.md) separates metadata discovery
+from content delivery and persists priority jobs and per-file retry deadlines.
 Local history is retained in both modes until [permanent deletion](trash.md);
 server payload retention also depends on the selected mode.
 

@@ -61,6 +61,7 @@ for(const mode of ['persistent','temporary-relay'])test(`pause survives reload a
   await syncNow(b);
   await expect(b.getByRole('button',{name:'Open Renamed batch.txt',exact:true})).toBeVisible();
   await expect(b.getByRole('button',{name:'Open Batch two.txt',exact:true})).toBeVisible();
+  await expect(b.locator('article').filter({has:b.getByText('Renamed batch.txt',{exact:true})})).not.toContainText('Not stored on this device');
   await b.getByRole('button',{name:'Open Renamed batch.txt',exact:true}).click();
   await expect(b.locator('dialog pre')).toHaveText('public queued fixture Batch one.txt');
   await b.getByRole('button',{name:'Close',exact:true}).click();
@@ -78,7 +79,7 @@ test('pausing during a sync finishes that cycle and suppresses a queued refresh'
   await expect(page.getByRole('status')).toContainText('Synced.');
   await backToLibrary(page);
   const blocked=new Promise<void>(resolve=>{release=resolve});let held=false,changes=0;
-  await page.route('**/v1/sync/changes?*',async route=>{changes++;if(!held){held=true;await blocked;}await route.continue()});
+  await page.route('**/v1/sync/check',async route=>{changes++;if(!held){held=true;await blocked;}await route.continue()});
   await page.evaluate(()=>window.dispatchEvent(new Event('online')));
   await expect.poll(()=>held).toBe(true);
   await page.evaluate(()=>window.dispatchEvent(new Event('online')));

@@ -60,6 +60,7 @@ export class SyncView {
     if(!text){text=node('div',undefined,'sync-copy');text.append(node('strong'),node('p',undefined,'sync-detail'),node('p',undefined,'sync-speed'));container.append(text)}
     text.querySelector('strong')!.textContent=info.paused?syncLabel(info,self,aliases):phaseLabel(info.phase);
     text.querySelector('.sync-detail')!.textContent=p?transferDetail(p,aliases,info.peers?.devices||[],self):'Connecting to your server…';
+    let workers=container.querySelector<HTMLUListElement>('.sync-active');if(!workers){workers=node('ul',undefined,'sync-active');workers.setAttribute('aria-label','Active sync workers');text.append(workers)}workers.replaceChildren();workers.hidden=(info.transfers?.length||0)<2;for(const transfer of info.transfers||[])workers.append(node('li',phaseLabel(transfer.phase)+' · '+transfer.name));
     const speed=p?this.rate.update(p):'',speedNode=text.querySelector<HTMLElement>('.sync-speed')!;speedNode.textContent=speed;speedNode.hidden=!speed;
     if(details&&!container.querySelector('button'))container.append(button('Details',()=>this.show(),'quiet'));
     let progress=container.querySelector('progress');if(!progress){progress=node('progress');progress.setAttribute('aria-label','Document sync progress');container.append(progress)}
@@ -97,7 +98,7 @@ export class SyncView {
     }
     this.history.replaceChildren();
     const page=activityPage(activity,this.page);this.page=page.page;
-    for(const p of page.items){const li=node('li');li.append(node('strong',p.name||'Library changes'),node('p',phaseLabel(p.phase)+' · '+(p.direction==='download'?`from ${deviceName(p.source||'',aliases,peers,self)} via server`:'to server')));if(p.publisher&&p.publisher!==p.source)li.append(node('p','Last published by '+deviceName(p.publisher,aliases,peers,self)));this.history.append(li)}
+    for(const p of page.items){const li=node('li');li.append(node('strong',p.name||'Library changes'),node('p',phaseLabel(p.phase)+' · '+(p.direction==='download'?`from ${deviceName(p.source||'',aliases,peers,self)} via server`:'to server')));if(p.retryAt)li.append(node('p',transferDetail(p,aliases,peers,self)));if(p.publisher&&p.publisher!==p.source)li.append(node('p','Last published by '+deviceName(p.publisher,aliases,peers,self)));this.history.append(li)}
     if(!activity.length)this.history.append(node('li','No transfers in this unlocked session yet.'));
     if(this.pagination)this.pagination.hidden=page.pages===1;
     if(this.previous)this.previous.disabled=page.page===0;

@@ -43,6 +43,8 @@ type Config struct {
 	DeviceAliases       map[string]map[string]string   `json:"deviceAliases,omitempty"`
 }
 type State struct {
+	WorkActivity  []syncwire.Progress `json:"workActivity,omitempty"`
+	Incoming      []vs.DocumentEvent  `json:"incoming,omitempty"`
 	TrashPolicy   vs.TrashPolicy      `json:"trashPolicy"`
 	Config        Config              `json:"config"`
 	Unlocked      bool                `json:"unlocked"`
@@ -61,26 +63,28 @@ type State struct {
 	DeviceAliases map[string]string   `json:"deviceAliases"`
 }
 type SyncInfo struct {
-	Paused          bool               `json:"paused,omitempty"`
-	Phase           string             `json:"phase"`
-	Running         bool               `json:"running"`
-	Progress        *syncwire.Progress `json:"progress,omitempty"`
-	LastContact     int64              `json:"lastContact"`
-	LastDeviceCheck int64              `json:"lastDeviceCheck"`
-	StatusAvailable bool               `json:"statusAvailable"`
-	Peers           *syncwire.Status   `json:"peers,omitempty"`
-	WaitingFor      string             `json:"waitingFor,omitempty"`
+	Transfers       []syncwire.Progress `json:"transfers,omitempty"`
+	Paused          bool                `json:"paused,omitempty"`
+	Phase           string              `json:"phase"`
+	Running         bool                `json:"running"`
+	Progress        *syncwire.Progress  `json:"progress,omitempty"`
+	LastContact     int64               `json:"lastContact"`
+	LastDeviceCheck int64               `json:"lastDeviceCheck"`
+	StatusAvailable bool                `json:"statusAvailable"`
+	Peers           *syncwire.Status    `json:"peers,omitempty"`
+	WaitingFor      string              `json:"waitingFor,omitempty"`
 }
 type Event struct {
-	Generation uint64    `json:"generation"`
-	Kind       string    `json:"kind"`
-	Name       string    `json:"name,omitempty"`
-	Operation  string    `json:"operation,omitempty"`
-	Done       uint64    `json:"done,omitempty"`
-	Total      uint64    `json:"total,omitempty"`
-	Error      string    `json:"error,omitempty"`
-	DurationMS float64   `json:"durationMs,omitempty"`
-	SyncInfo   *SyncInfo `json:"syncInfo,omitempty"`
+	Document   *vs.DocumentEvent `json:"document,omitempty"`
+	Generation uint64            `json:"generation"`
+	Kind       string            `json:"kind"`
+	Name       string            `json:"name,omitempty"`
+	Operation  string            `json:"operation,omitempty"`
+	Done       uint64            `json:"done,omitempty"`
+	Total      uint64            `json:"total,omitempty"`
+	Error      string            `json:"error,omitempty"`
+	DurationMS float64           `json:"durationMs,omitempty"`
+	SyncInfo   *SyncInfo         `json:"syncInfo,omitempty"`
 }
 type session struct {
 	account            vc.Account
@@ -195,8 +199,11 @@ func (s *Service) State() State {
 	}
 	st := State{SyncDevice: s.syncDevice, SyncDevices: slices.Clone(s.syncDevices), SyncMode: mode, Semantic: p, Config: cfg, Fingerprint: fp, Generation: s.generation, Sync: s.syncState, Pending: s.pending, LastSync: s.lastSync}
 	st.SyncInfo = s.syncInfo
+	st.SyncInfo.Transfers = slices.Clone(s.syncInfo.Transfers)
 	st.DeviceAliases = map[string]string{}
 	if x := s.session; x != nil {
+		st.Incoming, _ = x.store.Incoming(x.master)
+		st.WorkActivity, _ = x.store.WorkActivity(x.master)
 		st.TrashPolicy, _ = x.store.TrashPolicy()
 		st.Unlocked = true
 		st.AccountID = x.account.ID.String()
@@ -252,7 +259,7 @@ func (s *Service) watch() {
 			if ticks%3600 == 0 {
 				s.cleanupTrash()
 			}
-			if ticks%60 == 0 {
+			if ticks%5 == 0 {
 				s.syncNow(true)
 			}
 		}

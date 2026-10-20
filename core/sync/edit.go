@@ -2,6 +2,8 @@ package sync
 
 import (
 	vc "klefki/core/crypto"
+	"reflect"
+	"slices"
 )
 
 type Edit struct {
@@ -57,6 +59,10 @@ func (s *Store) Edit(master vc.Key, base string, edit Edit) (string, error) {
 	vc.Wipe(key[:])
 	if e != nil {
 		return "", e
+	}
+	unchanged := m.Name == edit.Name && reflect.DeepEqual(m.Parent, edit.Parent) && slices.Equal(m.Tags, edit.Tags) && m.Favorite == edit.Favorite && (edit.Trash == nil || m.TrashedAt == edit.Trash.At && reflect.DeepEqual(m.TrashPreviousParent, edit.Trash.PreviousParent)) && (edit.FolderIcon == nil || m.FolderIcon == *edit.FolderIcon)
+	if unchanged {
+		return base, nil
 	}
 	if edit.Trash != nil {
 		m.TrashedAt = edit.Trash.At

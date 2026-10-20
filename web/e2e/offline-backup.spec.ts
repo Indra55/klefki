@@ -129,7 +129,7 @@ test('persistent sync reauthenticates once without hiding offline files',async({
         await openSettings(page,'Sync & devices');await page.getByRole('main').getByRole('button',{name:'Resume sync',exact:true}).click();await expect(page.locator('#status')).toContainText('Synced.');
         let rejected=false,logins=0;
         await page.route('**/v1/login',async route=>{logins++;await route.continue();});
-        await page.route('**/v1/sync/relay/prepare',async route=>{if(!rejected){rejected=true;await route.fulfill({status:401,body:''});}else await route.continue();});
+        await page.route('**/v1/sync/check',async route=>{if(!rejected){rejected=true;await route.fulfill({status:401,body:''});}else await route.continue();});
         await page.getByRole('button',{name:'Sync now',exact:true}).click();await expect.poll(()=>rejected).toBe(true);await expect(page.locator('#status')).toContainText('Synced.');expect(logins).toBe(1);
         await page.getByRole('button',{name:'Back to library',exact:true}).click();await page.getByRole('button',{name:'Open offline-secret.txt',exact:true}).click();await expect(page.locator('dialog pre')).toHaveText('offline bytes never need another device');
     }finally{c.wipe(keys.master);c.wipe(keys.credential);}

@@ -116,8 +116,8 @@ func TestRelayDeliveryLateJoinAndPersistentSwitch(t *testing.T) {
 	if e = cb.Sync(ctx); e != nil {
 		t.Fatal(e)
 	}
-	if relayFiles(t, h) != 1 {
-		t.Fatal("offline recipient lost shared chunks")
+	if relayFiles(t, h) != 0 {
+		t.Fatal("metadata-only edit unnecessarily republished shared chunks")
 	}
 	if e = cc.Sync(ctx); e != nil {
 		t.Fatal(e)

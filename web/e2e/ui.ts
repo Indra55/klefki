@@ -1,8 +1,8 @@
-import { type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 export async function backToLibrary(page: Page) {
     const back = page.getByRole('button', {name: 'Back to library', exact: true});
-    if (await back.isVisible()) await back.click();
+    if (await back.isVisible()) {await back.click();await expect(page.getByRole('heading',{name:'Documents',exact:true})).toBeVisible();}
 }
 export async function openSettings(page: Page, section: string) {
     await page.getByRole('button', {name: 'Settings', exact: true}).click();

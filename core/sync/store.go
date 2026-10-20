@@ -140,6 +140,9 @@ func openStore(path string, account vc.ID, existing bool) (*Store, error) {
 	if e = store.migrateContent(); e != nil {
 		return fail()
 	}
+	if e = store.migrateWork(); e != nil {
+		return fail()
+	}
 	success = true
 	return store, nil
 }
@@ -615,6 +618,11 @@ func (s *Store) applyTracked(ctx context.Context, master vc.Key, c syncwire.Chan
 		return err
 	}
 
+	if old.ID == "" && ctx.Value(metadataOnlyKey{}) == true {
+		if e = s.trackIncoming(tx, c.Revision, origin); e != nil {
+			return e
+		}
+	}
 	_, e = tx.Exec(`INSERT INTO revisions(id,object,base,metadata,file_key,pending) VALUES(?,?,?,?,?,0) ON CONFLICT(id) DO UPDATE SET pending=0`, c.Revision.ID, c.Revision.Object, c.Revision.Base, c.Revision.Metadata, c.Revision.FileKey)
 	if e != nil {
 		return ErrStore

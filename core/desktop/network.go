@@ -59,8 +59,15 @@ func (s *Service) Connect(address string, register bool) error {
 		return e
 	})
 }
-func (s *Service) SyncNow()                { s.syncNow(false) }
-func (s *Service) RefreshSync()            { s.runSync(false, true) }
+func (s *Service) SyncNow() { s.syncNow(false) }
+func (s *Service) RefreshSync() {
+	s.mu.Lock()
+	if s.session != nil {
+		_ = s.session.store.RetryFailed()
+	}
+	s.mu.Unlock()
+	s.runSync(false, true)
+}
 func (s *Service) syncNow(background bool) { s.runSync(background, false) }
 
 // An active cycle finishes; no new cycle starts until this device resumes.
@@ -181,6 +188,16 @@ func (s *Service) runSync(background, reconnect bool) {
 				s.mu.Unlock()
 			}}
 			defer clear(c.Master[:])
+			c.OnChange = func() {
+				if x.ctx.Err() == nil {
+					s.event(Event{Generation: x.generation, Kind: "library"})
+				}
+			}
+			c.OnDocument = func(document vs.DocumentEvent) {
+				if x.ctx.Err() == nil {
+					s.event(Event{Generation: x.generation, Kind: "document-ready", Document: &document})
+				}
+			}
 			if background {
 				if needed, err := c.NeedsSync(x.ctx); err == nil && !needed {
 					idle = true
@@ -239,6 +256,7 @@ func (s *Service) runSync(background, reconnect bool) {
 		refresh := s.syncRefresh
 		s.syncAgain = false
 		s.syncInfo.Running = false
+		s.syncInfo.Transfers = nil
 		s.syncInfo.Phase, s.syncState = syncFailure(e)
 		s.syncInfo.WaitingFor = ""
 		if errors.Is(e, vs.ErrRelayWaiting) {
@@ -319,6 +337,7 @@ func (s *Service) emitSync(x *session) {
 		return
 	}
 	info := s.syncInfo
+	info.Transfers = append([]syncwire.Progress(nil), info.Transfers...)
 	s.mu.Unlock()
 	s.event(Event{Generation: x.generation, Kind: "sync-status", SyncInfo: &info})
 }
@@ -329,6 +348,18 @@ func (s *Service) observeSync(x *session, p syncwire.Progress) {
 		return
 	}
 	s.syncInfo.Progress, s.syncInfo.Phase = &p, p.Phase
+	if p.Revision != "" {
+		next := []syncwire.Progress{}
+		for _, old := range s.syncInfo.Transfers {
+			if old.Revision != p.Revision || old.Direction != p.Direction {
+				next = append(next, old)
+			}
+		}
+		if p.Phase != "complete" && p.Phase != "waiting" && p.Phase != "error" {
+			next = append(next, p)
+		}
+		s.syncInfo.Transfers = next
+	}
 	s.mu.Unlock()
 	s.emitSync(x)
 	select {

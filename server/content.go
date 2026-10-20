@@ -201,6 +201,10 @@ func (s *Server) contentAction(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if in.Action == "request" || in.Action == "available" {
+				if _, e = tx.Exec(`INSERT INTO content_events(account,device,file) VALUES(?,?,?)`, account, device, file); e != nil {
+					fail(w, 500)
+					return
+				}
 				if _, e = tx.Exec(`INSERT INTO content_notifications(account,device,version) SELECT d.account,d.device,p.content_version FROM relay_devices d JOIN trash_policy p ON p.account=d.account WHERE d.account=? AND d.device<>? ON CONFLICT(account,device) DO UPDATE SET version=excluded.version`, account, device); e != nil {
 					fail(w, 500)
 					return
@@ -266,7 +270,12 @@ func (s *Server) contentStates(w http.ResponseWriter, r *http.Request) {
 			fail(w, 500)
 			return
 		}
-		out.States = append(out.States, syncwire.ContentState{ID: id, Available: available > 0, Requested: wanted > 0 || settings.Mode != syncwire.TemporaryRelay || count < 2 || seq > floor})
+		var missing int
+		if e = s.db.QueryRow(`SELECT COUNT(*) FROM relay_devices d WHERE d.account=? AND NOT EXISTS(SELECT 1 FROM content_requests cr WHERE cr.account=d.account AND cr.device=d.device AND cr.file=? AND cr.received=1)`, account, file).Scan(&missing); e != nil {
+			fail(w, 500)
+			return
+		}
+		out.States = append(out.States, syncwire.ContentState{ID: id, Available: available > 0, Requested: wanted > 0 || settings.Mode != syncwire.TemporaryRelay || count < 2 || seq > floor && missing > 0})
 	}
 	reply(w, 200, out)
 }

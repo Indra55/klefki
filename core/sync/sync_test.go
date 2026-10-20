@@ -364,6 +364,9 @@ func TestInterruptedSyncRestartsAndSkipsAcceptedChunks(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	if e = a.RetryFailed(); e != nil {
+		t.Fatal(e)
+	}
 	syncNow(t, ca)
 	syncNow(t, cb)
 	if firstUploads.Load() != 1 {
@@ -413,6 +416,9 @@ func TestCorruptDownloadDoesNotAdvanceCursor(t *testing.T) {
 	}
 	cb.Remote, e = vs.NewRemote(h.web.URL, h.web.Client(), false)
 	if e != nil {
+		t.Fatal(e)
+	}
+	if e = b.RetryFailed(); e != nil {
 		t.Fatal(e)
 	}
 	syncNow(t, cb)

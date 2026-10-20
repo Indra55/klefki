@@ -16,6 +16,8 @@ import * as semantic from './semantic.ts';
 import * as passkey from './passkey.ts';
 import { Remote, sync, needsSync, reportDeviceState, setSyncMode, HTTPError, RelayWaiting, MissingServerAccount } from './sync.ts';
 import {SyncView} from './sync-ui.ts';
+import {IncomingView} from './incoming-ui.ts';
+import {incoming,readIncoming,retryFailed,workActivity} from './sync-workers.ts';
 import {idleSync,addActivity,validateStatus,syncLabel,deviceName,receipt,presence,devicePendingDetail,type SyncInfo,type SyncActivity,type ServerStatus} from '../../ui/sync-status.ts';
 let folderBackup:FolderBackup|undefined;
 let storageProtection:Protection='unavailable';
@@ -38,6 +40,8 @@ let operationQueue=Promise.resolve();
 let syncPaused=false,pauseSaving=false;
 let syncRunning=false,syncRequested=false,registerRequested=false,refreshRequested=false,syncTimer:number|undefined,monitorBusy=false,lastPresence=0,lastDeviceCheck=0;
 const syncView=new SyncView({refresh:()=>void syncNow(false,false,true),settings:()=>showSettings('sync'),panel:open=>{if(open){lastDeviceCheck=0;void monitorSync()}},alias:saveAlias,pause:()=>void setSyncPaused(!syncPaused)});
+const incomingView=new IncomingView({open:revision=>{void openIncoming(revision)},read:async()=>{if(store){await readIncoming(store);await refresh();}}});
+async function openIncoming(revision:string){if(!store||!master)return;const g=generation;const original=await store.revision(revision);if(g!==generation)return;const head=heads.find(h=>h.revision.object===original.object);if(head)await openDocument(head);}
 function renderSync(){
     for(const el of document.querySelectorAll<HTMLElement>('[data-sync-pending]'))el.textContent=pendingChanges?pendingChanges+' changes waiting to sync.':'No local changes waiting to sync.';
     syncInfo={...syncInfo,paused:syncPaused,...(syncPaused?{running:syncRunning}:{})};
@@ -70,7 +74,7 @@ async function setSyncPaused(paused:boolean){
 }
 function scheduleSync(){
     if(syncPaused)return;
-    syncRequested=true;window.clearTimeout(syncTimer);syncTimer=window.setTimeout(()=>{if(master&&document.visibilityState==='visible')void syncNow()},1000);
+    syncRequested=true;window.clearTimeout(syncTimer);syncTimer=window.setTimeout(()=>{if(master)void syncNow()},1000);
 }
 function syncErrorPhase(e:unknown){
     if(e instanceof RelayWaiting)return 'waiting';
@@ -125,14 +129,14 @@ function shell() {
     header.append(button('Klefki', () => { if (master) navigate('All documents'); }, 'brand'));
     if (master) {
         const actions = node('div', undefined, 'top-actions');
-        syncView.mount(actions,root);
+        syncView.mount(actions,root);incomingView.mount(actions);
         const setting = iconButton('Settings', 'settings', () => showSettings(settings || 'appearance'), 'quiet navbar-settings'); setting.setAttribute('aria-pressed', String(!!settings));
         const locking = button('Lock',lock,'quiet lock'); locking.append(icon('lock',14));
         actions.append(setting, locking); header.append(actions);
     }
     root.prepend(header); if (waitingUpdate?.waiting) offerUpdate(root); app.append(root); return root;
 }
-function lock() { restoreController?.abort();restoreController=undefined; folderBackup?.stop();folderBackup=undefined;localRecovery=false;lastLibraryState=''; syncModeDraft=undefined;syncView.clear();window.clearTimeout(syncTimer);syncInfo=idleSync();syncActivity=[];aliases={};syncDevice='';linkedDevices=[];lastSync=0;syncPaused=pauseSaving=syncRunning=syncRequested=registerRequested=refreshRequested=monitorBusy=false;lastPresence=lastDeviceCheck=lastDeviceReport=pendingChanges=0;deviceReportRequested=true;closeShares();closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
+function lock() { restoreController?.abort();restoreController=undefined; folderBackup?.stop();folderBackup=undefined;localRecovery=false;lastLibraryState=''; syncModeDraft=undefined;syncView.clear();incomingView.clear();window.clearTimeout(syncTimer);syncInfo=idleSync();syncActivity=[];aliases={};syncDevice='';linkedDevices=[];lastSync=0;syncPaused=pauseSaving=syncRunning=syncRequested=registerRequested=refreshRequested=monitorBusy=false;lastPresence=lastDeviceCheck=lastDeviceReport=pendingChanges=0;deviceReportRequested=true;closeShares();closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
     c.wipe(master); if (credential)
     c.wipe(credential); master = credential = undefined; heads = []; store?.close(); store = undefined; release?.(); release = undefined; busy = false; parent = null; filter = ''; favorites = false; view = 'All documents'; tag = ''; settings = null; feedback = ''; syncState = 'Local only'; for (const url of urls)
     URL.revokeObjectURL(url); urls.clear(); for (const b of previews)
@@ -325,14 +329,17 @@ function locked() {
 function recoveryDialog(code: string) { const dialog = node('dialog',undefined,'modal'); dialog.append(node('h2', 'Save your recovery code'), node('p', 'Store this separately from your private space. It is shown once and is needed if you lose your password.'), node('code', code)); dialog.append(button('Download recovery code', () => download(c.utf8(code + '\n'), 'klefki-recovery.txt', 'text/plain')), button('I have saved it', () => { dialog.close(); dialog.remove(); })); app.append(dialog); dialog.showModal(); dialog.oncancel = e => e.preventDefault(); }
 async function refresh() {
     if (!store || !master) return;
-    const g=generation,s=store,next=await s.offlineHeads(master);
-    const [mode,policy,devices,records,deletions]=await Promise.all([s.state('sync-mode'),trashPolicy(s),s.state('relay-devices'),s.all(),deletionRecords(s,true)]);
-    if(g!==generation||store!==s)return;
-    pendingChanges=records.filter(record=>record.pending).length+deletions.length;renderSync();
-    const state=JSON.stringify({heads:next,mode,policy,devices,localRecovery});
-    if(state===lastLibraryState)return;
-    if(heads.some(h=>!next.some(n=>n.revision.id===h.revision.id))){closeShares();closePreviews();semantic.clearPrivate();}
-    heads=next;lastLibraryState=state;await library();
+    const g=generation,s=store,key=master.slice();
+    try{
+        const next=await s.offlineHeads(key);
+        const [mode,policy,devices,records,deletions,arrivals,failed]=await Promise.all([s.state('sync-mode'),trashPolicy(s),s.state('relay-devices'),s.all(),deletionRecords(s,true),incoming(s,key),workActivity(s,key)]);
+        if(g!==generation||store!==s)return;
+        incomingView.update(arrivals);syncActivity=failed.reduce(addActivity,syncActivity);pendingChanges=records.filter(record=>record.pending).length+deletions.length;renderSync();
+        const state=JSON.stringify({heads:next,mode,policy,devices,localRecovery});
+        if(state===lastLibraryState)return;
+        if(heads.some(h=>!next.some(n=>n.revision.id===h.revision.id))){closeShares();closePreviews();semantic.clearPrivate();}
+        heads=next;lastLibraryState=state;await library();
+    }finally{c.wipe(key);}
 }
 async function connectRemote(register=false){
     const s=store!,g=generation,r=new Remote(location.origin,controller!.signal);
@@ -340,8 +347,10 @@ async function connectRemote(register=false){
     await r.login(account!,credential!,register,await s.state('sync-mode')==='temporary-relay');
     await s.transaction(['state'],'readwrite',async tx=>{tx.objectStore('state').put(true,'sync-connected');});
     if(g!==generation)return;
-    r.observe=p=>{if(g!==generation||r!==remote)return;syncInfo={...syncInfo,progress:p,phase:p.phase,running:true,waitingFor:undefined};syncActivity=addActivity(syncActivity,p);renderSync();};
+    r.observe=p=>{if(g!==generation||r!==remote)return;const transfers=(syncInfo.transfers||[]).filter(x=>x.revision!==p.revision||x.direction!==p.direction);if(p.revision&&!['complete','waiting','error'].includes(p.phase))transfers.push(p);syncInfo={...syncInfo,transfers,progress:p,phase:p.phase,running:true,waitingFor:undefined};syncActivity=addActivity(syncActivity,p);renderSync();};
     r.onContact=()=>{if(g===generation&&r===remote)syncInfo={...syncInfo,lastContact:Date.now()};};
+    r.onSaved=()=>{if(g===generation&&r===remote)void refresh().catch(()=>{});};
+    r.onDocument=event=>{if(g===generation&&r===remote){incomingView.ready(event);void refresh().catch(()=>{});}};
     remote=r;lastPresence=lastDeviceCheck=lastDeviceReport=0;deviceReportRequested=true;
 }
 async function syncNow(register = false, background = false, reconnect = false) {
@@ -350,7 +359,7 @@ async function syncNow(register = false, background = false, reconnect = false) 
     if(syncRunning){if(!background)syncRequested=true;if(register){syncRequested=true;registerRequested=true;}return;}
     if(busy){if(!background||refreshRequested){syncRequested=true;registerRequested ||= register;}return;}
     reconnect=refreshRequested;refreshRequested=false;
-    if(reconnect){remote=undefined;background=false;syncInfo={...syncInfo,statusAvailable:false};}
+    if(reconnect){await retryFailed(store!);remote=undefined;background=false;syncInfo={...syncInfo,statusAvailable:false};}
     window.clearTimeout(syncTimer);syncRequested=false;register ||= registerRequested;registerRequested=false;
     const g=generation,key=master.slice(),s=store!;syncRunning=true;
     if (!background) { syncState='Syncing';syncInfo={...syncInfo,phase:'connecting',running:true,progress:undefined,waitingFor:undefined};renderSync(); }
@@ -385,7 +394,7 @@ async function syncNow(register = false, background = false, reconnect = false) 
         await refresh();
     } finally {
         c.wipe(key);
-        if(g===generation){syncRunning=false;syncInfo={...syncInfo,running:false};renderSync();lastDeviceCheck=0;deviceReportRequested=true;void monitorSync();if(refreshRequested)void syncNow(false,false,true);else if(syncRequested){try{const pending=(await s.all()).some(x=>x.pending)||(await deletionRecords(s,true)).length>0;if(g===generation){if(registerRequested||pending)scheduleSync();else syncRequested=false;}}catch{}}}
+        if(g===generation){syncRunning=false;syncInfo={...syncInfo,running:false,transfers:[]};renderSync();lastDeviceCheck=0;deviceReportRequested=true;void monitorSync();if(refreshRequested)void syncNow(false,false,true);else if(syncRequested){try{const pending=(await s.all()).some(x=>x.pending)||(await deletionRecords(s,true)).length>0;if(g===generation){if(registerRequested||pending)scheduleSync();else syncRequested=false;}}catch{}}}
     }
 }
 function trashed(h: Head, seen = new Set<string>()): boolean { if (h.metadata.tags.includes('klefki:system:trash') && h.metadata.type === 'folder')
@@ -802,7 +811,7 @@ setInterval(() => { if (master && Date.now() - lastActivity > preferences().idle
 window.addEventListener('online',()=>{if(master)void syncNow()});
 window.addEventListener('offline',()=>{if(master){syncInfo={...syncInfo,phase:'offline',statusAvailable:false};renderSync();}});
 document.addEventListener('visibilitychange',()=>{if(!master)return;if(document.visibilityState==='visible'){lastPresence=lastDeviceCheck=0;void syncNow(false,true);void monitorSync();}else{window.clearTimeout(syncTimer);syncInfo={...syncInfo,statusAvailable:false};}});
-setInterval(()=>{if(master&&document.visibilityState==='visible')void syncNow(false,true)},60000);
+let lastAutomaticCheck=0;setInterval(()=>{if(master&&(remote?.workQueue!==false||Date.now()-lastAutomaticCheck>=60000)){lastAutomaticCheck=Date.now();void syncNow(false,true)}},5000);
 setInterval(()=>{if(master&&document.visibilityState==='visible'){renderSync();void monitorSync()}},1000);
 window.addEventListener('pagehide', lock);
 document.addEventListener('keydown', event => {
@@ -893,3 +902,5 @@ function addSemanticSettings(parent:HTMLElement,prefs:semantic.Preferences){
 async function analysisDialog(h:Head){const g=generation,key=master!.slice();try{const a=await semantic.analyze(store!,key,heads,h,semantic.preferences(account!.account));if(g!==generation)return;const dialog=node('dialog',undefined,'modal'),select=node('select');select.setAttribute('aria-label','Suggested category');for(const label of ['',...semantic.categories]){const option=node('option',label||'Uncategorized');option.value=label;select.append(option)}select.value=a.category;const title=node('p',a.confirmed?'Your confirmed category.':a.category?'Suggested category: '+a.category:'No confident category suggestion.');dialog.append(node('h2','Local suggestions'),title,select);const fields=node('div');function showFields(){fields.replaceChildren();for(const f of a.fields){const input=field(f.kind==='date'?'Date':'Amount'+(f.currency?' ('+f.currency+')':''));input.input.value=f.value||f.raw;input.input.oninput=()=>{f.value=input.input.value};fields.append(input.wrap,node('small',f.evidence))}}showFields();dialog.append(fields);if(a.conflicts.length>1){dialog.append(node('p','Competing corrections: select one, review its fields, then confirm.'));for(const r of a.conflicts)dialog.append(button('Use '+(r.correction.category||'uncategorized')+' · '+r.revision.slice(0,6),()=>{select.value=r.correction.category;a.fields=r.correction.fields;showFields()}))}dialog.append(button(a.conflicts.length?'Resolve with reviewed values':'Confirm category and fields',()=>{const category=select.value;dialog.close();dialog.remove();void operation(async(key,current)=>{await semantic.correct(store!,key,heads,h,category,a.fields,a.conflicts.map(r=>r.revision));if(current===generation)await refresh()})}),button('Close',()=>{dialog.close();dialog.remove()}));app.append(dialog);dialog.showModal()}catch(e){if(g===generation)message(semanticMessage(e instanceof Error?e.message:'SEMANTIC_UNAVAILABLE'))}finally{c.wipe(key)}}
 
 setInterval(()=>{if(master&&!busy&&!syncRunning&&document.visibilityState==='visible')void operation(async(key,g)=>{await cleanupTrash(store!,key);if(g===generation)await refresh();});},3600000);
+
+navigator.serviceWorker?.addEventListener('message',event=>{if(event.data?.type==='OPEN_DOCUMENT'&&typeof event.data.revision==='string'&&master)void openIncoming(event.data.revision).catch(()=>{});});

@@ -46,7 +46,7 @@ export async function deletionRecords(store:Store,pending=false):Promise<LocalDe
  return all.filter(d=>!pending||d.pending);
 }
 export async function erase(store:Store,deletions:Deletion[],pending:boolean) {
- await store.transaction(['deletions','revisions','chunks'],'readwrite',async tx=>{
+ await store.transaction(['deletions','revisions','chunks','work','incoming'],'readwrite',async tx=>{
   const ledger=tx.objectStore('deletions'),revisions=tx.objectStore('revisions'),chunks=tx.objectStore('chunks'),all=await request(revisions.getAll()) as Stored[],files=new Set<string>();
   for(const input of deletions){c.validID(input.object);c.check(typeof input.folder==='boolean'&&Array.isArray(input.files));input.files.forEach(c.validID);
    const target=all.filter(x=>x.revision.object===input.object);
@@ -54,7 +54,7 @@ export async function erase(store:Store,deletions:Deletion[],pending:boolean) {
    const old=await request(ledger.get(input.object)) as LocalDeletion|undefined;
    const ids=[...new Set([...input.files,...(old?.files||[]),...target.map(x=>fileID(x.revision)).filter((f):f is string=>!!f)])].sort();ids.forEach(f=>files.add(f));
    ledger.put({object:input.object,folder:input.folder||old?.folder||false,files:ids,pending:pending||old?.pending||false} satisfies LocalDeletion);
-   for(const x of target)revisions.delete(x.revision.id);
+   for(const x of target){revisions.delete(x.revision.id);tx.objectStore('work').delete(x.revision.id);tx.objectStore('incoming').delete(x.revision.id);}
   }
   const remaining=await request(revisions.getAll()) as Stored[];for(const x of remaining){const f=fileID(x.revision);if(f)files.delete(f);}
   await new Promise<void>((resolve,reject)=>{const cursor=chunks.openCursor();cursor.onerror=()=>reject(Error('Chunk cleanup failed'));cursor.onsuccess=()=>{const row=cursor.result;if(!row){resolve();return;}if(files.has(String(row.key).split(':')[0]))row.delete();row.continue();};});

@@ -42,8 +42,7 @@ test('automatic transfers show source, confirmed progress, private nicknames and
     await expect(panel.getByText('My laptop',{exact:true})).toBeVisible();
     const recipient=await localDevice(b);
     let logins=0;await b.route('**/v1/login',async route=>{logins++;await route.continue()});
-    await panel.getByRole('button',{name:'Refresh sync',exact:true}).click();await expect(panel.getByRole('button',{name:'Refresh sync',exact:true})).toBeEnabled();await expect(b.getByRole('status')).toContainText('Synced.');
-    expect(logins).toBe(1);
+    await panel.getByRole('button',{name:'Refresh sync',exact:true}).click();await expect.poll(()=>logins).toBe(1);await expect(panel.getByRole('button',{name:'Refresh sync',exact:true})).toBeEnabled();await expect(b.getByRole('status')).toContainText('Synced.');
     expect(await localDevice(b)).toBe(recipient);
     await expect(b.locator('article').filter({has:b.getByText('visible-progress.bin',{exact:true})})).toBeVisible();
     await expect(panel).toBeVisible();

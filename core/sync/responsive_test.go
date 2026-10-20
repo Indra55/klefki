@@ -80,8 +80,8 @@ func TestLocalDocumentsRemainAccessibleDuringDownload(t *testing.T) {
 	if e := <-finished; e != nil {
 		t.Fatal(e)
 	}
-	if n, _ := b.Pending(); n != 1 {
-		t.Fatal("concurrent local edit was lost")
+	if heads, err := b.Heads(h.master); err != nil || len(heads) != 3 {
+		t.Fatal("concurrent local edit was lost", err)
 	}
 	syncNow(t, cb)
 }

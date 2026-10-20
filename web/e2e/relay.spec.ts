@@ -33,7 +33,7 @@ test('files selected during sync are saved locally and survive reopening',async(
         await openSettings(page,'Sync & devices');
         await page.getByRole('button',{name:'Register this store on server',exact:true}).click();
         await expect(page.getByRole('status')).toContainText('Synced.');
-        await page.route('**/v1/sync/relay/prepare',async route=>{started();await paused;await route.continue();});
+        await page.route('**/v1/sync/check',async route=>{started();await paused;await route.continue();});
         await syncNow(page);
         await syncing;
         await page.getByLabel('Add document').setInputFiles([
@@ -109,7 +109,7 @@ test('84 retained revisions use bounded metadata requests and require compatible
         await page.getByRole('button',{name:'Register this store on server',exact:true}).click();
         await expect(page.getByRole('status')).toContainText('Synced.');
         await expect(page.getByRole('button',{name:'Sync status',exact:true})).not.toHaveAttribute('data-state','running');
-        const revisions=Array.from({length:84},(_,i)=>{const object=c.id();return {revision:{id:c.id(),object,base:'',metadata:c.base64(c.encryptMetadata(fixture.master,fixture.account.account,object,{type:'folder',name:'batch-'+i,parent:null,tags:[],favorite:false}))},order:i+1,pending:true};});
+        const revisions=Array.from({length:84},(_,i)=>{const object=c.id();return {revision:{id:c.id(),object,base:'',metadata:c.base64(c.encryptMetadata(fixture.master,fixture.account.account,object,{type:'folder',name:'batch-'+i,parent:null,tags:[],favorite:false}))},order:i+1,pending:true,metadataPending:true,metadataQueued:1};});
         await page.evaluate(async({account,revisions})=>{
             const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('klefki-v1-'+account);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
             await new Promise<void>((resolve,reject)=>{const tx=db.transaction(['revisions','state'],'readwrite');for(const r of revisions)tx.objectStore('revisions').put(r);tx.objectStore('state').put(84,'order');tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});db.close();
@@ -122,12 +122,14 @@ test('84 retained revisions use bounded metadata requests and require compatible
             await page.route('**/v1/**',async route=>{
                 const path=new URL(route.request().url()).pathname;
                 if(['/v1/sync/relay/prepare','/v1/sync/relay/device','/v1/sync/relay/need','/v1/sync/relay/need-batch','/v1/sync/changes','/v1/sync/cursor'].includes(path)||path.includes('/chunks/'))calls.push(path);
-                if(legacy&&path==='/v1/sync/relay/prepare')await route.fulfill({status:legacy,body:''});else await route.continue();
+                if(legacy&&path==='/v1/sync/settings'){
+                    const response=await route.fetch();const settings=await response.json();delete settings.work_queue;
+                    await route.fulfill({response,json:settings});
+                }else if(legacy&&path==='/v1/sync/relay/prepare')await route.fulfill({status:legacy,body:''});else await route.continue();
             });
-            const ack=legacy?undefined:page.waitForResponse(r=>r.url().includes('/v1/sync/cursor')&&r.request().method()==='PUT');
-            await syncNow(page);if(ack)await ack;
+            await syncNow(page);
             await expect(page.getByRole('button',{name:'Sync status',exact:true})).not.toHaveAttribute('data-state','running');
-            expect(calls).toHaveLength(legacy?1:4);
+            expect(calls).toHaveLength(legacy?1:0);
             if(legacy)await expect(page.getByRole('status')).toContainText('Could not complete sync');
             expect(calls.some(p=>p.includes('/chunks/'))).toBe(false);
             await page.unroute('**/v1/**');await page.keyboard.press('Escape');

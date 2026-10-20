@@ -14,6 +14,10 @@ import (
 
 // NeedsSync checks durable receipts without replaying local history on idle polls.
 func (c *Client) NeedsSync(ctx context.Context) (bool, error) {
+	var queued bool
+	if c.Store.db.QueryRow(`SELECT active FROM sync_queue WHERE id=1`).Scan(&queued) == nil && queued {
+		return c.queueNeeded(ctx)
+	}
 	pending, e := c.Store.Pending()
 	if e != nil || pending > 0 {
 		return true, e
@@ -206,7 +210,7 @@ func (s *Store) DeviceState(minimum int64) (syncwire.DeviceState, error) {
 	defer tx.Rollback()
 	var pending int
 	var previous bool
-	if tx.QueryRow(pendingWorkQuery).Scan(&pending) != nil || tx.QueryRow(`SELECT version,pending FROM local_device_state WHERE id=1`).Scan(&out.Version, &previous) != nil {
+	if tx.QueryRow(`SELECT (SELECT COUNT(*) FROM revisions WHERE pending=1)+(SELECT COUNT(*) FROM deletions WHERE pending=1)+(SELECT COUNT(*) FROM sync_tasks,sync_queue WHERE sync_queue.active=1 AND upload_pending=1)`).Scan(&pending) != nil || tx.QueryRow(`SELECT version,pending FROM local_device_state WHERE id=1`).Scan(&out.Version, &previous) != nil {
 		return out, ErrStore
 	}
 	out.Pending = pending > 0

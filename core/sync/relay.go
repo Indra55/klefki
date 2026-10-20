@@ -65,11 +65,19 @@ func (s *Store) saveRelay(state syncwire.RelayState) error {
 		return ErrStore
 	}
 	defer tx.Rollback()
-	var old string
-	if tx.QueryRow(`SELECT epoch FROM relay_local WHERE id=1`).Scan(&old) != nil {
+	var old, oldMode string
+	if tx.QueryRow(`SELECT epoch,mode FROM relay_local WHERE id=1`).Scan(&old, &oldMode) != nil {
 		return ErrStore
 	}
+	if oldMode != state.Mode {
+		if _, e = tx.Exec(`UPDATE sync_queue SET inventory=-1,reconcile=1`); e != nil {
+			return ErrStore
+		}
+	}
 	if old != state.Epoch {
+		if _, e = tx.Exec(`UPDATE sync_queue SET content_cursor=0,inventory=-1,reconcile=1;UPDATE sync_tasks SET direction='plan',attempts=0,retry_at=0,error=''`); e != nil {
+			return ErrStore
+		}
 		if _, e = tx.Exec(`UPDATE content_policy SET metadata_cursor=0,version=0,enabled=0,content_version=0;DELETE FROM metadata_receipts`); e != nil {
 			return ErrStore
 		}
@@ -197,6 +205,10 @@ func (c *Client) prepareRelay(ctx context.Context, seed bool) error {
 		}
 	}
 	device := syncwire.RelayDevice{Device: local.Device, Known: local.Known, Sequence: cursor}
+	var metadataCursor int64
+	if c.Store.db.QueryRow(`SELECT metadata_cursor FROM content_policy WHERE id=1`).Scan(&metadataCursor) == nil {
+		device.MetadataSequence = &metadataCursor
+	}
 	b, e := c.request(ctx, "POST", "/v1/sync/relay/prepare", syncwire.RelayPrepare{RelayDevice: device, IDs: ids}, 16384)
 	modern := true
 	var prepared syncwire.RelayPrepared

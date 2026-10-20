@@ -1,8 +1,9 @@
 import * as c from './crypto.ts';
 import {syncSelective, type ContentSettings} from './selective-sync.ts';
+import {syncQueue,queueNeeded} from './sync-workers.ts';
 import {syncDeletions,cleanupTrash,deletionRecords,expiredTrash} from './trash.ts';
 import { validateStatus, type SyncProgress, type Provenance, type ServerStatus, type DeviceState } from '../../ui/sync-status.ts';
-import { Store, unlockRevision, type Revision } from './store.ts';
+import { Store, unlockRevision, type Revision,type DocumentEvent } from './store.ts';
 export class HTTPError extends Error {
     constructor(readonly status: number, readonly after: number) { super('Klefki server returned ' + status); }
 }
@@ -31,13 +32,27 @@ export async function chunkWindows<T>(count:number,signal:AbortSignal,fetch:(ind
         results.forEach((result,j)=>{if(result.status==='rejected')throw result.reason;consume(start+j,result.value);});
     } } finally {controller.abort();}
 }
+class ContentBudget {
+    active=0;
+    private waiting:{resolve:()=>void;reject:(reason:unknown)=>void;signal:AbortSignal;abort:()=>void}[]=[];
+    async acquire(signal:AbortSignal){
+        signal.throwIfAborted();
+        if(this.active<4){this.active++;return;}
+        await new Promise<void>((resolve,reject)=>{const entry={resolve,reject,signal,abort:()=>{this.waiting=this.waiting.filter(x=>x!==entry);reject(signal.reason)}};this.waiting.push(entry);signal.addEventListener('abort',entry.abort,{once:true});});
+    }
+    release(){const next=this.waiting.shift();if(next){next.signal.removeEventListener('abort',next.abort);next.resolve();}else this.active--;}
+}
 export class Remote {
-    private cooldown=0;
+    private network={cooldown:0,budget:new ContentBudget()};
+    singleAttempt=false;
+    workQueue?:boolean;
     token = '';
     device = '';
     relayDevice = '';
     observe?: (progress: SyncProgress) => void;
     onContact?: () => void;
+    onDocument?: (event:DocumentEvent)=>void;
+    onSaved?:()=>void;
     progress: SyncProgress = {phase:'checking',doneBytes:0,totalBytes:0,reusedBytes:0,chunk:0,chunks:0,updatedAt:0};
     report(p: SyncProgress) { this.progress = {...p,updatedAt:Date.now()}; this.observe?.(this.progress); }
     phase(phase: string) { this.report({...this.progress,phase,attempt:undefined,retryAt:undefined}); }
@@ -45,13 +60,16 @@ export class Remote {
         const u = new URL(origin);
         c.check(u.origin === origin && !u.username && !u.password && (u.protocol === 'https:' || (u.protocol === 'http:' && ['127.0.0.1', '[::1]', 'localhost'].includes(u.hostname))));
     }
+    fork(signal:AbortSignal){const r=new Remote(this.origin,AbortSignal.any([this.signal,signal]));r.network=this.network;r.token=this.token;r.device=this.device;r.relayDevice=this.relayDevice;r.singleAttempt=true;r.observe=p=>this.report(p);r.onContact=this.onContact;r.onDocument=this.onDocument;r.onSaved=this.onSaved;return r;}
     async request(method: string, path: string, body?: unknown, limit = 24 * 1024 * 1024, options: {signal?:AbortSignal; origin?:string; onRead?:(size:number)=>void; background?:boolean} = {}): Promise<Uint8Array> {
         const signal=options.signal?AbortSignal.any([this.signal,options.signal]):this.signal;
         for (let attempt = 0;; attempt++) {
-            while(this.cooldown>Date.now())await wait(this.cooldown-Date.now(),signal);
+            while(this.network.cooldown>Date.now())await wait(this.network.cooldown-Date.now(),signal);
             signal.throwIfAborted();
             let delay = 250 * 2 ** attempt;
+            let acquired=false;
             try {
+                if(path.startsWith('/v1/blobs/')){await this.network.budget.acquire(signal);acquired=true;}signal.throwIfAborted();
                 const controller = new AbortController(), timer = setTimeout(() => controller.abort(), options.background ? 3000 : 30000), abort = () => controller.abort();
                 signal.addEventListener('abort', abort, { once: true });
                 try {
@@ -93,8 +111,8 @@ export class Remote {
             catch (e) {
                 signal.throwIfAborted();
                 const retry = e instanceof TypeError || (e instanceof DOMException && e.name === 'AbortError') || (e instanceof HTTPError && (e.status === 408 || e.status === 429 || e.status >= 500&&e.status!==507));
-                if(e instanceof HTTPError&&e.after>0)this.cooldown=Math.max(this.cooldown,Date.now()+e.after);
-                if (!retry || options.background || attempt === 3)
+                if(e instanceof HTTPError&&e.after>0)this.network.cooldown=Math.max(this.network.cooldown,Date.now()+e.after);
+                if (!retry || options.background || this.singleAttempt || attempt === 3)
                     throw e;
                 if (e instanceof HTTPError)
                     delay = Math.max(delay, e.after);
@@ -103,6 +121,7 @@ export class Remote {
                 await wait(delay,signal);
                 this.report({...this.progress,phase:previous.phase,attempt:undefined,retryAt:undefined});
             }
+            finally {if(acquired)this.network.budget.release();}
         }
     }
     async json<T>(method: string, path: string, body?: unknown, limit?: number): Promise<T> { return c.strictJSON(c.decode(await this.request(method, path, body, limit))) as T; }
@@ -135,6 +154,7 @@ export async function setSyncMode(store:Store,master:Uint8Array,remote:Remote,mo
 export const startProgress = (phase:string,r:Revision,name:string,direction:'upload'|'download',totalBytes:number,chunks:number,source='',publisher=''): SyncProgress => ({phase,revision:r.id,name,direction,totalBytes,chunks,source,publisher,doneBytes:0,reusedBytes:0,chunk:0,updatedAt:Date.now()});
 
 export async function needsSync(store: Store, remote: Remote) {
+    if(await store.state('work-active'))return queueNeeded(store,remote);
     if ((await store.all()).some(x => x.pending)||(await deletionRecords(store,true)).length) return true;
     const settings = await remote.json<{mode:string;epoch:string;queued:number;deletion_sequence?:number;trash_policy_version?:number;content_version?:number}>('GET','/v1/sync/settings',undefined,1024);
     if((settings.trash_policy_version||0)!==(await store.state<number>('trash-policy-version')||0)||(settings.content_version||0)!==(await store.state<number>('content-version')||0))return true;
@@ -204,8 +224,8 @@ export async function sync(store:Store,master:Uint8Array,remote:Remote){
 async function syncPass(store:Store,master:Uint8Array,remote:Remote){
  remote.relayDevice=(await store.relayState()).device;
  for(;;){const settings=await remote.json<ContentSettings>('GET','/v1/sync/settings',undefined,1024);
- if(!settings.selective_content)throw Error('UPDATE_REQUIRED: Update the server for selective content sync.');
- try{await syncSelective(store,master,remote,settings);break;}catch(e){if(!(e instanceof Error)||e.message!=='CONTENT_REPLAN')throw e;}}
+ if(!settings.selective_content)throw Error('UPDATE_REQUIRED: Update the server for selective content sync.');remote.workQueue=!!settings.work_queue;if(!settings.work_queue){await store.setState('work-active',false);await store.setState('work-reconcile',true);}
+ try{if(settings.work_queue)await syncQueue(store,master,remote,settings);else await syncSelective(store,master,remote,settings);break;}catch(e){if(!(e instanceof Error)||e.message!=='CONTENT_REPLAN')throw e;}}
  await syncDeletions(store,master,remote);
  await cleanupTrash(store,master,remote);
 }

@@ -78,6 +78,7 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Header.Get("X-Klefki-Content") == "1" {
 		out.SelectiveContent = true
+		out.WorkQueue = true
 		out.TrashPolicyVersion = 1
 		e = s.db.QueryRow(`SELECT enabled,version,COALESCE((SELECT version FROM content_notifications WHERE account=trash_policy.account AND device=?),0) FROM trash_policy WHERE account=?`, r.Header.Get("X-Klefki-Device"), who(r).account).Scan(&out.TrashDefault, &out.TrashPolicyVersion, &out.ContentVersion)
 		if e != nil && e != sql.ErrNoRows {
@@ -216,6 +217,8 @@ func (s *Server) enrollRelay(account string, in syncwire.RelayDevice) (out syncw
 		return out, 500
 	}
 	defer tx.Rollback()
+	changed := false
+	lowered := false
 	for _, id := range append(in.Known, in.Device) {
 		var removed int
 		if tx.QueryRow(`SELECT COUNT(*) FROM relay_removed WHERE account=? AND device=?`, account, id).Scan(&removed) != nil {
@@ -227,13 +230,44 @@ func (s *Server) enrollRelay(account string, in syncwire.RelayDevice) (out syncw
 			}
 			continue
 		}
-		if _, e = tx.Exec(`INSERT OR IGNORE INTO relay_devices(account,device) VALUES(?,?)`, account, id); e != nil {
+		result, err := tx.Exec(`INSERT OR IGNORE INTO relay_devices(account,device) VALUES(?,?)`, account, id)
+		if err != nil {
 			return out, 500
+		}
+		if n, _ := result.RowsAffected(); n > 0 {
+			changed = true
 		}
 	}
 	// A restored local snapshot can be older than this device's previous receipt.
-	if _, e = tx.Exec(`UPDATE relay_devices SET sequence=MIN(sequence,?) WHERE account=? AND device=?`, in.Sequence, account, in.Device); e != nil {
+	result, e := tx.Exec(`UPDATE relay_devices SET sequence=? WHERE account=? AND device=? AND sequence>?`, in.Sequence, account, in.Device, in.Sequence)
+	if e != nil {
 		return out, 500
+	}
+	if n, _ := result.RowsAffected(); n > 0 {
+		changed = true
+		lowered = true
+	}
+	metadata := in.Sequence
+	if in.MetadataSequence != nil {
+		metadata = *in.MetadataSequence
+	}
+	result, e = tx.Exec(`UPDATE relay_metadata SET sequence=? WHERE account=? AND device=? AND sequence>?`, metadata, account, in.Device, metadata)
+	if e != nil {
+		return out, 500
+	}
+	if n, _ := result.RowsAffected(); n > 0 {
+		changed = true
+		lowered = true
+	}
+	if lowered {
+		if _, e = tx.Exec(`UPDATE content_requests SET received=0 WHERE account=? AND device=? AND revision IN(SELECT revision FROM changes WHERE account=? AND sequence>?)`, account, in.Device, account, metadata); e != nil {
+			return out, 500
+		}
+	}
+	if changed {
+		if _, e = tx.Exec(`INSERT INTO relay_inventory VALUES(?,1) ON CONFLICT(account) DO UPDATE SET version=version+1`, account); e != nil {
+			return out, 500
+		}
 	}
 	var count int
 	if tx.QueryRow(`SELECT COUNT(*) FROM relay_devices WHERE account=?`, account).Scan(&count) != nil || count > 64 {
@@ -314,7 +348,7 @@ func (s *Server) cleanupRelay(account string) error {
 	}
 	var count int
 	var floor int64
-	if e = s.db.QueryRow(`SELECT COUNT(*),COALESCE(MIN(sequence),0) FROM relay_devices WHERE account=?`, account).Scan(&count, &floor); e != nil {
+	if e = s.db.QueryRow(`SELECT COUNT(*),COALESCE(MIN(COALESCE(m.sequence,d.sequence)),0) FROM relay_devices d LEFT JOIN relay_metadata m ON m.account=d.account AND m.device=d.device WHERE d.account=?`, account).Scan(&count, &floor); e != nil {
 		return e
 	}
 	if count < 2 || floor == 0 {
@@ -496,6 +530,9 @@ func (s *Server) relayRevisionSpace(account string, rev syncwire.Revision) error
 
 func validRelayDevice(in syncwire.RelayDevice) bool {
 	if !validID(in.Device) || len(in.Known) > 64 || in.Sequence < 0 {
+		return false
+	}
+	if in.MetadataSequence != nil && *in.MetadataSequence < 0 {
 		return false
 	}
 	for _, id := range in.Known {

@@ -20,7 +20,7 @@ test('upgrades an existing v1 store and gives legacy trash a fresh countdown',as
   await expect(page.locator('article').filter({has:page.getByText('legacy.txt',{exact:true})})).toContainText('Deletes');
   await page.getByRole('button',{name:'Open legacy.txt',exact:true}).click();await expect(page.locator('dialog pre')).toHaveText('legacy private bytes');
   const saved=await page.evaluate(async account=>{const db=await new Promise<IDBDatabase>(resolve=>{const q=indexedDB.open('klefki-v1-'+account);q.onsuccess=()=>resolve(q.result);});const version=db.version;const read=(name:string)=>new Promise<any[]>(resolve=>{const q=db.transaction(name).objectStore(name).getAll();q.onsuccess=()=>resolve(q.result);});const revisions=await read('revisions'),chunks=await read('chunks');db.close();return {version,revisions,chunk:Array.from(chunks[0])};},account.account);
-  expect(saved.version).toBe(2);expect(saved.revisions.length).toBe(3);expect(saved.chunk).toEqual(Array.from(chunk));
+  expect(saved.version).toBe(3);expect(saved.revisions.length).toBe(3);expect(saved.chunk).toEqual(Array.from(chunk));
   expect(JSON.stringify(saved.revisions)).not.toContain('legacy.txt');expect(JSON.stringify(saved.revisions)).not.toContain('legacy private bytes');
   const current=saved.revisions.find(x=>x.revision.base===revision.id);const metadata=c.decryptMetadata(fixture.master,account.account,object,c.unbase64(current.revision.metadata));
   expect(metadata.trashed_at).toBeGreaterThan(Date.now()-120000);expect(metadata.trashed_at).toBeLessThanOrEqual(Date.now());

@@ -18,7 +18,13 @@ export interface Stored {
     explicit?: boolean;
     trash?: boolean;
     sequence?: number;
+    file?: string;
+    metadataQueued?: number;
 }
+export type WorkTask={revision:string;file:string;direction:'plan'|'upload'|'download'|'receipt';priority:number;attempts:number;retryAt:number;error:string;uploadPending?:boolean};
+export type DocumentEvent={revision:string;name:string;source:string;stage:'receiving'|'ready';created:number;read:boolean};
+export const fileIdentity=(r:Revision)=>{if(!r.file_key)return '';const key=c.unbase64(r.file_key);c.check(key.length===106);return c.hex(key.subarray(18,34));};
+export const workTask=(r:Revision,uploadPending=false):WorkTask=>({revision:r.id,file:fileIdentity(r),direction:'plan',priority:0,attempts:0,retryAt:0,error:'',uploadPending});
 export interface Head {
     revision: Revision;
     metadata: c.Metadata;
@@ -56,8 +62,12 @@ export class Store {
         const name = stagingName || saved || base;
         c.check(name === base || new RegExp('^' + base + '-restore-[0-9a-f]{32}$').test(name));
         let created = false;
-        const r = indexedDB.open(name, 2);
-        r.onupgradeneeded = event => { created = event.oldVersion === 0; const db = r.result; if(!db.objectStoreNames.contains('state')){db.createObjectStore('state'); db.createObjectStore('revisions', { keyPath: 'revision.id' }); db.createObjectStore('chunks');} if(!db.objectStoreNames.contains('deletions'))db.createObjectStore('deletions',{keyPath:'object'}); };
+        const r = indexedDB.open(name, 3);
+        r.onupgradeneeded = event => { created = event.oldVersion === 0; const db = r.result; if(!db.objectStoreNames.contains('state')){db.createObjectStore('state'); db.createObjectStore('revisions', { keyPath: 'revision.id' }); db.createObjectStore('chunks');} if(!db.objectStoreNames.contains('deletions'))db.createObjectStore('deletions',{keyPath:'object'});
+            const records=r.transaction!.objectStore('revisions');for(const [name,path] of [['object','revision.object'],['file','file'],['metadataQueued','metadataQueued'],['sequence','sequence']] as const)if(!records.indexNames.contains(name))records.createIndex(name,path);
+            if(!db.objectStoreNames.contains('work')){const work=db.createObjectStore('work',{keyPath:'revision'});work.createIndex('file','file');work.createIndex('retryAt','retryAt');}
+            if(!db.objectStoreNames.contains('incoming'))db.createObjectStore('incoming',{keyPath:'revision'});
+        };
         const db = await req(r);
         db.onversionchange = () => db.close();
         const store = new Store(db, account);
@@ -100,14 +110,7 @@ export class Store {
         const {metadata:m,key}=unlockRevision(master,this.account.account,r);if(key)c.wipe(key);
         if(m.type==='folder')return true;
         if(await this.state('invalid-content:'+m.file_id))return false;
-        for (let i=0;i<m.chunk_count!;i++) {
-            const chunk=await this.chunk(m.file_id!,i);
-            if (!(chunk instanceof Uint8Array) || chunk.length !== Math.min(c.CHUNK,m.size!-i*c.CHUNK)+87) {
-                if(chunk!==undefined)await this.setState('invalid-content:'+m.file_id,true);
-                return false;
-            }
-        }
-        return true;
+        return await this.transaction(['chunks'],'readonly',tx=>req(tx.objectStore('chunks').count(IDBKeyRange.bound(m.file_id!+':',m.file_id!+':\uffff'))))===m.chunk_count;
     }
     async chunk(file:string,index:number):Promise<Uint8Array|undefined>{return this.transaction(['chunks'],'readonly',tx=>req(tx.objectStore('chunks').get(file+':'+index)));}
     async offlineHeads(master:Uint8Array){
@@ -116,14 +119,15 @@ export class Store {
         return heads;
     }
     async contentFlags(id:string,change:Partial<Pick<Stored,'pending'|'deferred'|'wanted'|'explicit'|'trash'|'uploadPending'>>){
-        await this.transaction(['revisions'],'readwrite',async tx=>{const store=tx.objectStore('revisions'),record=await req(store.get(id)) as Stored|undefined;c.check(record);store.put({...record,...change,pending:!!record.metadataPending||!!change.pending});});
+        await this.transaction(['revisions','work'],'readwrite',async tx=>{const store=tx.objectStore('revisions'),record=await req(store.get(id)) as Stored|undefined;c.check(record);store.put({...record,...change,pending:!!record.metadataPending||!!change.pending});if(change.explicit&&record.revision.file_key)tx.objectStore('work').put(workTask(record.revision));});
     }
     async deviceState(minimum=0) {
-        return this.transaction(['state','revisions','deletions'],'readwrite',async tx => {
+        return this.transaction(['state','revisions','deletions','work'],'readwrite',async tx => {
             const state=tx.objectStore('state');
             const revisions=await req(tx.objectStore('revisions').getAll()) as Stored[];
             const deletions=await req(tx.objectStore('deletions').getAll()) as {pending:boolean}[];
-            const pending=revisions.some(x=>x.pending)||deletions.some(x=>x.pending);
+            const queued=await req(state.get('work-active'));
+            const pending=(queued?revisions.some(x=>x.metadataQueued||x.metadataPending)||(await req(tx.objectStore('work').getAll()) as WorkTask[]).some(x=>x.uploadPending):revisions.some(x=>x.pending))||deletions.some(x=>x.pending);
             const previous=await req(state.get('device-state')) as {version:number;pending:boolean}|undefined;
             const version=!previous||previous.pending!==pending||previous.version<minimum?Math.max((previous?.version||0)+1,minimum):previous.version;
             c.check(Number.isSafeInteger(version)&&version>0);
@@ -145,7 +149,8 @@ export class Store {
         await this.transaction(['state'],'readwrite',async tx => {
             const state=tx.objectStore('state');
             c.check(devices.includes(await req(state.get('relay-device'))));
-            if (await req(state.get('relay-epoch'))!==epoch) {state.put(0,'cursor');state.put(0,'metadata-cursor');state.put(0,'trash-policy-version');state.put(0,'content-version');}
+            if(await req(state.get('sync-mode'))!==mode){state.put(-1,'work-inventory');state.put(true,'work-reconcile');}
+            if (await req(state.get('relay-epoch'))!==epoch) {state.put(0,'cursor');state.put(0,'metadata-cursor');state.put(0,'trash-policy-version');state.put(0,'content-version');state.put(0,'work-content-cursor');state.put(-1,'work-inventory');state.put(true,'work-reconcile');}
             state.put(epoch,'relay-epoch');state.put(mode,'sync-mode');state.put(devices,'relay-devices');
         });
     }
@@ -177,16 +182,21 @@ export class Store {
         out.push(b);
     } return out; }); }
     async export(master: Uint8Array, r: Revision) { const { metadata: m, key } = unlockRevision(master, this.account.account, r); c.check(key); try {
-        const chunks=await this.chunks(m.file_id!,m.chunk_count!);
-        try{return c.decryptFile(key, this.account.account, m.file_id!, m.size!, chunks);}
-        catch(error){await this.setState('invalid-content:'+m.file_id,true);throw error;}
+        try{return c.decryptFile(key, this.account.account, m.file_id!, m.size!, await this.chunks(m.file_id!,m.chunk_count!));}
+        catch(error){
+            await this.transaction(['state','revisions','work'],'readwrite',async tx=>{
+                tx.objectStore('state').put(true,'invalid-content:'+m.file_id);
+                for(const record of await req(tx.objectStore('revisions').index('file').getAll(m.file_id!)) as Stored[])tx.objectStore('work').put(workTask(record.revision));
+            });
+            throw error;
+        }
     }
     finally {
         c.wipe(key);
     } }
     async commit(r: Revision, chunks: Uint8Array[], file: string | undefined, pending: boolean, sequence?: number, origin?: string, deferred?: boolean, metadataOnly=false) {
         validateRevision(r);
-        await this.transaction(['revisions', 'chunks', 'state','deletions'], 'readwrite', async (tx) => {
+        await this.transaction(['revisions', 'chunks', 'state','deletions','work','incoming'], 'readwrite', async (tx) => {
             const revisions = tx.objectStore('revisions'), state = tx.objectStore('state'), blobs = tx.objectStore('chunks');
             if(await req(tx.objectStore('deletions').get(r.object))){c.check(!pending);if(sequence!==undefined)state.put(sequence,metadataOnly?'metadata-cursor':'cursor');return;}
             const old: Stored | undefined = await req(revisions.get(r.id));
@@ -217,7 +227,11 @@ export class Store {
                 const order = (await req(state.get('order')) || 0) + 1;
                 state.put(order, 'order');
                 const source = pending ? await req(state.get('relay-device')) as string : origin;
-                revisions.add({ revision: r, pending, metadataPending:pending, order, ...(source ? {origin:source} : {}),...(deferred?{deferred:true}:{}),...(sequence!==undefined?{sequence}:{}) } satisfies Stored);
+                if(metadataOnly&&r.file_key&&await req(state.get('work-baseline'))&&source!==await req(state.get('relay-device'))&&!(await req(revisions.index('object').count(r.object))))tx.objectStore('incoming').add({revision:r.id,source:source||'',created:Date.now(),read:false,reported:false});
+                const fileID=fileIdentity(r);
+                revisions.add({ revision: r, pending, metadataPending:pending,metadataQueued:pending?1:0,file:fileID||undefined, order, ...(source ? {origin:source} : {}),...(deferred?{deferred:true}:{}),...(sequence!==undefined?{sequence}:{}) } satisfies Stored);
+                if(fileID)tx.objectStore('work').put(workTask(r,pending));
+                if(!r.file_key&&r.base)state.put(true,'work-reconcile');
             }
             if(old && deferred!==undefined)revisions.put({...old,deferred,pending:pending||!!old.uploadPending||!!old.metadataPending||(deferred!==false&&!!old.deferred&&!!old.wanted),...(deferred===false?{wanted:false,explicit:false}:{}),...(sequence!==undefined?{sequence}:{})});
             if(deferred===false && file){
@@ -234,7 +248,7 @@ export class Store {
         });
         if (pending) this.onChange?.();
     }
-    async acknowledge(id: string) { await this.transaction(['revisions'], 'readwrite', async (tx) => { const s = tx.objectStore('revisions'), x: Stored = await req(s.get(id)); c.check(x); x.pending = !!x.uploadPending||!!x.deferred&&!!x.wanted;x.metadataPending=false; s.put(x); }); }
+    async acknowledge(id: string) { await this.transaction(['revisions'], 'readwrite', async (tx) => { const s = tx.objectStore('revisions'), x: Stored = await req(s.get(id)); c.check(x); x.pending = !!x.uploadPending||!!x.deferred&&!!x.wanted;x.metadataPending=false;x.metadataQueued=0; s.put(x); }); }
     async put(master: Uint8Array, m: c.Metadata, bytes?: Uint8Array, base?: Revision) {
         if(m.parent)c.check(!await this.transaction(['deletions'],'readonly',tx=>req(tx.objectStore('deletions').get(m.parent!))));
         const object = base?.object || c.id(), r: Revision = { id: c.id(), object, base: base?.id || '', metadata: '' }, chunks: Uint8Array[] = [];
@@ -263,6 +277,8 @@ export class Store {
         if (key)
             c.wipe(key);
         if (edit.folder_icon !== undefined) c.check(metadata.type === 'folder' && c.validFolderIcon(edit.folder_icon));
+        const next={...metadata,...edit};
+        if(JSON.stringify(metadata)===JSON.stringify(next))return base;
         const r: Revision = { ...base, id: c.id(), base: base.id, metadata: c.base64(c.encryptMetadata(master, this.account.account, base.object, { ...metadata, ...edit })) };
         await this.commit(r, [], undefined, true,undefined,undefined,!(await this.contentAvailable(master,r)));
         return r;

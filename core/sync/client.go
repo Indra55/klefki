@@ -100,6 +100,13 @@ func (r *Remote) request(ctx context.Context, method, path, token string, body a
 	} else if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	if strings.HasPrefix(path, "/v1/blobs/") {
+		if guard, ok := ctx.Value(contentGuardKey{}).(func() error); ok {
+			if err := guard(); err != nil {
+				return nil, err
+			}
+		}
+	}
 	res, e := r.client.Do(req)
 	if e != nil {
 		if ctx.Err() != nil {
@@ -194,6 +201,9 @@ type Client struct {
 	Retry      Retry
 	Observe    func(syncwire.Progress)
 	OnContact  func()
+	OnDocument func(DocumentEvent)
+	OnChange   func()
+	gate       *transferGate
 	progress   syncwire.Progress
 	progressMu sync.Mutex
 	cooldownMu sync.Mutex
@@ -225,7 +235,23 @@ func (c *Client) request(ctx context.Context, method, path string, body any, lim
 		if e := c.waitCooldown(ctx); e != nil {
 			return nil, e
 		}
+		if c.gate != nil {
+			if e := c.gate.wait(ctx); e != nil {
+				return nil, e
+			}
+		}
+		var release func()
+		if c.gate != nil && strings.HasPrefix(path, "/v1/blobs/") {
+			var e error
+			release, e = c.gate.acquire(ctx)
+			if e != nil {
+				return nil, e
+			}
+		}
 		b, e := c.Remote.request(ctx, method, path, c.Session.Token, body, limit)
+		if release != nil {
+			release()
+		}
 		if e == nil {
 			if c.OnContact != nil {
 				c.progressMu.Lock()
@@ -240,6 +266,9 @@ func (c *Client) request(ctx context.Context, method, path string, body any, lim
 			retry = h.Status == 408 || h.Status == 429 || h.Status >= 500 && h.Status != 507
 			wait = max(wait, h.retryAfter)
 			if h.retryAfter > 0 {
+				if c.gate != nil {
+					c.gate.deferUntil(time.Now().Add(h.retryAfter))
+				}
 				c.cooldownMu.Lock()
 				until := time.Now().Add(h.retryAfter)
 				if until.After(c.cooldown) {
@@ -302,7 +331,14 @@ func (c *Client) syncLocked(ctx context.Context) error {
 		if !settings.SelectiveContent {
 			return ErrContentUnsupported
 		}
-		err = c.syncSelective(ctx, settings)
+		if settings.WorkQueue {
+			err = c.syncQueue(ctx, settings)
+		} else {
+			if _, err = c.Store.db.Exec(`UPDATE sync_queue SET active=0,inventory=-1,reconcile=1`); err != nil {
+				return err
+			}
+			err = c.syncSelective(ctx, settings)
+		}
 		if !errors.Is(err, errContentReplan) {
 			return err
 		}

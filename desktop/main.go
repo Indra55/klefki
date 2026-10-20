@@ -7,7 +7,9 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	systemruntime "runtime"
 	"sync"
 	"time"
 
@@ -81,8 +83,27 @@ func (a *App) event(e vd.Event) {
 		runtime.EventsEmit(a.ctx, "klefki:event", e)
 	}
 }
-func (a *App) State() vd.State                      { return a.service.State() }
-func (a *App) SetSyncPanel(open bool)               { a.service.SetSyncPanel(open) }
+func (a *App) State() vd.State        { return a.service.State() }
+func (a *App) SetSyncPanel(open bool) { a.service.SetSyncPanel(open) }
+func (a *App) ReadIncoming() error    { return safe(a.service.ReadIncoming()) }
+func (a *App) SystemNotificationsAvailable() bool {
+	if systemruntime.GOOS != "linux" {
+		return false
+	}
+	_, err := exec.LookPath("notify-send")
+	return err == nil
+}
+func (a *App) NotifyIncoming() error {
+	if a.ctx == nil || !a.service.State().Unlocked {
+		return nil
+	}
+	if systemruntime.GOOS == "linux" {
+		ctx, cancel := context.WithTimeout(a.ctx, 3*time.Second)
+		defer cancel()
+		return exec.CommandContext(ctx, "notify-send", "--app-name=Klefki", "Klefki", "A new document is ready in your vault.").Run()
+	}
+	return nil
+}
 func (a *App) SetDeviceAlias(id, name string) error { return safe(a.service.SetDeviceAlias(id, name)) }
 func (a *App) Unlock(secret string, recovery bool) error {
 	return safe(a.service.Unlock(secret, recovery))

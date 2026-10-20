@@ -1,12 +1,13 @@
-import type {SyncInfo} from '../../../ui/sync-status';
+import type {SyncInfo,SyncProgress} from '../../../ui/sync-status';
+export type IncomingDocument={revision:string;name:string;source?:string;created:number;read:boolean};
 export type TrashPolicy={override:'follow-vault'|'on'|'off';default:boolean;effective:boolean;supported:boolean;version:number};
 export type Preferences = {theme:'dark'|'light'|'system';idleMinutes:number;density?:'comfortable'|'compact';defaultSort?:'name'|'type'|'size'};
 export type FingerprintState={supported:boolean;available:boolean;enabled:boolean;reason:string};
-export type State = {trashPolicy?:TrashPolicy;config:{accountPath:string;storePath:string;server:string;syncPaused?:boolean;freshDownload?:{source:string;server:string;path:string};previousStorePath?:string;preferences:Preferences};unlocked:boolean;generation:number;accountID:string;recoveryOnly:boolean;sync:string;pending:number;lastSync:string;syncMode?:'persistent'|'temporary-relay';syncDevices?:string[];syncDevice?:string;syncInfo?:SyncInfo;deviceAliases?:Record<string,string>;semantic?:SemanticPreferences;fingerprint?:FingerprintState};
+export type State = {workActivity?:SyncProgress[];incoming?:IncomingDocument[];trashPolicy?:TrashPolicy;config:{accountPath:string;storePath:string;server:string;syncPaused?:boolean;freshDownload?:{source:string;server:string;path:string};previousStorePath?:string;preferences:Preferences};unlocked:boolean;generation:number;accountID:string;recoveryOnly:boolean;sync:string;pending:number;lastSync:string;syncMode?:'persistent'|'temporary-relay';syncDevices?:string[];syncDevice?:string;syncInfo?:SyncInfo;deviceAliases?:Record<string,string>;semantic?:SemanticPreferences;fingerprint?:FingerprintState};
 export type DeletionPreview = {revision:string;count:number;targets:{object:string;folder:boolean;files:string[];heads?:string[]}[]};
 export type Item = {object:string;revision:string;name:string;type:'file'|'folder';parent:string|null;tags:string[];favorite:boolean;size:number;conflict:boolean;trashed:boolean;trashRoot:boolean;deleteAt?:number;category?:string;folder_icon?:string;contentMissing?:boolean};
 export type Edit = Pick<Item,'name'|'parent'|'tags'|'favorite'|'folder_icon'>;
-export type KlefkiEvent = {generation:number;kind:string;operation?:string;name?:string;done?:number;total?:number;error?:string;durationMs?:number;syncInfo?:SyncInfo};
+export type KlefkiEvent = {document?:IncomingDocument;generation:number;kind:string;operation?:string;name?:string;done?:number;total?:number;error?:string;durationMs?:number;syncInfo?:SyncInfo};
 export type PreviewInfo = {url:string;mime:string;generation:number};
 export type Field={kind:"date"|"amount";raw:string;value:string;currency?:string;evidence:string};
 export type SemanticPreferences={enabled:boolean;thresholds:{cutoff:number;margin:number}};
@@ -16,6 +17,7 @@ export type TagChange={revision:string;tag:string};
 export type TagSuggestion=TagChange&{name:string;tags:string[];new:boolean;basis:string;score:number};
 export type OrganizationPlan={generation:number;suggestions:TagSuggestion[];tags:string[];skipped:number};
 export interface API {
+ SystemNotificationsAvailable?():Promise<boolean>;ReadIncoming?():Promise<void>;NotifyIncoming?():Promise<void>;
  SuggestOrganization?(custom:string[]):Promise<OrganizationPlan>;ApplyOrganization?(generation:number,changes:TagChange[]):Promise<number>;
  SemanticStatus?():Promise<SemanticStatus>;ConfigureSemantic?(p:SemanticPreferences):Promise<void>;SetupSemantic?():Promise<string>;ImportSemanticModel?():Promise<string>;Analyze?(revision:string):Promise<Analysis>;CorrectAnalysis?(revision:string,category:string,fields:Field[],resolve:string[]):Promise<string>;
  State():Promise<State>; FingerprintStatus():Promise<FingerprintState>; EnableFingerprint():Promise<void>;DisableFingerprint():Promise<void>;UnlockFingerprint():Promise<void>;CancelFingerprint():Promise<void>; Unlock(secret:string,recovery:boolean):Promise<void>; Lock():Promise<void>; Touch():Promise<void>;

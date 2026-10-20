@@ -11,7 +11,7 @@ import (
 	"klefki/core/syncwire"
 )
 
-const pendingWorkQuery = `SELECT (SELECT COUNT(*) FROM revisions r WHERE r.pending=1 OR EXISTS(SELECT 1 FROM content_work w WHERE w.revision=r.id) OR EXISTS(SELECT 1 FROM deferred_content d WHERE d.revision=r.id AND d.wanted=1))+(SELECT COUNT(*) FROM deletions WHERE pending=1)`
+const pendingWorkQuery = `SELECT (SELECT COUNT(*) FROM revisions r WHERE r.pending=1 OR EXISTS(SELECT 1 FROM content_work w WHERE w.revision=r.id) OR EXISTS(SELECT 1 FROM deferred_content d WHERE d.revision=r.id AND d.wanted=1) OR EXISTS(SELECT 1 FROM sync_tasks t,sync_queue q WHERE q.active=1 AND t.revision=r.id))+(SELECT COUNT(*) FROM deletions WHERE pending=1)`
 
 var ErrContentUnsupported = errors.New("UPDATE_REQUIRED: server does not support selective content sync")
 var ErrContentUnavailable = errors.New("CONTENT_UNAVAILABLE: reconnect a device holding this file and enable Trash sync or restore it there")
@@ -617,8 +617,11 @@ func (c *Client) EnsureContent(ctx context.Context, revision string) error {
 }
 
 func (c *Client) advanceContentCursor() error {
-	var cursor int64
-	rows, e := c.Store.db.Query(`SELECT mr.sequence,EXISTS(SELECT 1 FROM deferred_content d WHERE d.revision=mr.revision AND d.wanted=1) FROM metadata_receipts mr ORDER BY mr.sequence`)
+	cursor, e := c.Store.Cursor()
+	if e != nil {
+		return e
+	}
+	rows, e := c.Store.db.Query(`SELECT mr.sequence,EXISTS(SELECT 1 FROM deferred_content d WHERE d.revision=mr.revision AND d.wanted=1) FROM metadata_receipts mr WHERE mr.sequence>? ORDER BY mr.sequence`, cursor)
 	if e != nil {
 		return ErrStore
 	}

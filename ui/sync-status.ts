@@ -12,6 +12,7 @@ export type DeviceStatus = {
 export type ServerStatus = { deviceStateSupported?:boolean; epoch: string; latestSequence: number; devices: DeviceStatus[] };
 export type Provenance = { sequence: number; revision: string; origin: string; publisher: string };
 export type SyncInfo = {
+  transfers?:SyncProgress[];
   paused?: boolean;
   phase: string; running: boolean; progress?: SyncProgress; lastContact: number;
   lastDeviceCheck: number; statusAvailable: boolean; peers?: ServerStatus;
@@ -98,7 +99,8 @@ export function transferDetail(p: SyncProgress, aliases: Record<string,string>, 
   if (p.totalBytes) detail.push(`${bytes(p.doneBytes)} of ${bytes(p.totalBytes)}`);
   if (p.chunks) detail.push(`chunk ${p.chunk || 1} of ${p.chunks}`);
   if (p.reusedBytes) detail.push(`${bytes(p.reusedBytes)} already saved`);
-  if (p.phase === 'retrying') detail.push(`attempt ${p.attempt || 2} in ${Math.max(0,Math.ceil(((p.retryAt || now)-now)/1000))}s`);
+  if(p.phase==='retrying')detail.push(`attempt ${p.attempt || 2} in ${Math.max(0,Math.ceil(((p.retryAt || now)-now)/1000))}s`);
+  else if (p.retryAt) detail.push(p.retryAt>=Number.MAX_SAFE_INTEGER?'Needs repair; refresh sync after correcting the file':`retry in ${Math.max(0,Math.ceil((p.retryAt-now)/1000))}s`);
   else if (now-p.updatedAt >= 10000 && p.phase !== 'complete') detail.push('Taking longer than usual');
   return detail.join(' · ');
 }

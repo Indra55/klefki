@@ -36,6 +36,7 @@ type SyncSettings struct {
 	TrashDefault       bool   `json:"trash_default,omitempty"`
 	TrashPolicyVersion int64  `json:"trash_policy_version,omitempty"`
 	ContentVersion     int64  `json:"content_version,omitempty"`
+	WorkQueue          bool   `json:"work_queue,omitempty"`
 }
 
 type ContentBatch struct {
@@ -54,9 +55,28 @@ type ContentStates struct {
 	States []ContentState `json:"states"`
 }
 type RelayDevice struct {
-	Device   string   `json:"device"`
-	Known    []string `json:"known"`
-	Sequence int64    `json:"sequence"`
+	Device           string   `json:"device"`
+	Known            []string `json:"known"`
+	Sequence         int64    `json:"sequence"`
+	MetadataSequence *int64   `json:"metadataSequence,omitempty"`
+}
+
+type WorkCheck struct {
+	Epoch     string `json:"epoch"`
+	Mode      string `json:"mode"`
+	Metadata  int64  `json:"metadata"`
+	Content   int64  `json:"content"`
+	Deletion  int64  `json:"deletion"`
+	Policy    int64  `json:"policy"`
+	Inventory int64  `json:"inventory"`
+}
+type ContentEvent struct {
+	Sequence int64  `json:"sequence"`
+	File     string `json:"file"`
+}
+type ContentEvents struct {
+	Latest  int64          `json:"latest"`
+	Changes []ContentEvent `json:"changes"`
 }
 type RelayState struct {
 	SyncSettings
