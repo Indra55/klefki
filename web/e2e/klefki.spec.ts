@@ -74,17 +74,22 @@ test('temporary relay transfers Go and browser documents after server cleanup',a
 });
 test('interrupted uploads retain pending work and retry stored ciphertext', async ({ page }) => {
     await connect(page);
+    let attempts=0,file='';page.on('request',request=>{if(request.method()==='PUT'&&request.url().includes('/chunks/')){attempts++;file=new URL(request.url()).pathname.split('/')[3];}});
+    const ciphertext=()=>page.evaluate(async file=>{const account=JSON.parse(localStorage.getItem('klefki-account')!);const db=await new Promise<IDBDatabase>(resolve=>{const q=indexedDB.open('klefki-v1-'+account.account);q.onsuccess=()=>resolve(q.result);});const bytes=await new Promise<Uint8Array>(resolve=>{const q=db.transaction('chunks').objectStore('chunks').get(file+':0');q.onsuccess=()=>resolve(q.result);});db.close();return Array.from(bytes);},file);
+    await page.route('**/v1/blobs/*/chunks/*',route=>route.request().method()==='PUT'?route.abort():route.continue());
     await upload(page, { name: 'retry.txt', mimeType: 'text/plain', buffer: Buffer.from('durable queued upload') });
     await expect(row(page, 'retry.txt')).toBeVisible();
-    await page.route('**/v1/sync/revisions/*', route => route.abort());
     await syncUI(page);
     await expect(page.getByRole('status')).toContainText('Could not complete');
-    await page.unroute('**/v1/sync/revisions/*');
+    const stored=await ciphertext();expect(stored.length).toBeGreaterThan(0);
+    await page.unroute('**/v1/blobs/*/chunks/*');
     await page.reload();
     await unlock(page);
     await expect(row(page, 'retry.txt')).toBeVisible();
+    expect(await ciphertext()).toEqual(stored);
     await syncUI(page);
     await expect(page.getByRole('status')).toContainText('Synced.');
+    expect(attempts).toBeGreaterThan(1);
 });
 test('tampered contents are rejected while authenticated metadata stays visible without a delivery receipt', async ({ page }) => {
     await page.goto('/');
@@ -193,7 +198,7 @@ test('browser automatically cleans an expired encrypted trash revision after syn
   const parents=new Set(stored.all.map(x=>x.revision.base));const selected=stored.all.find(x=>!parents.has(x.revision.id)&&crypto.decryptMetadata(keys.master,stored.account.account,x.revision.object,crypto.unbase64(x.revision.metadata)).name==='note.txt');
   const metadata=crypto.decryptMetadata(keys.master,stored.account.account,selected.revision.object,crypto.unbase64(selected.revision.metadata));metadata.trashed_at=Date.now()-31*86400000;
   const revision={...selected.revision,id:crypto.id(),base:selected.revision.id,metadata:crypto.base64(crypto.encryptMetadata(keys.master,stored.account.account,selected.revision.object,metadata))};
-  await page.evaluate(async({account,revision})=>{const db=await new Promise<IDBDatabase>(resolve=>{const q=indexedDB.open('klefki-v1-'+account);q.onsuccess=()=>resolve(q.result);});await new Promise<void>((resolve,reject)=>{const tx=db.transaction(['state','revisions'],'readwrite'),state=tx.objectStore('state'),q=state.get('order');q.onsuccess=()=>{const order=(q.result||0)+1;state.put(order,'order');tx.objectStore('revisions').put({revision,pending:true,order});};tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error);});db.close();},{account:stored.account.account,revision});
+  await page.evaluate(async({account,revision,previous,file})=>{const db=await new Promise<IDBDatabase>(resolve=>{const q=indexedDB.open('klefki-v1-'+account);q.onsuccess=()=>resolve(q.result);});await new Promise<void>((resolve,reject)=>{const tx=db.transaction(['state','revisions','work'],'readwrite'),state=tx.objectStore('state'),q=state.get('order');q.onsuccess=()=>{const order=(q.result||0)+1;state.put(order,'order');tx.objectStore('revisions').put({...previous,revision,pending:true,metadataPending:true,metadataQueued:1,metadataRetry:undefined,file,sequence:undefined,order});tx.objectStore('work').put({revision:revision.id,file,direction:'plan',priority:0,attempts:0,retryAt:0,error:'',uploadPending:true});};tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error);});db.close();},{account:stored.account.account,revision,previous:selected,file:metadata.file_id});
   await context.setOffline(false);await syncUI(page);await expect(page.getByRole('status')).toContainText('Synced.');await expect(row(page,'note.txt')).toHaveCount(0);
   expect(bridge('verify-deletion')).toContain('PASS verify-deletion');
  }finally{crypto.wipe(keys.master);crypto.wipe(keys.credential);}

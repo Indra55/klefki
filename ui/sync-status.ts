@@ -2,6 +2,7 @@ export type SyncProgress = {
   phase: string; revision?: string; name?: string; direction?: 'upload' | 'download'; source?: string; publisher?: string;
   doneBytes: number; totalBytes: number; reusedBytes: number; chunk: number; chunks: number;
   attempt?: number; retryAt?: number; updatedAt: number;
+  lane?: 'library' | 'receipts'; status?: number;
 };
 export type DeviceState = {version:number;pending:boolean;reportedAt:number};
 export type DeviceStatus = {
@@ -99,14 +100,15 @@ export function transferDetail(p: SyncProgress, aliases: Record<string,string>, 
   if (p.totalBytes) detail.push(`${bytes(p.doneBytes)} of ${bytes(p.totalBytes)}`);
   if (p.chunks) detail.push(`chunk ${p.chunk || 1} of ${p.chunks}`);
   if (p.reusedBytes) detail.push(`${bytes(p.reusedBytes)} already saved`);
+  if(p.status)detail.push(p.status===429?'Server rate limit':`Server returned ${p.status}`);
   if(p.phase==='retrying')detail.push(`attempt ${p.attempt || 2} in ${Math.max(0,Math.ceil(((p.retryAt || now)-now)/1000))}s`);
   else if (p.retryAt) detail.push(p.retryAt>=Number.MAX_SAFE_INTEGER?'Needs repair; refresh sync after correcting the file':`retry in ${Math.max(0,Math.ceil((p.retryAt-now)/1000))}s`);
   else if (now-p.updatedAt >= 10000 && p.phase !== 'complete') detail.push('Taking longer than usual');
   return detail.join(' · ');
 }
 export function addActivity(list: SyncActivity[], p: SyncProgress) {
-  if (!p.revision) return list;
-  const index = list.findIndex(x => x.revision === p.revision && x.direction === p.direction);
+  if (!p.revision&&!p.lane) return list;
+  const index = list.findIndex(x => x.revision === p.revision && x.direction === p.direction&&x.lane===p.lane);
   if (index < 0) return [p,...list].slice(0,50);
   return list.map((x,i) => i === index ? p : x);
 }

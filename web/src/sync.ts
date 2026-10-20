@@ -5,7 +5,7 @@ import {syncDeletions,cleanupTrash,deletionRecords,expiredTrash} from './trash.t
 import { validateStatus, type SyncProgress, type Provenance, type ServerStatus, type DeviceState } from '../../ui/sync-status.ts';
 import { Store, unlockRevision, type Revision,type DocumentEvent } from './store.ts';
 export class HTTPError extends Error {
-    constructor(readonly status: number, readonly after: number) { super('Klefki server returned ' + status); }
+    constructor(readonly status: number, readonly after: number,readonly scope?:'library') { super('Klefki server returned ' + status); }
 }
 export class RelayWaiting extends Error { constructor(message='Waiting for another linked device to reconnect and supply documents.'){super(message);} }
 export class MissingServerAccount extends Error { constructor(){super('This account is missing from the server. Local documents are still available. Reconnect a device with the saved relay policy, or register this store in Settings.');} }
@@ -43,7 +43,7 @@ class ContentBudget {
     release(){const next=this.waiting.shift();if(next){next.signal.removeEventListener('abort',next.abort);next.resolve();}else this.active--;}
 }
 export class Remote {
-    private network={cooldown:0,budget:new ContentBudget()};
+    private network={cooldown:{auth:0,status:0,library:0,data:0},budget:new ContentBudget()};
     singleAttempt=false;
     workQueue?:boolean;
     token = '';
@@ -55,7 +55,7 @@ export class Remote {
     onSaved?:()=>void;
     progress: SyncProgress = {phase:'checking',doneBytes:0,totalBytes:0,reusedBytes:0,chunk:0,chunks:0,updatedAt:0};
     report(p: SyncProgress) { this.progress = {...p,updatedAt:Date.now()}; this.observe?.(this.progress); }
-    phase(phase: string) { this.report({...this.progress,phase,attempt:undefined,retryAt:undefined}); }
+    phase(phase: string) { this.report({...this.progress,phase,attempt:undefined,retryAt:undefined,status:undefined}); }
     constructor(readonly origin: string, readonly signal: AbortSignal) {
         const u = new URL(origin);
         c.check(u.origin === origin && !u.username && !u.password && (u.protocol === 'https:' || (u.protocol === 'http:' && ['127.0.0.1', '[::1]', 'localhost'].includes(u.hostname))));
@@ -63,8 +63,16 @@ export class Remote {
     fork(signal:AbortSignal){const r=new Remote(this.origin,AbortSignal.any([this.signal,signal]));r.network=this.network;r.token=this.token;r.device=this.device;r.relayDevice=this.relayDevice;r.singleAttempt=true;r.observe=p=>this.report(p);r.onContact=this.onContact;r.onDocument=this.onDocument;r.onSaved=this.onSaved;return r;}
     async request(method: string, path: string, body?: unknown, limit = 24 * 1024 * 1024, options: {signal?:AbortSignal; origin?:string; onRead?:(size:number)=>void; background?:boolean} = {}): Promise<Uint8Array> {
         const signal=options.signal?AbortSignal.any([this.signal,options.signal]):this.signal;
+        const endpoint=path.split('?')[0],budget=endpoint==='/v1/login'||endpoint==='/v1/signup'||endpoint.startsWith('/v1/accounts/')?'auth':['/v1/sync/device-state','/v1/sync/presence','/v1/sync/status','/v1/sync/provenance'].includes(endpoint)?'status':'data';
+        const library=method==='GET'&&['/v1/sync/check','/v1/sync/changes','/v1/sync/content/changes','/v1/sync/deletions'].includes(endpoint)||method==='PUT'&&['/v1/sync/cursor','/v1/sync/metadata-cursor'].includes(endpoint)||method==='POST'&&endpoint==='/v1/sync/deletions';
+        const cooldown=()=>Math.max(this.network.cooldown[budget],library?this.network.cooldown.library:0);
         for (let attempt = 0;; attempt++) {
-            while(this.network.cooldown>Date.now())await wait(this.network.cooldown-Date.now(),signal);
+            signal.throwIfAborted();
+            while(cooldown()>Date.now()){
+                if(this.singleAttempt||options.background)throw new HTTPError(429,cooldown()-Date.now(),library&&this.network.cooldown.library>this.network.cooldown[budget]?'library':undefined);
+                this.report({...this.progress,phase:'retrying',status:429,attempt:2,retryAt:cooldown()});
+                await wait(cooldown()-Date.now(),signal);
+            }
             signal.throwIfAborted();
             let delay = 250 * 2 ** attempt;
             let acquired=false;
@@ -78,7 +86,7 @@ export class Remote {
                     if (!res.ok) {
                         await res.body?.cancel();
                         const seconds = Number(res.headers.get('Retry-After'));
-                        throw new HTTPError(res.status, Number.isInteger(seconds) && seconds > 0 && seconds <= 120 ? seconds * 1000 : 0);
+                        throw new HTTPError(res.status, Number.isInteger(seconds) && seconds > 0 && seconds <= 120 ? seconds * 1000 : 0,library&&res.headers.get('X-Klefki-Retry-Scope')==='library'?'library':undefined);
                     }
                     this.onContact?.();
                     const reader = res.body?.getReader();
@@ -111,13 +119,13 @@ export class Remote {
             catch (e) {
                 signal.throwIfAborted();
                 const retry = e instanceof TypeError || (e instanceof DOMException && e.name === 'AbortError') || (e instanceof HTTPError && (e.status === 408 || e.status === 429 || e.status >= 500&&e.status!==507));
-                if(e instanceof HTTPError&&e.after>0)this.network.cooldown=Math.max(this.network.cooldown,Date.now()+e.after);
+                if(e instanceof HTTPError&&e.status===429&&e.after>0){const scope=e.scope||budget;this.network.cooldown[scope]=Math.max(this.network.cooldown[scope],Date.now()+e.after);}
                 if (!retry || options.background || this.singleAttempt || attempt === 3)
                     throw e;
                 if (e instanceof HTTPError)
                     delay = Math.max(delay, e.after);
                 const previous = this.progress;
-                this.report({...previous,phase:'retrying',attempt:attempt+2,retryAt:Date.now()+delay});
+                this.report({...previous,phase:'retrying',attempt:attempt+2,retryAt:Date.now()+delay,status:e instanceof HTTPError?e.status:undefined});
                 await wait(delay,signal);
                 this.report({...this.progress,phase:previous.phase,attempt:undefined,retryAt:undefined});
             }

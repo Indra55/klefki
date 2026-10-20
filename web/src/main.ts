@@ -20,7 +20,7 @@ import * as passkey from './passkey.ts';
 import { Remote, sync, needsSync, reportDeviceState, setSyncMode, HTTPError, RelayWaiting, MissingServerAccount } from './sync.ts';
 import {SyncView} from './sync-ui.ts';
 import {IncomingView} from './incoming-ui.ts';
-import {incoming,readIncoming,retryFailed,workActivity} from './sync-workers.ts';
+import {incoming,readIncoming,retryFailed,workActivity,SyncDeferred} from './sync-workers.ts';
 import {idleSync,addActivity,validateStatus,syncLabel,deviceName,receipt,presence,devicePendingDetail,type SyncInfo,type SyncActivity,type ServerStatus} from '../../ui/sync-status.ts';
 let folderBackup:FolderBackup|undefined;
 let storageProtection:Protection='unavailable';
@@ -84,6 +84,7 @@ function scheduleSync(){
     syncTimer=window.setTimeout(()=>{if(master)void syncNow()},1000);
 }
 function syncErrorPhase(e:unknown){
+    if(e instanceof SyncDeferred)return 'retrying';
     if(e instanceof RelayWaiting)return 'waiting';
     if(e instanceof HTTPError)return e.status===401||e.status===403?'auth':e.status===507?'full':e.status===408||e.status===504?'timeout':e.status>=500?'unreachable':'error';
     if(!navigator.onLine)return 'offline';
@@ -354,7 +355,7 @@ async function connectRemote(register=false){
     await r.login(account!,credential!,register,await s.state('sync-mode')==='temporary-relay');
     await s.transaction(['state'],'readwrite',async tx=>{tx.objectStore('state').put(true,'sync-connected');});
     if(g!==generation)return;
-    r.observe=p=>{if(g!==generation||r!==remote)return;const transfers=(syncInfo.transfers||[]).filter(x=>x.revision!==p.revision||x.direction!==p.direction);if(p.revision&&!['complete','waiting','error'].includes(p.phase))transfers.push(p);syncInfo={...syncInfo,transfers,progress:p,phase:p.phase,running:true,waitingFor:undefined};syncActivity=addActivity(syncActivity,p);renderSync();};
+    r.observe=p=>{if(g!==generation||r!==remote)return;const transfers=(syncInfo.transfers||[]).filter(x=>x.revision!==p.revision||x.direction!==p.direction||x.lane!==p.lane);if((p.revision||p.lane)&&!['complete','waiting','retrying','error'].includes(p.phase))transfers.push(p);const foreground=transfers.find(x=>x.revision&&x.totalBytes)||transfers.find(x=>x.revision)||transfers[0]||p;syncInfo={...syncInfo,transfers,progress:foreground,phase:foreground.phase,running:true,waitingFor:undefined};syncActivity=addActivity(syncActivity,p);renderSync();};
     r.onContact=()=>{if(g===generation&&r===remote)syncInfo={...syncInfo,lastContact:Date.now()};};
     r.onSaved=()=>{if(g===generation&&r===remote)void refresh().catch(()=>{});};
     r.onDocument=event=>{if(g===generation&&r===remote){incomingView.ready(event);void refresh().catch(()=>{});}};
@@ -396,7 +397,7 @@ async function syncNow(register = false, background = false, reconnect = false) 
         if(g!==generation)return;
         const phase=syncErrorPhase(e);syncInfo={...syncInfo,phase,waitingFor:e instanceof RelayWaiting?'source':undefined};syncState=phase==='auth'?'Authentication required':phase==='waiting'?'Waiting for another device':'Sync error';
         if(phase==='auth')remote=undefined;
-        message(e instanceof RelayWaiting||e instanceof MissingServerAccount?e.message:phase==='auth'?'Server authentication failed. Local documents remain available; reconnect sync in Settings.':phase==='full'?'Relay storage is full. Sync the other linked devices to free space.':'Could not complete sync. Your local changes are kept.');
+        message(e instanceof RelayWaiting||e instanceof MissingServerAccount||e instanceof SyncDeferred?e.message:phase==='auth'?'Server authentication failed. Local documents remain available; reconnect sync in Settings.':phase==='full'?'Relay storage is full. Sync the other linked devices to free space.':'Could not complete sync. Your local changes are kept.');
         if(syncInfo.progress)syncActivity=addActivity(syncActivity,{...syncInfo.progress,phase,updatedAt:Date.now()});
         await refresh();
     } finally {

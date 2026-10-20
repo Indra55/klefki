@@ -21,8 +21,10 @@ export interface Stored {
     sequence?: number;
     file?: string;
     metadataQueued?: number;
+    metadataRetry?: WorkRetry;
 }
-export type WorkTask={revision:string;file:string;direction:'plan'|'upload'|'download'|'receipt';priority:number;attempts:number;retryAt:number;error:string;uploadPending?:boolean};
+export type WorkRetry={attempts:number;retryAt:number;status?:number};
+export type WorkTask=WorkRetry&{revision:string;file:string;direction:'plan'|'upload'|'download'|'receipt';priority:number;error:string;uploadPending?:boolean};
 export type DocumentEvent={revision:string;name:string;source:string;stage:'receiving'|'ready';created:number;read:boolean};
 export const fileIdentity=(r:Revision)=>{if(!r.file_key)return '';const key=c.unbase64(r.file_key);c.check(key.length===106);return c.hex(key.subarray(18,34));};
 export const workTask=(r:Revision,uploadPending=false):WorkTask=>({revision:r.id,file:fileIdentity(r),direction:'plan',priority:0,attempts:0,retryAt:0,error:'',uploadPending});
@@ -249,7 +251,7 @@ export class Store {
         });
         if (pending) this.onChange?.();
     }
-    async acknowledge(id: string) { await this.transaction(['revisions'], 'readwrite', async (tx) => { const s = tx.objectStore('revisions'), x: Stored = await req(s.get(id)); c.check(x); x.pending = !!x.uploadPending||!!x.deferred&&!!x.wanted;x.metadataPending=false;x.metadataQueued=0; s.put(x); }); }
+    async acknowledge(id: string) { await this.transaction(['revisions'], 'readwrite', async (tx) => { const s = tx.objectStore('revisions'), x: Stored = await req(s.get(id)); c.check(x); x.pending = !!x.uploadPending||!!x.deferred&&!!x.wanted;x.metadataPending=false;x.metadataQueued=0;delete x.metadataRetry; s.put(x); }); }
     private preparePut(master: Uint8Array, m: c.Metadata, bytes?: Uint8Array, base?: Revision) {
         const object = base?.object || c.id(), r: Revision = { id: c.id(), object, base: base?.id || '', metadata: '' }, chunks: Uint8Array[] = [];
         let file: string | undefined;

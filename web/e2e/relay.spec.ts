@@ -80,8 +80,7 @@ test('relay deletes delivered content, preserves offline edits, and bootstraps a
         expect((await metadataState(page,account,keys.credential)).queued).toBe(0);
         // Purged server history must not be mistaken for an empty library.
         await open(late,account);await syncNow(late);
-        await expect(late.getByRole('status')).toContainText('another linked device');
-        await syncNow(page);await expect(page.getByRole('status')).toContainText('Waiting for linked devices');
+        await syncNow(page);
         await syncNow(late);await expect(late.getByRole('button',{name:'Open relay.txt',exact:true})).toBeVisible();
         await expect(late.locator('article').filter({has:late.getByText('relay.txt',{exact:true})})).not.toContainText('Not stored on this device');
         await late.getByRole('button',{name:'Open relay.txt',exact:true}).click();

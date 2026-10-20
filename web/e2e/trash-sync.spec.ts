@@ -11,8 +11,8 @@ async function open(page:Page,account:c.Account){
  await expect(page.getByRole('heading',{name:'Documents',exact:true})).toBeVisible();
 }
 async function syncComplete(page:Page){
- const receipt=page.waitForResponse(r=>r.url().includes('/v1/sync/cursor')&&r.request().method()==='PUT');
- await syncNow(page);await receipt;
+ const check=page.waitForResponse(r=>new URL(r.url()).pathname==='/v1/sync/settings'&&r.request().method()==='GET');
+ await syncNow(page);await check;
  await expect(page.getByRole('button',{name:'Sync status',exact:true})).not.toHaveAttribute('data-state','running');
 }
 async function trash(page:Page){

@@ -329,8 +329,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/v1/sync/device-state" || r.URL.Path == "/v1/sync/presence" || r.URL.Path == "/v1/sync/status" || r.URL.Path == "/v1/sync/provenance" {
 		group = "status:"
 	}
+	if (r.Method == http.MethodGet && (r.URL.Path == "/v1/sync/check" || r.URL.Path == "/v1/sync/changes" || r.URL.Path == "/v1/sync/content/changes" || r.URL.Path == "/v1/sync/deletions")) || (r.Method == http.MethodPut && (r.URL.Path == "/v1/sync/cursor" || r.URL.Path == "/v1/sync/metadata-cursor")) || (r.Method == http.MethodPost && r.URL.Path == "/v1/sync/deletions") {
+		group = "library:"
+	}
 	if !s.allowed(group + host) {
 		sw.Header().Set("Retry-After", "60")
+		sw.Header().Set("X-Klefki-Retry-Scope", strings.TrimSuffix(group, ":"))
 		fail(sw, 429)
 		return
 	}

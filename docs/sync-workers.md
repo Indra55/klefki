@@ -113,6 +113,57 @@ cleanup assertions wait for delivery receipts rather than metadata visibility.
 
 ## Additive protocol and rollout
 
+### Browser retry isolation
+
+The browser coordinator runs library discovery, local revision publication,
+content jobs and delivery receipts independently. Two publication jobs preserve
+each object's revision ancestry; an unrelated publication may proceed when an
+older revision fails. Two content jobs still share four blob requests. Planning
+belongs to each content job, so discovery or a different file's preflight cannot
+hold the content scheduler. Queued metadata alone no longer interrupts every
+active file. New active documents retain priority over edits, retries and Trash.
+An idle transfer direction can borrow the second content slot; equal-priority
+work in the opposite direction reclaims that slot rather than waiting behind
+two stalled transfers.
+
+Publication failures persist their retry deadline on the encrypted revision's
+local bookkeeping. Discovery and receipt deadlines persist separately in state.
+Each worker makes one network attempt and yields on failure; there is no sleeping
+retry inside a worker slot. Lock cancels and joins every active job. Metadata
+receipts wait until discovered content requests have been registered, preserving
+relay cleanup fences. Unchanged cursor acknowledgements are deduplicated, and a
+successful publication batch catches the metadata cursor up before reporting
+completion.
+
+Server auth, status, library-control and document-data request budgets are
+separate, each retaining the configured burst and refill. Library feed checks,
+deletion synchronization and cursor acknowledgements use the library budget.
+`429` responses identify their budget with `X-Klefki-Retry-Scope`. Updated web
+clients honor a library cooldown without delaying publication or blob requests;
+unscoped data limits retain the shared document cooldown for compatibility.
+Status throttling and an individual request's `503 Retry-After` cannot impose a
+cooldown on document data. HTTP failure status and the affected job/document are
+visible in activity. A document-data limit still defers document requests.
+
+Validation: both new blocking regressions failed against the preceding build.
+After correction, the receiving browser verified a new upload while the source's
+library request remained held, and another new document passed an older
+publication's 30-second retry without retrying that publication early. Its
+deadline and dependent-revision ordering survived reopening. Another test held
+two downloads and verified an upload in the opposite direction before releasing
+them. Separate browser cases cover status, scoped library and unscoped data
+limits; the server test exhausts the library bucket without consuming the
+document bucket.
+
+All 29 distinct Chromium cases passed across the regression run and focused
+reruns, including conflicts, corrupt downloads without false receipts, relay
+bootstrap/cleanup, pause, Trash policy and expiry. The interrupted-upload case
+checks that encrypted chunks survive reopening and then upload successfully.
+The expiry fixture now creates the same revision/work bookkeeping as a local
+edit. `go test ./server ./core/sync -timeout=300s`, the final server rerun, all
+55 desktop frontend tests, and the production web build passed. Hosted
+authenticated accounts and physical PWA background execution were not exercised.
+
 `GET /v1/sync/settings` advertises `work_queue`. The new endpoints require the
 existing authenticated account session and enrolled `X-Klefki-Device`:
 

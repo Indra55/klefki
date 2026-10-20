@@ -56,6 +56,65 @@ test('unchanged checks avoid file inventory and identical metadata saves create 
  }finally{c.wipe(fixture.master);}
 });
 
+test('an in-flight library update does not block a new local upload',async({page,browser})=>{
+ await c.ready;const fixture=c.createAccount(password),context=await browser.newContext(),receiver=await context.newPage();let release!:()=>void;
+ const held=new Promise<void>(resolve=>{release=resolve});let libraryRequests=0;
+ try{
+  await open(page,fixture.account);await register(page);await open(receiver,fixture.account);
+  await expect(receiver.getByRole('button',{name:'Sync status',exact:true})).toHaveAttribute('data-state','synced');
+  await page.route('**/v1/sync/changes?*',async route=>{libraryRequests++;await held;await route.continue();});
+  await upload(receiver,{name:'remote-trigger.txt',mimeType:'text/plain',buffer:Buffer.from('remote discovery trigger')});
+  await expect.poll(()=>libraryRequests).toBeGreaterThan(0);
+  await upload(page,{name:'new-during-library-update.txt',mimeType:'text/plain',buffer:Buffer.from('independent upload fixture')});
+  await expect(receiver.getByRole('button',{name:'Open new-during-library-update.txt',exact:true})).toBeVisible({timeout:12000});
+  await expect(receiver.locator('article').filter({has:receiver.getByText('new-during-library-update.txt',{exact:true})})).not.toContainText('Not stored on this device',{timeout:5000});
+ }finally{release();await context.close();c.wipe(fixture.master);}
+});
+
+test('a failed older metadata publication yields to new documents during its retry delay',async({page,browser})=>{
+ await c.ready;const fixture=c.createAccount(password),context=await browser.newContext(),receiver=await context.newPage();let failures=0,dependents=0;
+ try{
+  await open(page,fixture.account);await register(page);await open(receiver,fixture.account);
+  await expect(receiver.getByRole('button',{name:'Sync status',exact:true})).toHaveAttribute('data-state','synced');
+  await page.route('**/v1/sync/revisions/*',async route=>{
+   const revision=route.request().postDataJSON();
+   const name=c.decryptMetadata(fixture.master,fixture.account.account,revision.object,c.unbase64(revision.metadata)).name;
+   if(name==='old-metadata.txt'){failures++;await route.fulfill({status:503,headers:{'Retry-After':'30'},body:''});return;}
+   if(name==='dependent-metadata.txt')dependents++;
+   await route.continue();
+  });
+  await upload(page,{name:'old-metadata.txt',mimeType:'text/plain',buffer:Buffer.from('old publication fixture')});await expect.poll(()=>failures).toBe(1);
+  await documentAction(page,'old-metadata.txt','Edit details & move');await page.getByLabel('Name',{exact:true}).fill('dependent-metadata.txt');await page.getByRole('button',{name:'Save changes',exact:true}).click();
+  await upload(page,{name:'new-past-metadata-retry.txt',mimeType:'text/plain',buffer:Buffer.from('new publication fixture')});
+  await expect(receiver.getByRole('button',{name:'Open new-past-metadata-retry.txt',exact:true})).toBeVisible({timeout:12000});
+  await expect(receiver.locator('article').filter({has:receiver.getByText('new-past-metadata-retry.txt',{exact:true})})).not.toContainText('Not stored on this device',{timeout:5000});
+  expect(failures).toBe(1);expect(dependents).toBe(0);
+  await page.reload();await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Unlock Klefki',exact:true}).click();
+  await upload(page,{name:'after-reopen.txt',mimeType:'text/plain',buffer:Buffer.from('durable metadata retry fixture')});await expect(receiver.getByRole('button',{name:'Open after-reopen.txt',exact:true})).toBeVisible({timeout:12000});
+  expect(failures).toBe(1);expect(dependents).toBe(0);
+ }finally{await context.close();c.wipe(fixture.master);}
+});
+
+for(const scope of ['status','library','data'] as const)test(`${scope} rate limits respect their request budget`,async({page,browser})=>{
+ await c.ready;const fixture=c.createAccount(password),context=await browser.newContext(),receiver=await context.newPage();let failures=0,published=0;
+ try{
+  await open(page,fixture.account);await register(page);await open(receiver,fixture.account);await expect(receiver.getByRole('button',{name:'Sync status',exact:true})).toHaveAttribute('data-state','synced');
+  const limited=scope==='status'?'**/v1/sync/status?*':'**/v1/sync/changes?*';
+  await page.route(limited,async route=>{failures++;await route.fulfill({status:429,headers:{'Retry-After':'30',...(scope==='library'?{'X-Klefki-Retry-Scope':'library'}:{})},body:''});});
+  if(scope==='status'){
+   await page.getByRole('button',{name:'Sync status',exact:true}).click();await expect.poll(()=>failures).toBe(1);await page.getByRole('dialog',{name:'Sync activity'}).getByRole('button',{name:'Close',exact:true}).click();
+  }else{await upload(receiver,{name:'rate-trigger.txt',mimeType:'text/plain',buffer:Buffer.from('rate trigger fixture')});await expect.poll(()=>failures).toBe(1);}
+  page.on('request',request=>{if(request.method()==='PUT'&&request.url().includes('/sync/revisions/'))published++;});
+  await upload(page,{name:'new-during-rate-limit.txt',mimeType:'text/plain',buffer:Buffer.from('rate budget fixture')});await expect(page.getByRole('button',{name:'Open new-during-rate-limit.txt',exact:true})).toBeVisible();
+  if(scope==='data'){
+   await page.waitForTimeout(2000);expect(published).toBe(0);await page.getByRole('button',{name:'Sync status',exact:true}).click();await expect(page.getByRole('dialog',{name:'Sync activity'})).toContainText('Server rate limit');
+  }else{
+   await expect(receiver.getByRole('button',{name:'Open new-during-rate-limit.txt',exact:true})).toBeVisible({timeout:12000});await expect(receiver.locator('article').filter({has:receiver.getByText('new-during-rate-limit.txt',{exact:true})})).not.toContainText('Not stored on this device',{timeout:5000});
+  }
+  expect(failures).toBe(1);
+ }finally{await context.close();c.wipe(fixture.master);}
+});
+
 test('an older library read cannot hide a document that already arrived',async({page,browser})=>{
  await c.ready;const fixture=c.createAccount(password),context=await browser.newContext(),receiver=await context.newPage();
  try{
