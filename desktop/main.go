@@ -249,6 +249,17 @@ func (a *App) Export(revision, name string) (string, error) {
 	v, e := a.service.Export(revision, path)
 	return v, safe(e)
 }
+func (a *App) ExportSelection(revisions []string) (string, error) {
+	path, e := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{Title: "Download selected items", DefaultFilename: "klefki-documents.zip", Filters: []runtime.FileFilter{{DisplayName: "ZIP archive", Pattern: "*.zip"}}})
+	if e != nil {
+		return "", errors.New("DIALOG_FAILED")
+	}
+	if path == "" {
+		return "", nil
+	}
+	operation, e := a.service.ExportSelection(revisions, path)
+	return operation, safe(e)
+}
 func (a *App) ExportAccount() error {
 	path, e := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{Title: "Save encrypted account file", DefaultFilename: "account.v1"})
 	if e != nil {

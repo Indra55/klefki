@@ -4,6 +4,8 @@ import '@fontsource/inter/latin-500.css';
 import './style.css';
 import { node, button, field, icon, iconButton, menu, preferences, applyPreferences } from './ui.ts';
 import {transferDestinations,type TransferItem} from '../../ui/library-transfer.ts';
+import {exportEntries} from '../../ui/export-selection.ts';
+import {ZipArchive} from './zip.ts';
 import {folderImage,folderIconPicker} from './folder-icons.ts';
 import { settingsPage, type Section } from './settings.ts';
 import { showPreview, closePreviews } from './preview.ts';
@@ -541,7 +543,11 @@ async function library() {
             const count=node('span',selectedItems.size+' selected');count.setAttribute('role','status');
             const all=button(selectedItems.size===selectable.length&&selectedItems.size?'Deselect all':'Select all',()=>{if(selectedItems.size===selectable.length)selectedItems.clear();else for(const h of selectable)selectedItems.add(h.revision.id);renderRows();},'quiet');
             const move=button('Move to…',()=>transferDialog(false),'quiet'),copy=button('Copy to…',()=>transferDialog(true),'quiet');move.disabled=copy.disabled=!selectedItems.size;
-            selectionBar.append(count,all,move,copy);
+            const save=button('Download ZIP',()=>{
+                const revisions=[...selectedItems];save.disabled=true;
+                void downloadSelection(revisions).finally(()=>{save.disabled=!selectedItems.size;});
+            },'quiet');save.disabled=!selectedItems.size;
+            selectionBar.append(count,all,move,copy,save);
         }
         for (const h of visible) {
             const row = node('article', undefined, 'document'), open = button('', () => {
@@ -645,6 +651,26 @@ async function addFiles(files: File[]) {
 function exportDocument(h: Head) {
     if(h.contentMissing){message('This file is not stored on this device. Sync to download it, or restore a backup folder.');return;}
     void operation(async (key,g) => { const bytes = await store!.export(key,h.revision); try { if (g === generation) download(bytes,h.metadata.name); } finally { c.wipe(bytes); } });
+}
+function downloadSelection(revisions:string[]){
+    const s=store!,archive=new ZipArchive();
+    return operation(async(key,g)=>{
+        try{
+            const snapshot=await s.heads(key,true),entries=exportEntries(transferItems(snapshot),revisions);
+            for(let n=0;n<entries.length;n++){
+                if(g!==generation||store!==s)return;
+                const entry=entries[n],revision=await s.revision(entry.revision);
+                if(!entry.directory&&!await s.contentAvailable(key,revision))throw Error('Some selected files are not stored on this device. Sync them before downloading.');
+                const bytes=entry.directory?new Uint8Array():await s.export(key,revision).catch(()=>{throw Error('EXPORT_INVALID_CONTENT');});
+                try{if(g!==generation||store!==s)return;archive.add(entry.name,bytes,entry.directory);}finally{c.wipe(bytes);}
+                message(`Preparing ZIP… ${n+1} of ${entries.length}`);
+                await new Promise(resolve=>setTimeout(resolve,0));
+            }
+            if(g!==generation||store!==s)return;
+            download(archive.finish(),'klefki-documents.zip','application/zip');message('ZIP download started.');
+        }catch(error){if(g===generation)message(error instanceof Error&&!['Invalid data','EXPORT_INVALID_CONTENT'].includes(error.message)?error.message:'Could not download the selection. Sync or restore damaged files and try again.');}
+        finally{archive.clear();}
+    });
 }
 function shareDocument(h: Head) {
     void operation(async (key,g) => {

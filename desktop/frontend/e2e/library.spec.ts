@@ -23,6 +23,7 @@ test('mixed selection supports ranges, safe destinations and narrow layouts',asy
   ].map(item=>({...item,tags:[],favorite:false,size:12,conflict:false,trashed:false,trashRoot:false}));
   bridge.List=async()=>({generation:1,items});
   bridge.Transfer=async(revisions:string[],parent:string|null,copy:boolean)=>{(window as any).__transfer={revisions,parent,copy};if(!copy)for(const item of items)if(revisions.includes(item.revision))item.parent=parent;};
+  bridge.ExportSelection=async(revisions:string[])=>{(window as any).__exportSelection=revisions;return '';};
  });
  await page.goto('/');await expect(page.getByText('Alpha.txt',{exact:true})).toBeVisible();
  await page.getByText('Alpha.txt',{exact:true}).click({modifiers:['Control']});
@@ -33,8 +34,11 @@ test('mixed selection supports ranges, safe destinations and narrow layouts',asy
   await page.setViewportSize({width,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await expect(page.getByRole('button',{name:'Copy to…',exact:true})).toBeInViewport();
+  await expect(page.getByRole('button',{name:'Download ZIP',exact:true})).toBeInViewport();
  }
  await page.screenshot({path:'/tmp/klefki-selection-desktop.png'});
+ await page.getByRole('button',{name:'Download ZIP',exact:true}).click();
+ await expect.poll(()=>page.evaluate(()=>(window as any).__exportSelection)).toEqual(['a-rev','b-rev','records-rev']);
  await page.getByRole('button',{name:'Move to…',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Move items'});
  await expect(dialog.getByRole('option')).toHaveText(['All / Destination']);

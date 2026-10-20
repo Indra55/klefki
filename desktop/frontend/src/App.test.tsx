@@ -10,6 +10,23 @@ let state:State;let events:Record<string,(e:any)=>void>;
 beforeEach(()=>{state={config:{accountPath:'account.v1',storePath:'local.db',server:'',preferences:{theme:'dark',idleMinutes:5}},unlocked:true,generation:1,accountID:'account',recoveryOnly:false,sync:'Local only',pending:0,lastSync:''};events={};vi.spyOn(document,'hasFocus').mockReturnValue(true);window.matchMedia=vi.fn().mockReturnValue({matches:true,addEventListener:vi.fn(),removeEventListener:vi.fn()});window.runtime={EventsOn:(name,cb)=>{events[name]=cb;return()=>{delete events[name]}}};window.go={main:{App:{State:vi.fn(async()=>state),List:vi.fn(async()=>({generation:state.generation,items:[item]})),Touch:vi.fn(),Lock:vi.fn(async()=>{state={...state,unlocked:false,generation:2};events['klefki:event']?.({generation:2,kind:'locked'})}),Edit:vi.fn(async()=>''),ClosePreview:vi.fn()} as any}}});
 afterEach(()=>{cleanup();vi.restoreAllMocks()});
 describe('library',()=>{
+ it('downloads a mixed selection as one ZIP and retains it after save cancellation or failure',async()=>{
+  const bridge=window.go!.main.App,folder:Item={...item,object:'folder',revision:'folder-rev',name:'Records',type:'folder'};
+  bridge.List=vi.fn(async()=>({generation:1,items:[item,folder]}));
+  bridge.ExportSelection=vi.fn().mockResolvedValueOnce('').mockRejectedValueOnce(Error('EXPORT_CONTENT_NOT_LOCAL')).mockResolvedValue('export-fixture');
+  render(<App/>);await screen.findByText('Records');
+  await userEvent.click(screen.getByRole('button',{name:'Select items'}));
+  expect(screen.getByRole('button',{name:'Download ZIP'})).toBeDisabled();
+  await userEvent.click(screen.getByRole('checkbox',{name:'Select Passport.txt'}));await userEvent.click(screen.getByRole('checkbox',{name:'Select Records'}));
+  await userEvent.click(screen.getByRole('button',{name:'Download ZIP'}));
+  await waitFor(()=>expect(bridge.ExportSelection).toHaveBeenCalledWith(['revision','folder-rev']));
+  expect(screen.getByRole('checkbox',{name:'Select Records'})).toBeChecked();
+  await userEvent.click(screen.getByRole('button',{name:'Download ZIP'}));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Sync them before downloading.');
+  expect(screen.getByRole('checkbox',{name:'Select Passport.txt'})).toBeChecked();
+  await userEvent.click(screen.getByRole('button',{name:'Download ZIP'}));
+  expect(await screen.findByRole('complementary',{name:'File transfers'})).toHaveTextContent('Downloading selected items');
+ });
  it('selects mixed siblings, excludes folder descendants and transfers the selection',async()=>{
   const bridge=window.go!.main.App;
   const folder:Item={...item,object:'folder',revision:'folder-rev',name:'Records',type:'folder',tags:[]};
