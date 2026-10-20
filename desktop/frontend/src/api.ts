@@ -18,6 +18,7 @@ export type TagSuggestion=TagChange&{name:string;tags:string[];new:boolean;basis
 export type OrganizationPlan={generation:number;suggestions:TagSuggestion[];tags:string[];skipped:number};
 export interface API {
  SystemNotificationsAvailable?():Promise<boolean>;ReadIncoming?():Promise<void>;NotifyIncoming?():Promise<void>;
+ Transfer(revisions:string[],parent:string|null,duplicate:boolean):Promise<void>;
  SuggestOrganization?(custom:string[]):Promise<OrganizationPlan>;ApplyOrganization?(generation:number,changes:TagChange[]):Promise<number>;
  SemanticStatus?():Promise<SemanticStatus>;ConfigureSemantic?(p:SemanticPreferences):Promise<void>;SetupSemantic?():Promise<string>;ImportSemanticModel?():Promise<string>;Analyze?(revision:string):Promise<Analysis>;CorrectAnalysis?(revision:string,category:string,fields:Field[],resolve:string[]):Promise<string>;
  State():Promise<State>; FingerprintStatus():Promise<FingerprintState>; EnableFingerprint():Promise<void>;DisableFingerprint():Promise<void>;UnlockFingerprint():Promise<void>;CancelFingerprint():Promise<void>; Unlock(secret:string,recovery:boolean):Promise<void>; Lock():Promise<void>; Touch():Promise<void>;

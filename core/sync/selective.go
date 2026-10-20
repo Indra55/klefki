@@ -101,7 +101,7 @@ func (s *Store) ContentAvailable(master vc.Key, revision string) (bool, error) {
 // trashed_at values. An active conflict branch keeps its history eligible.
 func (s *Store) trashObjects(master vc.Key) (map[string]bool, error) {
 	defer vc.Wipe(master[:])
-	heads, e := s.allHeads(master)
+	heads, e := s.AllHeads(master)
 	if e != nil {
 		return nil, e
 	}

@@ -1,4 +1,5 @@
 import * as c from './crypto.ts';
+import {transferTree,type TransferItem} from '../../ui/library-transfer.ts';
 export interface Revision {
     id: string;
     object: string;
@@ -249,8 +250,7 @@ export class Store {
         if (pending) this.onChange?.();
     }
     async acknowledge(id: string) { await this.transaction(['revisions'], 'readwrite', async (tx) => { const s = tx.objectStore('revisions'), x: Stored = await req(s.get(id)); c.check(x); x.pending = !!x.uploadPending||!!x.deferred&&!!x.wanted;x.metadataPending=false;x.metadataQueued=0; s.put(x); }); }
-    async put(master: Uint8Array, m: c.Metadata, bytes?: Uint8Array, base?: Revision) {
-        if(m.parent)c.check(!await this.transaction(['deletions'],'readonly',tx=>req(tx.objectStore('deletions').get(m.parent!))));
+    private preparePut(master: Uint8Array, m: c.Metadata, bytes?: Uint8Array, base?: Revision) {
         const object = base?.object || c.id(), r: Revision = { id: c.id(), object, base: base?.id || '', metadata: '' }, chunks: Uint8Array[] = [];
         let file: string | undefined;
         if (m.type === 'file') {
@@ -268,8 +268,54 @@ export class Store {
             }
         }
         r.metadata = c.base64(c.encryptMetadata(master, this.account.account, object, m));
-        await this.commit(r, chunks, file, true);
+        return {r,chunks,file};
+    }
+    async put(master: Uint8Array, m: c.Metadata, bytes?: Uint8Array, base?: Revision) {
+        if(m.parent)c.check(!await this.transaction(['deletions'],'readonly',tx=>req(tx.objectStore('deletions').get(m.parent!))));
+        const {r,chunks,file}=this.preparePut(master,m,bytes,base);
+        await this.commit(r,chunks,file,true);
         return r;
+    }
+    async transfer(master:Uint8Array, heads:Head[], items:TransferItem[], revisions:string[], destination:string|null, copy:boolean, active:()=>boolean) {
+        const plan=transferTree(items,revisions,destination,copy), objects=new Map<string,string>();
+        const prepared:ReturnType<Store['preparePut']>[]=[];
+        for(let n=0;n<plan.length;n++){
+            c.check(active());
+            const item=plan[n],h=heads.find(h=>h.revision.id===item.revision)!;
+            const parent=n<revisions.length?destination:objects.get(item.parent!)!;
+            if(copy){
+                let bytes:Uint8Array|undefined;
+                try{
+                    if(h.metadata.type==='file')bytes=await this.export(master,h.revision);
+                    c.check(active());
+                    const entry=this.preparePut(master,{...h.metadata,parent},bytes);
+                    prepared.push(entry);objects.set(item.object,entry.r.object);
+                }finally{if(bytes)c.wipe(bytes);}
+            }else{
+                prepared.push({r:{...h.revision,id:c.id(),base:h.revision.id,metadata:c.base64(c.encryptMetadata(master,this.account.account,item.object,{...h.metadata,parent}))},chunks:[],file:undefined});
+            }
+        }
+        await this.transaction(['revisions','chunks','state','deletions','work'],'readwrite',async tx=>{
+            c.check(active());
+            const records=tx.objectStore('revisions'),state=tx.objectStore('state'),chunks=tx.objectStore('chunks');
+            const all:Stored[]=await req(records.getAll()),bases=new Set(all.map(r=>r.revision.base));
+            const current=all.filter(r=>!bases.has(r.revision.id));
+            const expected=new Set(heads.map(h=>h.revision.id));
+            if(current.length!==expected.size||current.some(r=>!expected.has(r.revision.id)))throw Error('The library changed. Select the items again.');
+            const origin=await req(state.get('relay-device')) as string;
+            if(destination)c.check(!await req(tx.objectStore('deletions').get(destination)));
+            let order=await req(state.get('order'))||0;
+            for(const {r,file,chunks:content} of prepared){
+                c.check(!await req(tx.objectStore('deletions').get(r.object)));
+                for(let i=0;i<content.length;i++)chunks.add(content[i],file+':'+i);
+                const old=!copy?all.find(record=>record.revision.id===r.base):undefined;
+                const fileID=fileIdentity(r);
+                records.add({revision:r,pending:true,metadataPending:true,metadataQueued:1,file:fileID||undefined,order:++order,origin,...(old?.deferred?{deferred:true,wanted:old.wanted,trash:old.trash}:{})} satisfies Stored);
+                if(fileID)tx.objectStore('work').put(workTask(r,true));else if(r.base)state.put(true,'work-reconcile');
+            }
+            state.put(order,'order');c.check(active());
+        });
+        this.onChange?.();
     }
     async edit(master: Uint8Array, base: Revision, edit: Pick<c.Metadata, 'name' | 'parent' | 'tags' | 'favorite' | 'trashed_at' | 'trash_previous_parent' | 'folder_icon'>) {
         if(edit.parent)c.check(!await this.transaction(['deletions'],'readonly',tx=>req(tx.objectStore('deletions').get(edit.parent!))));

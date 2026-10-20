@@ -299,7 +299,7 @@ func (w *chunkWriter) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 func (s *Store) Heads(master vc.Key) ([]Head, error) {
-	heads, e := s.allHeads(master)
+	heads, e := s.AllHeads(master)
 	if e != nil {
 		return nil, e
 	}
@@ -315,7 +315,7 @@ func (s *Store) Heads(master vc.Key) ([]Head, error) {
 	}
 	return out, nil
 }
-func (s *Store) allHeads(master vc.Key) ([]Head, error) {
+func (s *Store) AllHeads(master vc.Key) ([]Head, error) {
 	defer vc.Wipe(master[:])
 	rows, e := s.db.Query(`SELECT r.id,r.object,r.metadata FROM revisions r WHERE NOT EXISTS(SELECT 1 FROM revisions child WHERE child.base=r.id) ORDER BY r.object,r.id`)
 	if e != nil {

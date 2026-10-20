@@ -3,6 +3,7 @@ import '@fontsource/inter/latin-400.css';
 import '@fontsource/inter/latin-500.css';
 import './style.css';
 import { node, button, field, icon, iconButton, menu, preferences, applyPreferences } from './ui.ts';
+import {transferDestinations,type TransferItem} from '../../ui/library-transfer.ts';
 import {folderImage,folderIconPicker} from './folder-icons.ts';
 import { settingsPage, type Section } from './settings.ts';
 import { showPreview, closePreviews } from './preview.ts';
@@ -37,6 +38,7 @@ let syncModeDraft: {base:string;selected:string} | undefined;
 let view = 'All documents', tag = '', sort = preferences().defaultSort, settings: Section | null = null, feedback = '', syncState = 'Local only';
 let syncInfo:SyncInfo=idleSync(),syncActivity:SyncActivity[]=[],aliases:Record<string,string>={},syncDevice='',linkedDevices:string[]=[],lastSync=0;
 let operationQueue=Promise.resolve();
+let selecting=false,selectedItems=new Set<string>(),selectionContext='',selectionAnchor:string|undefined;
 let syncPaused=false,pauseSaving=false;
 let syncRunning=false,syncRequested=false,registerRequested=false,refreshRequested=false,syncTimer:number|undefined,monitorBusy=false,lastPresence=0,lastDeviceCheck=0;
 const syncView=new SyncView({refresh:()=>void syncNow(false,false,true),settings:()=>showSettings('sync'),panel:open=>{if(open){lastDeviceCheck=0;void monitorSync()}},alias:saveAlias,pause:()=>void setSyncPaused(!syncPaused)});
@@ -136,7 +138,7 @@ function shell() {
     }
     root.prepend(header); if (waitingUpdate?.waiting) offerUpdate(root); app.append(root); return root;
 }
-function lock() { restoreController?.abort();restoreController=undefined; folderBackup?.stop();folderBackup=undefined;localRecovery=false;lastLibraryState=''; syncModeDraft=undefined;syncView.clear();incomingView.clear();window.clearTimeout(syncTimer);syncInfo=idleSync();syncActivity=[];aliases={};syncDevice='';linkedDevices=[];lastSync=0;syncPaused=pauseSaving=syncRunning=syncRequested=registerRequested=refreshRequested=monitorBusy=false;lastPresence=lastDeviceCheck=lastDeviceReport=pendingChanges=0;deviceReportRequested=true;closeShares();closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
+function lock() { selecting=false;selectedItems.clear();selectionContext='';selectionAnchor=undefined; restoreController?.abort();restoreController=undefined; folderBackup?.stop();folderBackup=undefined;localRecovery=false;lastLibraryState=''; syncModeDraft=undefined;syncView.clear();incomingView.clear();window.clearTimeout(syncTimer);syncInfo=idleSync();syncActivity=[];aliases={};syncDevice='';linkedDevices=[];lastSync=0;syncPaused=pauseSaving=syncRunning=syncRequested=registerRequested=refreshRequested=monitorBusy=false;lastPresence=lastDeviceCheck=lastDeviceReport=pendingChanges=0;deviceReportRequested=true;closeShares();closePreviews(); passkeyController?.abort(); passkeyController = undefined; modelSetupController?.abort(); modelSetupController=undefined; semantic.clearPrivate(); generation++; controller?.abort(); controller = undefined; remote = undefined; if (master)
     c.wipe(master); if (credential)
     c.wipe(credential); master = credential = undefined; heads = []; store?.close(); store = undefined; release?.(); release = undefined; busy = false; parent = null; filter = ''; favorites = false; view = 'All documents'; tag = ''; settings = null; feedback = ''; syncState = 'Local only'; for (const url of urls)
     URL.revokeObjectURL(url); urls.clear(); for (const b of previews)
@@ -470,9 +472,14 @@ async function library() {
         const item = button(label, () => { tag = label === 'All' ? '' : label; void library(); }, 'category' + ((label === 'All' ? !tag : label === tag) ? ' selected' : ''));
         item.setAttribute('aria-pressed', String(label === 'All' ? !tag : label === tag)); categories.append(item);
     }
+    const canSelect=()=>!filter.trim()&&(view==='All documents'||view==='Folders');
+    const context=JSON.stringify([view,parent,tag,filter]);
+    if(selectionContext!==context){selecting=false;selectedItems.clear();selectionAnchor=undefined;selectionContext=context;}
+    const selectItems=button(selecting?'Cancel selection':'Select items',()=>{selecting=!selecting;selectedItems.clear();selectionAnchor=undefined;void library();},'quiet');selectItems.setAttribute('aria-pressed',String(selecting));
     const categoryLine = node('div', undefined, 'category-line'), actions = node('div', undefined, 'library-actions');
     const upload = node('input'); upload.type = 'file'; upload.multiple = true; upload.hidden = true; upload.setAttribute('aria-label', 'Add document');
     upload.onchange = () => { void addFiles(Array.from(upload.files || [])); upload.value = ''; };
+    if(canSelect())actions.append(selectItems);
     actions.append(iconButton('New folder', 'folderPlus', folderDialog), iconButton('Add files', 'plus', () => upload.click(), 'add-files'), upload);
     categoryLine.append(categories); if (view !== 'Trash') categoryLine.append(actions); main.append(categoryLine);
     const tools = node('div', undefined, 'library-tools'), crumbs = node('nav', undefined, 'breadcrumbs');
@@ -503,11 +510,14 @@ async function library() {
     const sortLabel = node('label',undefined,'sort'); sortLabel.append(sorting); right.append(sortLabel); tools.append(crumbs,right); main.append(tools,status);
     if(view==='Trash'){const emptyTrash=button('Empty Trash',()=>confirmDeletion(''),'quiet');emptyTrash.disabled=busy||!heads.some(h=>trashed(h)&&!isTrashRoot(h));main.append(emptyTrash);}
     if (view === 'Trash') main.append(node('p','Documents are permanently deleted after 30 days. Automatic cleanup waits for sync when connected.','trash-note'));
+    const selectionBar=node('div',undefined,'selection-toolbar');selectionBar.setAttribute('role','toolbar');selectionBar.setAttribute('aria-label','Selected items');main.append(selectionBar);
     const list = node('div', undefined, 'documents'), footer = node('footer', undefined, 'list-footer'); list.setAttribute('aria-label','Documents'); main.append(list,footer); root.append(main);
     if(localRecovery){const recovery=node('section',undefined,'settings-section');recovery.append(node('p','The local copy was not found. Sync is paused. Restore a backup folder, or resume sync to request copies from another device.'),button('Recovery options',()=>showSettings('storage')));main.prepend(recovery);}
     else if(!folderBackup?.status.completed&&!localStorage.getItem('klefki-backup-prompt-dismissed')){const prompt=node('section',undefined,'settings-section');prompt.append(node('p','Keep an encrypted recovery copy outside browser storage.'),button('Set up offline backup',()=>showSettings('storage')),button('Later',()=>{localStorage.setItem('klefki-backup-prompt-dismissed','1');prompt.remove();},'quiet'));main.prepend(prompt);}
     let ranked: string[] = [], searchSequence = 0;
     function renderRows() {
+        if(filter.trim()){selecting=false;selectedItems.clear();selectionAnchor=undefined;}
+        selectItems.hidden=!!filter.trim();selectItems.textContent=selecting?'Cancel selection':'Select items';selectItems.setAttribute('aria-pressed',String(selecting));
         list.replaceChildren(); clear.hidden = !filter;
         const query = filter.trim().toLocaleLowerCase();
         const visible = heads.filter(h => !semantic.internal(h) && !isTrashRoot(h) && (view === 'Trash' ? trashed(h) : !trashed(h)) && (!!query || ((view !== 'Favorites' || h.metadata.favorite) && (view !== 'All documents' || h.metadata.parent === null) && (view !== 'Folders' || h.metadata.parent === parent) && (!tag || h.metadata.tags.includes(tag) || categoryByRevision.get(h.revision.id) === tag))) && (!query || ranked.includes(h.revision.id) || (h.metadata.name + ' ' + h.metadata.tags.join(' ')).toLocaleLowerCase().includes(query)));
@@ -515,11 +525,33 @@ async function library() {
             if (ranked.length) { const ai = ranked.indexOf(a.revision.id), bi = ranked.indexOf(b.revision.id); const rank = (ai < 0 ? Infinity : ai) - (bi < 0 ? Infinity : bi); if (rank) return rank; }
             return (sort === 'size' ? (b.metadata.size || 0) - (a.metadata.size || 0) : sort === 'type' ? a.metadata.type.localeCompare(b.metadata.type) : 0) || a.metadata.name.localeCompare(b.metadata.name);
         });
+        const selectable=visible.filter(h=>!h.conflict&&!trashed(h)&&h.metadata.parent===(view==='Folders'?parent:null));
+        for(const revision of selectedItems)if(!selectable.some(h=>h.revision.id===revision))selectedItems.delete(revision);
+        selectionBar.replaceChildren();selectionBar.hidden=!(selecting&&canSelect());
+        function toggleSelection(h:Head,range=false){
+            if(!selectable.includes(h))return;
+            selecting=true;
+            const start=selectable.findIndex(h=>h.revision.id===selectionAnchor),end=selectable.indexOf(h);
+            if(range&&start>=0)for(const item of selectable.slice(Math.min(start,end),Math.max(start,end)+1))selectedItems.add(item.revision.id);
+            else if(selectedItems.has(h.revision.id))selectedItems.delete(h.revision.id);else selectedItems.add(h.revision.id);
+            selectionAnchor=h.revision.id;renderRows();
+        }
+        if(selecting&&canSelect()){
+            selectItems.textContent='Cancel selection';selectItems.setAttribute('aria-pressed','true');
+            const count=node('span',selectedItems.size+' selected');count.setAttribute('role','status');
+            const all=button(selectedItems.size===selectable.length&&selectedItems.size?'Deselect all':'Select all',()=>{if(selectedItems.size===selectable.length)selectedItems.clear();else for(const h of selectable)selectedItems.add(h.revision.id);renderRows();},'quiet');
+            const move=button('Move to…',()=>transferDialog(false),'quiet'),copy=button('Copy to…',()=>transferDialog(true),'quiet');move.disabled=copy.disabled=!selectedItems.size;
+            selectionBar.append(count,all,move,copy);
+        }
         for (const h of visible) {
             const row = node('article', undefined, 'document'), open = button('', () => {
                 if (h.metadata.type === 'folder' && !trashed(h)) { view = 'Folders'; parent = h.revision.object; filter = ''; void library(); }
                 else if (h.metadata.type === 'file') void openDocument(h);
             }, 'document-open');
+            row.dataset.selected=String(selectedItems.has(h.revision.id));
+            if(selecting&&canSelect()){const check=node('input',undefined,'document-select');check.type='checkbox';check.checked=selectedItems.has(h.revision.id);check.disabled=h.conflict;check.setAttribute('aria-label','Select '+h.metadata.name);check.onchange=()=>toggleSelection(h);row.append(check);}
+            const normalOpen=open.onclick;
+            open.onclick=event=>{if(canSelect()&&(selecting||event.ctrlKey||event.metaKey||event.shiftKey))toggleSelection(h,event.shiftKey);else normalOpen?.call(open,event);};
             open.setAttribute('aria-label', 'Open ' + h.metadata.name);
             const title = node('div', undefined, 'document-title'); if (h.metadata.type === 'folder') title.append(folderImage(h.metadata.folder_icon)); title.append(node('span',h.metadata.name));
             if (h.conflict) title.append(node('span','Conflict copy · ' + h.revision.id.slice(0,6),'conflict'));
@@ -569,6 +601,32 @@ async function library() {
     for(const details of root.querySelectorAll<HTMLDetailsElement>('.dropdown')){const previous=openMenus.find(menu=>menu.label===details.querySelector('summary')?.getAttribute('aria-label')&&menu.revision===details.closest<HTMLElement>('article')?.dataset.revision);if(previous){details.open=true;if(previous.focus)[...details.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find(item=>item.textContent===previous.focus)?.focus();}}
     main.ondragover = event => { event.preventDefault(); };
     main.ondrop = event => { event.preventDefault(); if (view !== 'Trash') void addFiles(Array.from(event.dataTransfer?.files || [])); };
+}
+function transferItems(source:Head[]=heads):TransferItem[]{return source.filter(h=>!semantic.internal(h)&&!isTrashRoot(h)).map(h=>({object:h.revision.object,revision:h.revision.id,...h.metadata,conflict:h.conflict,trashed:trashed(h)}));}
+function transferDialog(copy:boolean){
+    const revisions=[...selectedItems],chosen=transferItems().filter(i=>selectedItems.has(i.revision)),destinations=transferDestinations(transferItems(),chosen);
+    const g=generation,s=store!,dialog=node('dialog',undefined,'modal'),form=node('form'),label=node('label','Destination folder'),destination=node('select');
+    dialog.setAttribute('aria-label',copy?'Copy items':'Move items');destination.setAttribute('aria-label','Destination folder');
+    for(const d of destinations){const option=node('option',d.label);option.value=d.value;destination.append(option);}
+    const status=node('p',undefined,'form-error');status.setAttribute('role','alert');
+    const cancel=button('Cancel',()=>dialog.close(),'quiet'),submit=node('button',copy?'Copy here':'Move here','primary');submit.type='submit';submit.disabled=!destinations.length;
+    label.append(destination);form.append(label);if(!destinations.length)form.append(node('p','Create another folder first, then choose it here.','muted'));
+    const actions=node('div',undefined,'form-actions');actions.append(cancel,submit);form.append(status,actions);
+    let running=false;
+    dialog.oncancel=event=>{if(running)event.preventDefault();};
+    form.onsubmit=event=>{event.preventDefault();if(running||!destinations.length)return;running=true;submit.disabled=cancel.disabled=destination.disabled=true;submit.textContent=copy?'Copying…':'Moving…';
+        void operation(async(key,current)=>{
+            try{
+                c.check(current===g&&s===store);
+                const snapshot=await s.heads(key,true);
+                await s.transfer(key,snapshot,transferItems(snapshot),revisions,destination.value||null,copy,()=>g===generation&&store===s);
+                if(g===generation){selectedItems.clear();selecting=false;dialog.close();await refresh();message(`${revisions.length} ${revisions.length===1?'item':'items'} ${copy?'copied':'moved'}.`);}
+            }catch(error){if(g===generation){status.textContent=error instanceof Error&&error.message!=='Invalid data'?error.message:'Could not finish. Your items have not been changed. Try again.';message('The transfer did not finish. Your items have not been changed.');}}
+            finally{running=false;submit.disabled=cancel.disabled=destination.disabled=false;submit.textContent=copy?'Copy here':'Move here';}
+        });
+    };
+    dialog.append(node('h2',copy?'Copy items':'Move items'),node('p',`${chosen.length} selected. ${copy?'Folders include all their contents.':'Folder contents move with their folder.'}`,'muted'),form);
+    dialog.onclose=()=>dialog.remove();app.append(dialog);dialog.showModal();
 }
 const formatSize = (n: number) => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(0) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
 async function addFiles(files: File[]) {

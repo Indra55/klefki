@@ -11,6 +11,38 @@ test.beforeEach(async({page})=>{
  (window as any).go={main:{App:{AddFiles:async()=> 'upload-fixture',Cancel:async()=>{},State:async()=>structuredClone(state),List:async()=>({generation:state.generation,items}),Touch:async()=>{},Search:async(q:string)=>({generation:state.generation,hits:q==='nebula'?[{object:'0',revision:'0',name:'Passport',score:1}]:[]}),RebuildIndex:async()=> 'index-fixture',Lock:async()=>{state={...state,unlocked:false,generation:2};listeners['klefki:event']?.({generation:2,kind:'locked'})},SetPreferences:async(p:any)=>{state.config.preferences=p},ClosePreview:async()=>{}}}};
  });
 });
+test('mixed selection supports ranges, safe destinations and narrow layouts',async({page})=>{
+ await page.addInitScript(()=>{
+  const bridge=(window as any).go.main.App;
+  const items=[
+   {object:'a',revision:'a-rev',name:'Alpha.txt',type:'file',parent:null},
+   {object:'b',revision:'b-rev',name:'Beta.txt',type:'file',parent:null},
+   {object:'records',revision:'records-rev',name:'Records',type:'folder',parent:null},
+   {object:'nested',revision:'nested-rev',name:'Nested',type:'folder',parent:'records'},
+   {object:'target',revision:'target-rev',name:'Destination',type:'folder',parent:null},
+  ].map(item=>({...item,tags:[],favorite:false,size:12,conflict:false,trashed:false,trashRoot:false}));
+  bridge.List=async()=>({generation:1,items});
+  bridge.Transfer=async(revisions:string[],parent:string|null,copy:boolean)=>{(window as any).__transfer={revisions,parent,copy};if(!copy)for(const item of items)if(revisions.includes(item.revision))item.parent=parent;};
+ });
+ await page.goto('/');await expect(page.getByText('Alpha.txt',{exact:true})).toBeVisible();
+ await page.getByText('Alpha.txt',{exact:true}).click({modifiers:['Control']});
+ await page.getByText('Beta.txt',{exact:true}).click({modifiers:['Shift']});
+ await page.getByRole('checkbox',{name:'Select Records',exact:true}).check();
+ await expect(page.getByRole('toolbar',{name:'Selected items'})).toContainText('3 selected');
+ for(const width of [320,390,600,1200]){
+  await page.setViewportSize({width,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await expect(page.getByRole('button',{name:'Copy to…',exact:true})).toBeInViewport();
+ }
+ await page.screenshot({path:'/tmp/klefki-selection-desktop.png'});
+ await page.getByRole('button',{name:'Move to…',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Move items'});
+ await expect(dialog.getByRole('option')).toHaveText(['All / Destination']);
+ await dialog.getByRole('button',{name:'Move here',exact:true}).click();
+ await expect.poll(()=>page.evaluate(()=>(window as any).__transfer)).toEqual({revisions:['a-rev','b-rev','records-rev'],parent:'target',copy:false});
+ await expect(page.getByText('3 items moved.',{exact:true})).toBeVisible();
+ await expect(page.getByRole('checkbox')).toHaveCount(0);
+});
 
 for(const width of [320,390,600,800]){
  test(`upload has one success toast and no notification overlap at ${width}px`,async({page})=>{

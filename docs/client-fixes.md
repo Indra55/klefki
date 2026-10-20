@@ -5,6 +5,9 @@ issue before moving to the next. Commit and push each validated fix before
 starting the next issue; closely related fixes may share a commit. Existing
 unrelated documentation work stays intact.
 
+The later mixed-selection feature and its acceptance evidence are recorded in
+[Copy and move selected items](library-transfers.md).
+
 | # | Task | Status |
 |---|---|---|
 | 1 | Keep document editing open during background refresh on desktop, web and PWA | Fixed and validated |

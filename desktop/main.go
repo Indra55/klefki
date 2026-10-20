@@ -197,6 +197,9 @@ func (a *App) Edit(revision string, edit vs.Edit) (string, error) {
 	v, e := a.service.Edit(revision, edit)
 	return v, safe(e)
 }
+func (a *App) Transfer(revisions []string, parent *string, duplicate bool) error {
+	return safe(a.service.Transfer(revisions, parent, duplicate))
+}
 func (a *App) Folder(name string, parent *string) (string, error) {
 	v, e := a.service.Folder(name, parent)
 	return v, safe(e)
